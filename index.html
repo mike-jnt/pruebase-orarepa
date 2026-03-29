@@ -9,7 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
-
+<script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
 
 
 </head>
@@ -25,8 +25,8 @@
 
     <div class="space-y-4">
       <div>
-        <label for="loginUsuario" class="block text-sm font-semibold text-gray-700 mb-1">Usuario</label>
-        <input type="text" id="loginUsuario" class="w-full p-3 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Ingresa tu usuario" />
+        <label for="loginUsuario" class="block text-sm font-semibold text-gray-700 mb-1">Usuario o correo</label>
+        <input type="text" id="loginUsuario" class="w-full p-3 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Ingresa tu usuario o correo" />
       </div>
       <div>
         <label for="loginClave" class="block text-sm font-semibold text-gray-700 mb-1">Contraseña</label>
@@ -39,8 +39,8 @@
       <button onclick="iniciarSesion()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 rounded-lg">🔐 Ingresar</button>
       <p id="loginError" class="text-red-600 text-sm hidden"></p>
       <div class="text-xs text-gray-500 bg-yellow-50 p-3 rounded-lg border border-yellow-100">
-        <p><strong>Admin:</strong> admin / Admin123*</p>
-        <p><strong>Cajero:</strong> cajero1 / Caja123*</p>
+        <p><strong>Admin:</strong> admin o admin@local.io / admin123*</p>
+        <p><strong>Cajero:</strong> cajero o cajero@local.io / admin123*</p>
       </div>
     </div>
   </div>
@@ -464,18 +464,21 @@
 let comandaEnEdicion = null; // conserva la comanda al editar
 let reciboEnEdicion = null; // conserva el recibo al editar
 const usuariosSistema = {
-  admin: { clave: "Admin123*", rol: "admin", nombre: "Administrador" },
-  cajero1: { clave: "Caja123*", rol: "cajero", nombre: "Cajero 1" }
+  admin: { email: "admin@local.io", rol: "admin", nombre: "Administrador" },
+  cajero: { email: "cajero@local.io", rol: "cajero", nombre: "Cajero 1" }
 };
+const usuariosPorEmail = Object.fromEntries(Object.entries(usuariosSistema).map(([usuario, info]) => [String(info.email || '').toLowerCase(), { ...info, usuario }]));
 let rolActual = localStorage.getItem("rolActual") || "";
 let usuarioActual = localStorage.getItem("usuarioActual") || "";
-let sesionActiva = localStorage.getItem("sesionActiva") === "true";
+let sesionActiva = false;
 let ventaDocIdEnEdicion = null;
 let ventaOriginalEnEdicion = null;
 let ventasCache = JSON.parse(localStorage.getItem("ventas") || "[]");
 let firebaseApp = null;
+let firebaseAuth = null;
 let firestoreDb = null;
 let firestoreDisponible = false;
+let authDisponible = false;
 let ventasUnsubscribe = null;
 let firebaseInicializado = false;
 let firebaseConexionEstado = "desconectado";
@@ -569,6 +572,45 @@ const firebaseConfig = {
   measurementId: "G-8JGY4PVMMV"
 };
 
+
+function resolverRegistroUsuario(entradaUsuario = "") {
+  const valor = String(entradaUsuario || "").trim().toLowerCase();
+  if (!valor) return null;
+  if (usuariosSistema[valor]) return { usuario: valor, ...usuariosSistema[valor] };
+  if (usuariosPorEmail[valor]) return usuariosPorEmail[valor];
+  return null;
+}
+
+function resolverEmailIngreso(entradaUsuario = "") {
+  const valor = String(entradaUsuario || "").trim();
+  const registro = resolverRegistroUsuario(valor);
+  if (registro?.email) return registro.email;
+  if (valor.includes('@')) return valor;
+  return `${valor}@prsenorarepa.com`;
+}
+
+function aplicarSesionAutenticada(usuario, rol, email) {
+  usuarioActual = usuario || "";
+  rolActual = rol || "";
+  sesionActiva = Boolean(usuarioActual && rolActual);
+  localStorage.setItem("usuarioActual", usuarioActual);
+  localStorage.setItem("rolActual", rolActual);
+  localStorage.setItem("sesionActiva", String(sesionActiva));
+  localStorage.setItem("usuarioEmailActual", email || "");
+  aplicarPermisosPorRol();
+}
+
+function limpiarSesionLocal() {
+  rolActual = "";
+  usuarioActual = "";
+  sesionActiva = false;
+  localStorage.removeItem("rolActual");
+  localStorage.removeItem("usuarioActual");
+  localStorage.removeItem("usuarioEmailActual");
+  localStorage.setItem("sesionActiva", "false");
+  aplicarPermisosPorRol();
+}
+
 function normalizarVenta(venta = {}) {
   const copia = JSON.parse(JSON.stringify(venta));
   copia.total = Number(copia.total || 0);
@@ -607,12 +649,25 @@ async function inicializarFirebaseVentas() {
   }
   try {
     firebaseApp = firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(firebaseConfig);
+    firebaseAuth = firebase.auth(firebaseApp);
     firestoreDb = firebase.firestore(firebaseApp);
-    firestoreDisponible = true;
+    authDisponible = Boolean(firebaseAuth);
+    firestoreDisponible = Boolean(firestoreDb);
+    firebaseAuth.onAuthStateChanged((user) => {
+      if (user) {
+        const email = String(user.email || '').toLowerCase();
+        const registro = resolverRegistroUsuario(email) || resolverRegistroUsuario(user.displayName || '') || { usuario: email.split('@')[0], rol: 'cajero', nombre: user.displayName || email };
+        aplicarSesionAutenticada(registro.usuario || email.split('@')[0], registro.rol || 'cajero', user.email || '');
+      } else {
+        limpiarSesionLocal();
+      }
+    });
     escucharVentasFirestore();
   } catch (error) {
     console.error("Error al inicializar Firebase:", error);
     firestoreDisponible = false;
+    authDisponible = false;
+    actualizarIndicadorFirebase("desconectado", "No se pudo iniciar Firebase");
   }
 }
 
@@ -695,34 +750,46 @@ function toggleVerClave() {
   input.type = check.checked ? "text" : "password";
 }
 
-function iniciarSesion() {
+async function iniciarSesion() {
   const usuario = document.getElementById("loginUsuario")?.value.trim();
   const clave = document.getElementById("loginClave")?.value || "";
   const error = document.getElementById("loginError");
-  const registro = usuariosSistema[usuario];
 
-  if (!registro || registro.clave !== clave) {
+  if (!usuario || !clave) {
     if (error) {
-      error.textContent = "Usuario o contraseña incorrectos.";
+      error.textContent = "Ingresa usuario/correo y contraseña.";
       error.classList.remove("hidden");
     }
     return;
   }
 
-  usuarioActual = usuario;
-  rolActual = registro.rol;
-  sesionActiva = true;
-  localStorage.setItem("usuarioActual", usuarioActual);
-  localStorage.setItem("rolActual", rolActual);
-  localStorage.setItem("sesionActiva", "true");
-  aplicarPermisosPorRol();
+  if (!authDisponible || !firebaseAuth) {
+    if (error) {
+      error.textContent = "Firebase Auth aún no está listo. Revisa la conexión.";
+      error.classList.remove("hidden");
+    }
+    return;
+  }
 
-  if (error) error.classList.add("hidden");
-  const campoClave = document.getElementById("loginClave");
-  const toggle = document.getElementById("toggleClave");
-  if (campoClave) campoClave.value = "";
-  if (toggle) toggle.checked = false;
-  toggleVerClave();
+  const email = resolverEmailIngreso(usuario);
+
+  try {
+    await firebaseAuth.signInWithEmailAndPassword(email, clave);
+    if (error) error.classList.add("hidden");
+    const campoClave = document.getElementById("loginClave");
+    const campoUsuario = document.getElementById("loginUsuario");
+    const toggle = document.getElementById("toggleClave");
+    if (campoClave) campoClave.value = "";
+    if (campoUsuario) campoUsuario.value = "";
+    if (toggle) toggle.checked = false;
+    toggleVerClave();
+  } catch (err) {
+    console.error("Error al iniciar sesión con Firebase Auth:", err);
+    if (error) {
+      error.textContent = "No fue posible iniciar sesión. Verifica el usuario/correo y la contraseña en Firebase Auth.";
+      error.classList.remove("hidden");
+    }
+  }
 }
 
 function esAdmin() {
@@ -745,15 +812,18 @@ function verificarAcceso(rolesPermitidos) {
   return true;
 }
 
-function cerrarSesionRol() {
+async function cerrarSesionRol() {
   volverAlPOS();
-  rolActual = "";
-  usuarioActual = "";
-  sesionActiva = false;
-  localStorage.removeItem("rolActual");
-  localStorage.removeItem("usuarioActual");
-  localStorage.setItem("sesionActiva", "false");
-  aplicarPermisosPorRol();
+  try {
+    if (firebaseAuth) {
+      await firebaseAuth.signOut();
+    } else {
+      limpiarSesionLocal();
+    }
+  } catch (error) {
+    console.error("Error al cerrar sesión:", error);
+    limpiarSesionLocal();
+  }
 }
 
 function aplicarPermisosPorRol() {
@@ -1577,9 +1647,18 @@ function volverAlPOS() {
 }
 
 
-    window.onload = () => {
+    window.onload = async () => {
       mostrarVentas();
       aplicarPermisosPorRol();
+      await inicializarFirebaseVentas();
+      const loginUsuario = document.getElementById("loginUsuario");
+      const loginClave = document.getElementById("loginClave");
+      [loginUsuario, loginClave].forEach(campo => {
+        if (!campo) return;
+        campo.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") iniciarSesion();
+        });
+      });
     };
   </script>
 
