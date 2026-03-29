@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SEÑOR AREPA </title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+
+
+</head>
+
+<body class="bg-yellow-50 font-sans">
+
+<div id="loginScreen" class="min-h-screen flex items-center justify-center p-6 bg-yellow-50">
+  <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 border border-yellow-200">
+    <div class="text-center mb-6">
+      <h1 class="text-3xl font-extrabold text-yellow-600">SEÑOR AREPA</h1>
+      <p class="text-gray-500 mt-2">Inicia sesión para ingresar al sistema</p>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label for="loginUsuario" class="block text-sm font-semibold text-gray-700 mb-1">Usuario</label>
+        <input type="text" id="loginUsuario" class="w-full p-3 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Ingresa tu usuario" />
+      </div>
+      <div>
+        <label for="loginClave" class="block text-sm font-semibold text-gray-700 mb-1">Contraseña</label>
+        <input type="password" id="loginClave" class="w-full p-3 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Ingresa tu contraseña" />
+        <label class="mt-2 inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+          <input type="checkbox" id="toggleClave" onchange="toggleVerClave()" class="rounded border-yellow-300 text-yellow-500 focus:ring-yellow-400" />
+          Ver contraseña
+        </label>
+      </div>
+      <button onclick="iniciarSesion()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 rounded-lg">🔐 Ingresar</button>
+      <p id="loginError" class="text-red-600 text-sm hidden"></p>
+      <div class="text-xs text-gray-500 bg-yellow-50 p-3 rounded-lg border border-yellow-100">
+        <p><strong>Admin:</strong> admin / Admin123*</p>
+        <p><strong>Cajero:</strong> cajero1 / Caja123*</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="appContent" class="hidden">
+
+  <!-- Navegación -->
+  <nav id="topNav" class="bg-yellow-400 p-4 flex justify-between items-center text-white font-bold text-lg">
+  <div class="flex items-center space-x-2">
+    <img src="imagenes/señora.png" alt="Logo Señor Arepa" class="w-20 h-20 rounded-full" onerror="this.onerror=null;this.src='https://placehold.co/80x80/facc15/92400e?text=SA';">
+    <span class="text-xl">SEÑOR AREPA</span>
+  </div>
+  <div class="flex space-x-2">
+  <a href="finanzas1.html" data-role="admin-only" class="bg-white text-yellow-700 font-semibold px-3 py-1 rounded-lg shadow hover:bg-yellow-100 transition">
+    📋 Finanzas
+  </a>
+  <button type="button" onclick="abrirHistoricos()" data-role="admin-only" class="bg-white text-yellow-700 font-semibold px-3 py-1 rounded-lg shadow hover:bg-yellow-100 transition">
+    📈 Históricos
+  </button>
+  <a href="inventario.html" data-role="admin-only" class="bg-yellow-600 text-white font-semibold px-3 py-1 rounded-lg shadow hover:bg-yellow-700 transition">
+    📆 Inventario
+  </a>
+</div>
+</nav>
+
+<!-- Sesión -->
+<div id="roleControl" class="px-6 pt-4">
+  <div class="bg-white rounded-xl shadow-md p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 border border-yellow-200">
+    <div>
+      <p class="text-sm text-gray-500">Sesión actual</p>
+      <p class="font-bold text-gray-800"><span id="usuarioActualTexto">Sin usuario</span> · <span id="rolActualTexto">Sin rol</span></p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button onclick="cerrarSesionRol()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">🔒 Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
+
+
+  <!-- Sección Productos -->
+  <main id="appMain" class="p-6">
+    <h2 class="text-2xl font-bold text-gray-700 mb-4">Menú</h2>
+    <div id="productos" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+     <!-- Comida -->
+<div class="bg-white p-4 rounded-xl shadow-md">
+  <h3 class="text-xl font-semibold text-yellow-600 mb-2">Comida</h3>
+  <div class="grid grid-cols-2 gap-2">
+
+    <button onclick="agregarProducto('AREPA PAISA', 17000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ PAISA - $17.000</button>
+
+    <button onclick="agregarProducto('AREPA PAISA POLLO', 17000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ PAISA POLLO - $17.000</button>
+
+    <button onclick="agregarProducto('AREPA CHICHARRON', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ CHICHARRON - $14.000</button>
+
+    <button onclick="agregarProducto('AREPA EXTRA QUESILLO', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ EXTRA QUESILLO - $9.000</button>
+
+    <button onclick="agregarProducto('AREPA SEÑOR AREPA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ SEÑOR AREPA - $14.000</button>
+
+    <button onclick="agregarProducto('AREPA SEÑORA AREPA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ SEÑORA AREPA - $14.000</button>
+
+    <button onclick="agregarProducto('AREPA HAWAIANA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ HAWAIANA - $14.000</button>
+
+    <button onclick="agregarProducto('AREPA MEGAPAISA', 22000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ MEGAPAISA- $22.000</button>
+
+    <button onclick="agregarProducto('AREPA MIXTA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ MIXTA - $14.000</button>
+
+    <button onclick="agregarProducto('AREPA RANCHERA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ RANCHERA - $14.000</button>
+
+    <button onclick="agregarProducto('AREPA SOLO POLLO', 15000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ SOLO POLLO - $15.000</button>
+
+    <button onclick="agregarProducto('AREPA SOLO CARNE', 15000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ SOLO CARNE - $15.000</button>
+
+    <button onclick="agregarProducto('AREPA MEXICANA', 15000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ MEXICANA - $15.000</button>
+
+    <button onclick="agregarProducto('AREPA SOLA', 1000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ AREPA SOLA - $1.000</button> 
+    <button onclick="agregarProducto('COMBO 1', 40000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪COMBO 1 - $40.000</button>
+    <button onclick="agregarProducto('COMBO 2', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪COMBO 2 - $30.000</button>
+    <button onclick="agregarProducto('COMBO 3', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪COMBO 3 - $30.000</button>
+    <button onclick="agregarProducto('COMBO marzo', 50000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪COMBO MARZO - $50.000</button>
+
+
+
+
+
+
+  </div>
+</div>
+
+     <!-- Adiciones -->
+<div class="bg-white p-4 rounded-xl shadow-md">
+  <h3 class="text-xl font-semibold text-yellow-600 mb-2">Adiciones</h3>
+  <div class="grid grid-cols-2 gap-2">
+    <button onclick="agregarProducto('ADICION QUESO EXTRA', 5000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🧀 Queso Extra - $5.000</button>
+    
+    <button onclick="agregarProducto('ADICION MAIZ TIERNO', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🌽 MAIZ TIERNO - $3.000</button>
+
+    <button onclick="agregarProducto('ADICION PIÑA CALADA', 5000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍍 PIÑA CALADA - $5.000</button>
+
+    <button onclick="agregarProducto('ADICION POLLO', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍗 POLLO - $7.000</button>
+
+    <button onclick="agregarProducto('ADICION CARNE', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥩 CARNE - $7.000</button>
+
+    <button onclick="agregarProducto('ADICION CHICHARRON', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍖 CHICHARRON - $6.000</button>
+
+    <button onclick="agregarProducto('ADICION RANCHERA', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🔥 RANCHERA - $7.000</button>
+
+    <button onclick="agregarProducto('ADICION CHORIZO', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🌭 CHORIZO - $7.000</button>
+
+    <button onclick="agregarProducto('ADICION TOCINETA', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥓 TOCINETA - $7.000</button>
+
+    <button onclick="agregarProducto('ADICION MADURO', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍌  MADURO - $3.000</button>
+
+    <button onclick="agregarProducto('ADICION ARMA TU AREPA X5', 25000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍌 ARMA TU AREPA - $25.000</button>
+
+  </div>
+</div>
+
+      
+
+      <!-- Bebidas -->
+     <div class="bg-white p-4 rounded-xl shadow-md">
+         <h3 class="text-xl font-semibold text-yellow-600 mb-2">Bebidas</h3>
+        <div class="grid grid-cols-2 gap-2">
+
+           <button onclick="agregarProducto('QUATRO', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍋 QUATRO - $4.000</button>
+
+           <button onclick="agregarProducto('COCA COLA 400 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 COCA COLA - $4.000</button>
+
+           <button onclick="agregarProducto('COCA COLA 250 ml', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 COCA COLA - $3.000</button>
+
+           <button onclick="agregarProducto('JUGO HIT 500 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 JUGO HIT - $4.000</button>
+
+           <button onclick="agregarProducto('SPRITE', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 SPRITE - $4.000</button>
+
+           <button onclick="agregarProducto('COCA COLA ZERO', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 COCA COLA CERO - $4.000</button>
+
+           <button onclick="agregarProducto('BRISA LIMON', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 BRISA LIMON - $4.000</button>
+
+           <button onclick="agregarProducto('BRISA MANZANA', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">💧 BRISA MANZANA - $4.000</button>
+
+           <button onclick="agregarProducto('MISTER TEA', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 MISTER TEA - $4.000</button>
+
+           <button onclick="agregarProducto('AGUA CON GAS', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 AGUA CON GAS - $4.000</button>
+
+           <button onclick="agregarProducto('AGUA SABORISADA', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 AGUA SABORISADA - $4.000</button>
+
+           <button onclick="agregarProducto('POSTOBON 400 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 POSTOBON 400 - $4.000</button>
+
+           <button onclick="agregarProducto('POSTOBON 250 ml', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 POSTOBON 250 - $3.000</button>
+
+           <button onclick="agregarProducto('POSTOBON 1.5', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 POSTOBON 1.5 - $9.000</button>
+
+
+           <button onclick="agregarProducto('SODA BRETAÑA', 4500)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 SODA BRETAÑA - $4.000</button>
+
+           <button onclick="agregarProducto('GATORADE', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 GATORADE - $6.000</button>
+
+           <button onclick="agregarProducto('PREMIO 400 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 PREMIO 400 ml - $4.000</button>
+
+
+           <button onclick="agregarProducto('PREMIO 1.5l', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 PREMIO 1.5l - $9.000</button>
+
+           <button onclick="agregarProducto('QUATRO 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 QUATRO 1.5L - $9.000</button>
+
+           <button onclick="agregarProducto('COCA COLA 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 COCA COLA  1.5L - $9.000</button>
+
+           <button onclick="agregarProducto('JUGO HIT 1.L', 7500)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 JUGO HIT 1.L - $7.000</button>
+
+           <button onclick="agregarProducto('SPRITE 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 SPRITE 1.5L - $9.000</button>
+
+           <button onclick="agregarProducto('COCA COLA ZERO 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 COCA COLA ZERO 1.5L - $9.000</button>
+
+           <button onclick="agregarProducto(' AGUA', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 AGUA - $3.000</button>
+
+           <button onclick="agregarProducto('MILO CALIENTE', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥛 MILO CALIENTE - $6.000</button>
+
+           <button onclick="agregarProducto('CAFE CON LECHE', 5000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">☕🥛 CAFE CON LECHE - $5.000</button>
+
+           <button onclick="agregarProducto('TINTO', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">☕ TINTO - $4.000</button>
+
+           <button onclick="agregarProducto('CERVEZA', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍺 CERVEZA - $6.000</button>
+
+        </div>
+    </div>
+    </div>
+
+
+
+    <!-- Detalle de Pedido -->
+    <div class="mt-6 bg-white p-4 rounded-xl shadow-md">
+      <h3 class="text-lg font-semibold mb-4 border-b pb-2">🛒 Pedido Actual</h3>
+      <ul id="listaPedido" class="list-disc pl-5 text-gray-700 space-y-1"></ul>
+      <p id="total" class="mt-4 font-bold text-lg text-gray-800">Total: $0</p>
+    </div>
+
+    <!-- Cliente y forma de pago -->
+    <div class="mt-4 flex flex-col md:flex-row gap-4">
+      <input type="text" id="cliente" placeholder="Nombre del Cliente" class="flex-1 p-2 border border-yellow-300 rounded" />
+      <input type="text" id="observaciones" placeholder="Observaciones (Ej: Sin cebolla, agregar salsas, etc.)" class="flex-1 p-2 border border-yellow-300 rounded" />
+
+
+      <select id="formaPago" class="flex-1 p-2 border border-yellow-300 rounded">
+        <option value="">Seleccione forma de pago</option>
+        <option value="Efectivo">Efectivo</option>
+        <option value="Tarjeta">Tarjeta</option>
+        <option value="Transferencia">Transferencia</option>
+        <option value="Nequi/Daviplata">Nequi/Daviplata</option>
+      </select>
+    </div>
+
+    <!-- Tipo de pedido: Local o Domicilio -->
+<div class="mt-4">
+  <label for="tipoPedido" class="block text-sm font-medium text-gray-700">Tipo de Pedido</label>
+  <select id="tipoPedido" class="mt-1 p-2 border rounded w-full">
+    <option value="">Selecciona</option>
+    <option value="Aquí">Aquí</option>
+    <option value="Para llevar">Para llevar</option>
+    <option value="Domicilio">Domicilio</option>
+  </select>
+</div>
+
+
+    <!-- Botones de acción -->
+    <div class="mt-6 flex flex-wrap gap-2">
+      <button onclick="guardarVenta()" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded">💾 Guardar Venta</button>
+      <button onclick="imprimirUltimaCocinero()" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">🖨️ Imprimir para Cocina</button>
+      <button onclick="imprimirUltimaCliente()" class="bg-purple-500 hover:bg-purple-600 text-white p-2 rounded">🧾 Imprimir Recibo Cliente</button>
+     <button id="btnExportarExcel" onclick="exportarVentasExcelConEstilo()" data-role="admin-only" class="bg-green-600 hover:bg-green-700 text-white p-2 rounded">
+      📊 Exportar Ventas a Excel
+     </button>
+
+      <button onclick="borrarVentas()" data-role="admin-only" class="bg-red-500 hover:bg-red-600 text-white p-2 rounded">🗑️ Borrar Ventas</button>
+      <button onclick="generarResumenProductos()" data-role="admin-only" class="bg-indigo-500 hover:bg-indigo-600 text-white p-2 rounded">📊 Ver Resumen Productos</button>
+    </div>
+
+    <!-- Visualización de Ventas Guardadas -->
+    <div id="ventasSeccion" class="mt-8 bg-white p-4 rounded-xl shadow-md">
+  <h3 class="text-lg font-semibold mb-2">Ventas Guardadas</h3>
+
+  <div class="mb-4">
+  <input type="text" id="filtroCliente" oninput="filtrarVentasPorCliente()" placeholder="🔍 Filtrar por cliente..." class="w-full md:w-1/3 p-2 border border-yellow-300 rounded" />
+  </div>
+
+  <div class="overflow-auto">
+    <table class="min-w-full text-left border">
+      <thead>
+        <tr class="bg-yellow-200">
+          <th class="p-2 border">#</th>
+          <th class="p-2 border">Fecha</th>
+          <th class="p-2 border">Cliente</th>
+          <th class="p-2 border">Forma de Pago</th>
+          <th class="p-2 border">Tipo de Pedido</th>
+          <th class="p-2 border">Productos</th>
+          <th class="p-2 border">Total</th>
+          <th class="p-2 border">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="ventasGuardadas" class="text-sm text-gray-800"></tbody>
+    </table>
+  </div>
+
+  <div id="paginacionVentas" class="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <p id="ventasPaginacionInfo" class="text-sm text-gray-600">Mostrando 0 de 0 ventas</p>
+    <div class="flex items-center gap-2">
+      <button id="btnPrevVentas" onclick="cambiarPaginaVentas(-1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">← Anterior</button>
+      <span id="ventasPaginaActual" class="text-sm font-medium text-gray-700">Página 1 de 1</span>
+      <button id="btnNextVentas" onclick="cambiarPaginaVentas(1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Siguiente →</button>
+    </div>
+  </div>
+</div>
+
+
+    <!-- Históricos movidos a vista completa -->
+
+    <!-- Resumen Productos -->
+    <div id="resumenProductos" data-role="admin-only" class="mt-8 bg-white p-4 rounded-xl shadow-md hidden">
+      <h3 class="text-lg font-semibold mb-2">Resumen de Productos Vendidos</h3>
+      <ul id="listaResumen" class="list-disc pl-5 text-gray-700 space-y-1"></ul>
+    </div>
+  </main>
+
+
+
+  <main id="historicosVista" data-role="admin-only" class="p-6 hidden">
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-700">📈 Históricos de Ventas</h2>
+          <p class="text-sm text-gray-500">Resumen completo por día, semana y mes.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="actualizarHistoricos()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">Actualizar históricos</button>
+          <button onclick="volverAlPOS()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">← Volver al sistema</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <p class="text-sm text-gray-500">Hoy</p>
+          <p id="histHoyVentas" class="text-2xl font-bold text-gray-800">0 ventas</p>
+          <p id="histHoyTotal" class="text-sm text-gray-700">$0</p>
+        </div>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <p class="text-sm text-gray-500">Esta semana</p>
+          <p id="histSemanaVentas" class="text-2xl font-bold text-gray-800">0 ventas</p>
+          <p id="histSemanaTotal" class="text-sm text-gray-700">$0</p>
+        </div>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <p class="text-sm text-gray-500">Este mes</p>
+          <p id="histMesVentas" class="text-2xl font-bold text-gray-800">0 ventas</p>
+          <p id="histMesTotal" class="text-sm text-gray-700">$0</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div>
+          <h4 class="font-semibold mb-2">Histórico por día</h4>
+          <div class="overflow-auto border rounded-lg">
+            <table class="min-w-full text-sm">
+              <thead class="bg-yellow-100">
+                <tr>
+                  <th class="p-2 border">Fecha</th>
+                  <th class="p-2 border">Ventas</th>
+                  <th class="p-2 border">Total</th>
+                </tr>
+              </thead>
+              <tbody id="historicoDiaBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="font-semibold mb-2">Histórico por semana</h4>
+          <div class="overflow-auto border rounded-lg">
+            <table class="min-w-full text-sm">
+              <thead class="bg-yellow-100">
+                <tr>
+                  <th class="p-2 border">Semana</th>
+                  <th class="p-2 border">Ventas</th>
+                  <th class="p-2 border">Total</th>
+                </tr>
+              </thead>
+              <tbody id="historicoSemanaBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="font-semibold mb-2">Histórico por mes</h4>
+          <div class="overflow-auto border rounded-lg">
+            <table class="min-w-full text-sm">
+              <thead class="bg-yellow-100">
+                <tr>
+                  <th class="p-2 border">Mes</th>
+                  <th class="p-2 border">Ventas</th>
+                  <th class="p-2 border">Total</th>
+                </tr>
+              </thead>
+              <tbody id="historicoMesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+      let pedido = [];
+  let total = 0;
+let comandaEnEdicion = null; // conserva la comanda al editar
+let reciboEnEdicion = null; // conserva el recibo al editar
+const usuariosSistema = {
+  admin: { clave: "Admin123*", rol: "admin", nombre: "Administrador" },
+  cajero1: { clave: "Caja123*", rol: "cajero", nombre: "Cajero 1" }
+};
+let rolActual = localStorage.getItem("rolActual") || "";
+let usuarioActual = localStorage.getItem("usuarioActual") || "";
+let sesionActiva = localStorage.getItem("sesionActiva") === "true";
+
+function toggleVerClave() {
+  const input = document.getElementById("loginClave");
+  const check = document.getElementById("toggleClave");
+  if (!input || !check) return;
+  input.type = check.checked ? "text" : "password";
+}
+
+function iniciarSesion() {
+  const usuario = document.getElementById("loginUsuario")?.value.trim();
+  const clave = document.getElementById("loginClave")?.value || "";
+  const error = document.getElementById("loginError");
+  const registro = usuariosSistema[usuario];
+
+  if (!registro || registro.clave !== clave) {
+    if (error) {
+      error.textContent = "Usuario o contraseña incorrectos.";
+      error.classList.remove("hidden");
+    }
+    return;
+  }
+
+  usuarioActual = usuario;
+  rolActual = registro.rol;
+  sesionActiva = true;
+  localStorage.setItem("usuarioActual", usuarioActual);
+  localStorage.setItem("rolActual", rolActual);
+  localStorage.setItem("sesionActiva", "true");
+  aplicarPermisosPorRol();
+
+  if (error) error.classList.add("hidden");
+  const campoClave = document.getElementById("loginClave");
+  const toggle = document.getElementById("toggleClave");
+  if (campoClave) campoClave.value = "";
+  if (toggle) toggle.checked = false;
+  toggleVerClave();
+}
+
+function esAdmin() {
+  return rolActual === "admin";
+}
+
+function esCajero() {
+  return rolActual === "cajero";
+}
+
+function tieneRolValido() {
+  return esAdmin() || esCajero();
+}
+
+function verificarAcceso(rolesPermitidos) {
+  if (!rolesPermitidos.includes(rolActual)) {
+    alert("No tienes permiso para realizar esta acción.");
+    return false;
+  }
+  return true;
+}
+
+function cerrarSesionRol() {
+  volverAlPOS();
+  rolActual = "";
+  usuarioActual = "";
+  sesionActiva = false;
+  localStorage.removeItem("rolActual");
+  localStorage.removeItem("usuarioActual");
+  localStorage.setItem("sesionActiva", "false");
+  aplicarPermisosPorRol();
+}
+
+function aplicarPermisosPorRol() {
+  const loginScreen = document.getElementById("loginScreen");
+  const appContent = document.getElementById("appContent");
+  if (loginScreen) loginScreen.classList.toggle("hidden", sesionActiva && tieneRolValido());
+  if (appContent) appContent.classList.toggle("hidden", !(sesionActiva && tieneRolValido()));
+
+  const textoRol = document.getElementById("rolActualTexto");
+  const textoUsuario = document.getElementById("usuarioActualTexto");
+  if (textoRol) {
+    textoRol.textContent = rolActual ? (rolActual === "admin" ? "Admin" : "Cajero") : "Sin rol";
+  }
+  if (textoUsuario) {
+    textoUsuario.textContent = usuarioActual || "Sin usuario";
+  }
+
+  document.querySelectorAll('[data-role="admin-only"]').forEach(el => {
+    el.classList.toggle('hidden', !esAdmin());
+    el.style.display = esAdmin() ? '' : 'none';
+  });
+
+  const btnExportarExcel = document.getElementById('btnExportarExcel');
+  if (btnExportarExcel) {
+    btnExportarExcel.classList.toggle('hidden', !esAdmin());
+    btnExportarExcel.style.display = esAdmin() ? '' : 'none';
+  }
+
+  const bloqueado = !tieneRolValido();
+  document.querySelectorAll('button, input, select').forEach(el => {
+    if (el.closest('#loginScreen')) return;
+    if (el.id === 'filtroCliente') return;
+    if (el.closest('#ventasSeccion')) return;
+    if (el.closest('[data-role="admin-only"]') && esAdmin()) return;
+    if ((el.textContent || '').includes('Cerrar sesión')) return;
+    el.disabled = bloqueado;
+    el.classList.toggle('opacity-50', bloqueado);
+    el.classList.toggle('cursor-not-allowed', bloqueado);
+  });
+
+  const resumen = document.getElementById('resumenProductos');
+  if (resumen && !esAdmin()) {
+    resumen.classList.add('hidden');
+  }
+
+  mostrarVentas();
+  const historicosVista = document.getElementById("historicosVista");
+  if (historicosVista) historicosVista.classList.add("hidden");
+}
+
+
+  // Agrega un producto al pedido y actualiza la vista
+  function agregarProducto(nombre, precio) {
+    pedido.push({ nombre, precio });
+    actualizarTotal();
+    actualizarVistaPedido();
+  }
+
+  // Quita un producto del pedido por índice
+  function quitarProducto(index) {
+    if (index >= 0 && index < pedido.length) {
+      pedido.splice(index, 1);
+      actualizarTotal();
+      actualizarVistaPedido();
+    }
+  }
+
+  // Recalcula el total sumando todos los precios
+  function actualizarTotal() {
+    total = pedido.reduce((acc, p) => acc + p.precio, 0);
+  }
+
+  // Actualiza la lista del pedido en la interfaz
+  function actualizarVistaPedido() {
+    const lista = document.getElementById("listaPedido");
+    lista.innerHTML = "";
+    pedido.forEach((p, i) => {
+      const li = document.createElement("li");
+      li.innerHTML = `${p.nombre} - $${p.precio.toLocaleString('es-CO')} <button onclick="quitarProducto(${i})" class='text-red-600 ml-2'>❌</button>`;
+      lista.appendChild(li);
+    });
+    document.getElementById("total").textContent = `Total: $${total.toLocaleString('es-CO')}`;
+  }
+
+  // Limpia el pedido y el formulario cliente/pago
+ function limpiarPedido() {
+  pedido = [];
+  total = 0;
+  actualizarVistaPedido();
+  document.getElementById("cliente").value = "";
+  document.getElementById("formaPago").value = "";
+  document.getElementById("tipoPedido").value = "";
+  document.getElementById("observaciones").value = ""; // 👈 esta línea nueva
+}
+
+
+  // Guarda la venta en localStorage y actualiza la vista de ventas
+  function guardarVenta() {
+    if (!verificarAcceso(["admin", "cajero"])) return;
+    const cliente = document.getElementById("cliente").value.trim();
+    const formaPago = document.getElementById("formaPago").value;
+    const tipoPedido = document.getElementById("tipoPedido").value;
+
+    if (pedido.length === 0) {
+      alert("Agrega productos al pedido.");
+      return;
+    }
+    if (!cliente) {
+      alert("Por favor ingresa el nombre del cliente.");
+      return;
+    }
+    if (!formaPago) {
+      alert("Por favor selecciona una forma de pago.");
+      return;
+    }
+    if (!tipoPedido) {
+      alert("Por favor selecciona un tipo de pedido.");
+      return;
+    }
+
+    const observaciones = document.getElementById("observaciones").value.trim();
+
+    const ahora = new Date();
+    const diaClave = obtenerFechaLocalISO(ahora);
+    const numeracionDia = comandaEnEdicion
+      ? { comanda: comandaEnEdicion, recibo: reciboEnEdicion ?? comandaEnEdicion }
+      : obtenerSiguienteNumeracionDelDia(diaClave);
+
+       const venta = {
+          cliente,
+          formaPago,
+          tipoPedido,
+          observaciones,
+          pedido: [...pedido],
+          total,
+          fecha: ahora.toLocaleString(),
+          fechaISO: ahora.toISOString(),
+          diaClave,
+          comanda: numeracionDia.comanda,
+          recibo: numeracionDia.recibo
+        };
+
+    const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+    ventas.push(venta);
+    localStorage.setItem("ventas", JSON.stringify(ventas));
+
+    
+    comandaEnEdicion = null;
+    reciboEnEdicion = null;
+alert("Venta guardada exitosamente.");
+    limpiarPedido();
+    mostrarVentas();
+    document.getElementById("resumenProductos").classList.add("hidden");
+  }
+
+  // Muestra las ventas guardadas en la tabla
+  const VENTAS_POR_PAGINA = 15;
+  let paginaVentasActual = 1;
+
+  function construirFilaVenta(v, i) {
+    const resumen = {};
+    v.pedido.forEach(p => {
+      resumen[p.nombre] = (resumen[p.nombre] || 0) + 1;
+    });
+
+    const productosResumen = Object.entries(resumen)
+      .map(([prod, cant]) => `${prod}: ${cant}`)
+      .join("<br>");
+
+    const botonesAccion = `
+      <button onclick="imprimirVentaCliente(${i})" class="bg-purple-500 text-white px-2 py-1 rounded text-xs">🧾 Cliente</button>
+      <button onclick="imprimirVentaCocina(${i})" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">👨‍🍳 Cocina</button>
+      ${esAdmin() ? `<button onclick="editarVenta(${i})" class="bg-yellow-600 text-white px-2 py-1 rounded text-xs">📝 Editar</button>` : ""}
+    `;
+
+    return `
+      <tr>
+        <td class='border p-1'>${v.comanda ?? v.recibo ?? (i + 1)}</td>
+        <td class='border p-1'>${v.fecha}</td>
+        <td class='border p-1'>${v.cliente}</td>
+        <td class='border p-1'>${v.formaPago}</td>
+        <td class='border p-1'>${v.tipoPedido}</td>
+        <td class='border p-1'>${productosResumen}</td>
+        <td class='border p-1'>$${v.total.toLocaleString('es-CO')}</td>
+        <td class='border p-1 space-y-1 space-x-1'>${botonesAccion}</td>
+      </tr>
+    `;
+  }
+
+  function actualizarControlesPaginacion(totalVentasFiltradas) {
+    const totalPaginas = Math.max(1, Math.ceil(totalVentasFiltradas / VENTAS_POR_PAGINA));
+    const inicio = totalVentasFiltradas === 0 ? 0 : ((paginaVentasActual - 1) * VENTAS_POR_PAGINA) + 1;
+    const fin = Math.min(paginaVentasActual * VENTAS_POR_PAGINA, totalVentasFiltradas);
+
+    document.getElementById("ventasPaginacionInfo").textContent = `Mostrando ${inicio}-${fin} de ${totalVentasFiltradas} ventas`;
+    document.getElementById("ventasPaginaActual").textContent = `Página ${paginaVentasActual} de ${totalPaginas}`;
+    document.getElementById("btnPrevVentas").disabled = paginaVentasActual <= 1;
+    document.getElementById("btnNextVentas").disabled = paginaVentasActual >= totalPaginas;
+    document.getElementById("btnPrevVentas").classList.toggle("opacity-50", paginaVentasActual <= 1);
+    document.getElementById("btnNextVentas").classList.toggle("opacity-50", paginaVentasActual >= totalPaginas);
+  }
+
+  function renderVentasTabla() {
+    const filtro = document.getElementById("filtroCliente").value.toLowerCase().trim();
+    const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+    const ventasFiltradas = ventas
+      .map((venta, index) => ({ venta, index }))
+      .filter(({ venta }) => (venta.cliente || "").toLowerCase().includes(filtro));
+
+    const totalPaginas = Math.max(1, Math.ceil(ventasFiltradas.length / VENTAS_POR_PAGINA));
+    if (paginaVentasActual > totalPaginas) paginaVentasActual = totalPaginas;
+    if (paginaVentasActual < 1) paginaVentasActual = 1;
+
+    const inicio = (paginaVentasActual - 1) * VENTAS_POR_PAGINA;
+    const ventasPagina = ventasFiltradas.slice(inicio, inicio + VENTAS_POR_PAGINA);
+
+    const contenedor = document.getElementById("ventasGuardadas");
+    contenedor.innerHTML = ventasPagina.length
+      ? ventasPagina.map(({ venta, index }) => construirFilaVenta(venta, index)).join("")
+      : `<tr><td colspan="8" class="border p-3 text-center text-gray-500">No hay ventas para mostrar.</td></tr>`;
+
+    actualizarControlesPaginacion(ventasFiltradas.length);
+  }
+
+  function mostrarVentas() {
+    document.getElementById("filtroCliente").value = "";
+    paginaVentasActual = 1;
+    renderVentasTabla();
+  }
+
+  function cambiarPaginaVentas(direccion) {
+    paginaVentasActual += direccion;
+    renderVentasTabla();
+  }
+
+  // Borra todas las ventas guardadas
+  function borrarVentas() {
+    if (!verificarAcceso(["admin"])) return;
+    if (confirm("¿Estás seguro de borrar todas las ventas?")) {
+      localStorage.removeItem("ventas");
+      alert("Todas las ventas han sido eliminadas.");
+      mostrarVentas();
+      const resumen = document.getElementById("resumenProductos");
+      if (resumen) resumen.classList.add("hidden");
+    }
+  }
+
+  // Genera resumen de productos vendidos
+  function generarResumenProductos() {
+    if (!verificarAcceso(["admin"])) return;
+    const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+    const resumen = {};
+    ventas.forEach(v => {
+      v.pedido.forEach(p => {
+        resumen[p.nombre] = (resumen[p.nombre] || 0) + 1;
+      });
+    });
+    const lista = document.getElementById("listaResumen");
+    lista.innerHTML = "";
+    Object.entries(resumen).forEach(([producto, cantidad]) => {
+      const li = document.createElement("li");
+      li.textContent = `${producto}: ${cantidad}`;
+      lista.appendChild(li);
+    });
+    document.getElementById("resumenProductos").classList.remove("hidden");
+    document.getElementById("resumenProductos").scrollIntoView({ behavior: "smooth" });
+  }
+
+  // Exportar ventas a Excel con estilo y toda la info incluida
+  async function exportarVentasExcelConEstilo() {
+    if (!verificarAcceso(["admin"])) return;
+    const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+    if (ventas.length === 0) return alert("No hay ventas registradas.");
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Ventas del Día");
+
+    // Encabezados
+    const headers = [
+      "#", "Fecha", "Cliente", "Forma de Pago", "Tipo de Pedido", "Producto", "Precio (COP)", "Total Venta (COP)"
+    ];
+    sheet.addRow(headers);
+
+    let totalGlobal = 0;
+    const conteoProductos = {};
+    let rowIndex = 2;
+
+    ventas.forEach((venta, i) => {
+      const { fecha, cliente, formaPago, tipoPedido, total, pedido } = venta;
+      totalGlobal += parseFloat(total) || 0;
+
+      pedido.forEach(producto => {
+        sheet.addRow([
+          venta.comanda ?? (i + 1),
+          fecha,
+          cliente,
+          formaPago,
+          tipoPedido,
+          producto.nombre,
+          parseFloat(producto.precio),
+          parseFloat(total)
+        ]);
+
+        // Conteo para más vendido
+        conteoProductos[producto.nombre] = (conteoProductos[producto.nombre] || 0) + 1;
+
+        rowIndex++;
+      });
+    });
+
+    // Estilos encabezado
+    sheet.getRow(1).eachCell(cell => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF1F4E78" }  // azul oscuro
+      };
+      cell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.border = {
+        top: { style: "thin" }, bottom: { style: "thin" },
+        left: { style: "thin" }, right: { style: "thin" }
+      };
+    });
+
+    // Estilo para filas alternas
+    for (let i = 2; i <= sheet.rowCount; i++) {
+      const row = sheet.getRow(i);
+      const isEven = i % 2 === 0;
+      row.eachCell(cell => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: isEven ? "FFF2F2F2" : "FFFFFFFF" }
+        };
+        cell.border = {
+          top: { style: "thin" }, bottom: { style: "thin" },
+          left: { style: "thin" }, right: { style: "thin" }
+        };
+      });
+    }
+
+    // Formato moneda COP en columnas precio y total
+    for (let i = 2; i <= sheet.rowCount; i++) {
+      sheet.getRow(i).getCell(7).numFmt = '"$"#,##0';
+      sheet.getRow(i).getCell(8).numFmt = '"$"#,##0';
+    }
+
+    // Total global
+    sheet.addRow([]);
+    const totalRow = sheet.addRow(["", "", "", "", "", "TOTAL DEL DÍA:", "", totalGlobal]);
+    totalRow.getCell(8).numFmt = '"$"#,##0';
+    totalRow.font = { bold: true };
+
+    // Producto más vendido
+    let productoMasVendido = "", maxCantidad = 0;
+    for (const [prod, cantidad] of Object.entries(conteoProductos)) {
+      if (cantidad > maxCantidad) {
+        maxCantidad = cantidad;
+        productoMasVendido = prod;
+      }
+    }
+    const resumenRow = sheet.addRow(["", "", "", "", "", "Producto más vendido:", "", `${productoMasVendido} (${maxCantidad})`]);
+    resumenRow.font = { italic: true };
+
+    // Ajustar ancho columnas
+    sheet.columns.forEach(col => {
+      col.width = 18;
+    });
+
+    
+    // Guardar Excel y descargar
+const buffer = await workbook.xlsx.writeBuffer();
+const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+
+// Corrección de la fecha local
+const fechaLocal = new Date();
+const yyyy = fechaLocal.getFullYear();
+const mm = String(fechaLocal.getMonth() + 1).padStart(2, '0');
+const dd = String(fechaLocal.getDate()).padStart(2, '0');
+a.download = `Ventas_del_día_${yyyy}-${mm}-${dd}.xlsx`;
+
+document.body.appendChild(a);
+a.click();
+a.remove();
+URL.revokeObjectURL(url);
+
+  }
+    // Borra todas las ventas guardadas
+  function imprimirUltimaCocinero() {
+  if (!verificarAcceso(["admin", "cajero"])) return;
+  const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+  if (ventas.length === 0) {
+    alert("No hay ventas para imprimir.");
+    return;
+  }
+
+  const ultimaVenta = ventas[ventas.length - 1];
+  if (!ultimaVenta.pedido || !Array.isArray(ultimaVenta.pedido)) {
+    alert("La última venta no tiene productos válidos.");
+    return;
+  }
+
+  const resumen = {};
+  ultimaVenta.pedido.forEach(p => {
+    resumen[p.nombre] = (resumen[p.nombre] || 0) + 1;
+  });
+
+  const contenido = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body {
+          font-family: monospace;
+          font-size: 15px;
+          margin: 0;
+          padding: 11px;
+        }
+        h2 {
+          text-align: center;
+          font-size: 19px;
+          margin-bottom: 11px;
+        }
+        .info {
+          margin-bottom: 10px;
+        }
+        .info p {
+          margin: 2px 0;
+        }
+        ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+        li {
+          padding: 4px 0;
+          border-bottom: 2px dashed #000;
+          font-size: 19px;
+        }
+      </style>
+    </head>
+    <body>
+      <h2>🧾 PEDIDO A COCINA</h2>
+      <div class="info">
+        
+        
+          <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${ultimaVenta.comanda ?? ultimaVenta.recibo ?? ventas.length}</p>
+<p><strong>Cliente:</strong> ${ultimaVenta.cliente || "Sin nombre"}</p>
+        <p><strong>Hora:</strong> ${ultimaVenta.fecha || "Sin hora"}</p>
+        <p><strong>Tipo de Pedido:</strong> ${ultimaVenta.tipoPedido || "-"}</p>
+        ${ultimaVenta.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaVenta.observaciones}</p>` : ""}
+      </div>
+      <ul>
+        ${Object.entries(resumen).map(([producto, cantidad]) => `<li>${producto} x${cantidad}</li>`).join("")}
+      </ul>
+      <p style="text-align: center; margin-top: 10px;">👨‍🍳 Preparar con cuidado</p>
+    </div>
+</body>
+    </html>
+  `;
+
+  const w = window.open("", "_blank", "width=400,height=600");
+  w.document.write(contenido);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+
+
+    // Imprimir último recibo para cliente (simple)
+function imprimirUltimaCliente() {
+  if (!verificarAcceso(["admin", "cajero"])) return;
+  const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+  if (ventas.length === 0) {
+    alert("No hay ventas para imprimir.");
+    return;
+  }
+
+  const ultimaVenta = ventas[ventas.length - 1];
+  const observaciones = ultimaVenta.observaciones || "";
+
+
+  let contenido = `
+    <html>
+      <head>
+        <title>Recibo Cliente</title>
+        <style>
+          body {
+            font-family: monospace;
+            font-size: 14px;
+            width: 58mm;
+            padding: 10px 12px;
+            margin: 0;
+            line-height: 1.5;
+          }
+          h2 {
+            text-align: center;
+            font-size: 19px;
+            margin: 14px 0 5px;
+            font-weight: bold;
+          }
+          .sub-info {
+            text-align: center;
+            font-size: 12px;
+            margin-bottom: 10px;
+            line-height: 1.3;
+          }
+          .line {
+            border-top: 1px dashed #000;
+            margin: 9px 0;
+          }
+          ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+          }
+          li {
+            margin-bottom: 7px;
+          }
+          .total {
+            text-align: right;
+            font-weight: bold;
+            margin-top: 14px;
+            font-size: 16px;
+          }
+          .info p {
+            margin: 6px 0;
+          }
+          .info strong {
+            font-weight: bold;
+          }
+          p.thanks {
+            text-align: center;
+            margin-top: 22px;
+            font-weight: bold;
+            font-size: 15px;
+          }
+        </style>
+      </head>
+      <body>
+        <h2>SEÑOR AREPA</h2>
+        <div class="sub-info">
+          Matrícula No 289546<br>
+          CALLE 19#25-03 ESQUINA<br>
+          BARRIO SAN JOSÉ, ARMENIA
+        </div>
+        <div class="line"></div>
+        <div class="info">
+          <p style="text-align:center; font-weight:bold; margin:6px 0;">
+  RECIBO #${ultimaVenta.recibo ?? ultimaVenta.comanda ?? ventas.length}</p>
+<p style="text-align:center; font-weight:bold; margin:6px 0;">
+  COMANDA #${ultimaVenta.comanda ?? ultimaVenta.recibo ?? ventas.length}</p>
+<p><strong>Cliente:</strong> ${ultimaVenta.cliente || "N/A"}</p>
+          <p><strong>Fecha:</strong> ${ultimaVenta.fecha}</p>
+          <p><strong>Tipo de Pedido:</strong> ${ultimaVenta.tipoPedido || "-"}</p>
+          ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ""}
+        </div>
+        <div class="line"></div>
+        <ul>`;
+
+  ultimaVenta.pedido.forEach(p => {
+    contenido += `<li>${p.nombre} - $${Number(p.precio).toLocaleString('es-CO')}</li>`;
+  });
+
+  contenido += `
+        </ul>
+        <div class="line"></div>
+        <p class="total">Total: $${Number(ultimaVenta.total).toLocaleString('es-CO')}</p>
+        <div class="line"></div>
+        <p class="thanks">¡Gracias por su compra!</p>
+      </body>
+    </html>`;
+
+  const w = window.open("", "_blank", "width=400,height=600");
+  w.document.write(contenido);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+
+// Imprimir cualquier recibo de la seccion ventas guardadas (simple)
+
+function imprimirVentaCliente(index) {
+  if (!verificarAcceso(["admin", "cajero"])) return;
+  const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+  const venta = ventas[index];
+  if (!venta) return alert("Venta no encontrada.");
+
+  const contenido = `
+    <html>
+      <head>
+        <title>Recibo Cliente</title>
+        <style>
+          body {
+            font-family: monospace;
+            font-size: 14px;
+            width: 58mm;
+            padding: 10px 12px;
+            margin: 0;
+            line-height: 1.5;
+          }
+          h2 {
+            text-align: center;
+            font-size: 19px;
+            margin: 14px 0;
+            font-weight: bold;
+          }
+          .line {
+            border-top: 1px dashed #000;
+            margin: 9px 0;
+          }
+          ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+          }
+          li {
+            margin-bottom: 7px;
+          }
+          .total {
+            text-align: right;
+            font-weight: bold;
+            margin-top: 14px;
+            font-size: 16px;
+          }
+          .info p {
+            margin: 6px 0;
+          }
+          .info strong {
+            font-weight: bold;
+          }
+          p.thanks {
+            text-align: center;
+            margin-top: 22px;
+            font-weight: bold;
+            font-size: 15px;
+          }
+        </style>
+      </head>
+      <body>
+        <h2>SEÑOR AREPA</h2>
+        <div class="line"></div>
+        <div class="info">
+          <p style="text-align:center; font-weight:bold; margin:6px 0;">RECIBO #${venta.recibo ?? venta.comanda ?? (index + 1)}</p>
+          <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${venta.comanda ?? venta.recibo ?? (index + 1)}</p>
+          <p><strong>Cliente:</strong> ${venta.cliente || "N/A"}</p>
+          <p><strong>Fecha:</strong> ${venta.fecha}</p>
+          <p><strong>Tipo de Pedido:</strong> ${venta.tipoPedido || "-"}</p>
+          ${venta.observaciones ? `<p><strong>Observaciones:</strong> ${venta.observaciones}</p>` : ""}
+        </div>
+        <div class="line"></div>
+        <ul>
+          ${venta.pedido.map(p => `<li>${p.nombre} - $${Number(p.precio).toLocaleString('es-CO')}</li>`).join("")}
+        </ul>
+        <div class="line"></div>
+        <p class="total">Total: $${Number(venta.total).toLocaleString('es-CO')}</p>
+        <div class="line"></div>
+        <p class="thanks">¡Gracias por su compra!</p>
+      </body>
+    </html>`;
+
+  const w = window.open("", "_blank", "width=400,height=600");
+  w.document.write(contenido);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+function imprimirVentaCocina(index) {
+  if (!verificarAcceso(["admin", "cajero"])) return;
+  const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+  const venta = ventas[index];
+  if (!venta) return alert("Venta no encontrada.");
+
+  const resumen = {};
+  venta.pedido.forEach(p => {
+    resumen[p.nombre] = (resumen[p.nombre] || 0) + 1;
+  });
+
+  const contenido = `
+    <html>
+      <head>
+        <title>Pedido Cocina</title>
+        <style>
+          body {
+            font-family: monospace;
+            font-size: 15px;
+            margin: 0;
+            padding: 11px;
+          }
+          h2 {
+            text-align: center;
+            font-size: 19px;
+            margin-bottom: 11px;
+          }
+          .info {
+            margin-bottom: 10px;
+          }
+          .info p {
+            margin: 2px 0;
+          }
+          ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+          }
+          li {
+            padding: 4px 0;
+            border-bottom: 2px dashed #000;
+            font-size: 19px;
+          }
+        </style>
+      </head>
+      <body>
+        <h2>🧾 PEDIDO A COCINA</h2>
+        <div class="info">
+          <p style="text-align:center; font-weight:bold; margin:6px 0;">RECIBO #${venta.recibo ?? venta.comanda ?? (index + 1)}</p>
+          <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${venta.comanda ?? venta.recibo ?? (index + 1)}</p>
+          <p><strong>Cliente:</strong> ${venta.cliente || "Sin nombre"}</p>
+          <p><strong>Hora:</strong> ${venta.fecha || "Sin hora"}</p>
+          <p><strong>Tipo de Pedido:</strong> ${venta.tipoPedido || "-"}</p>
+          ${venta.observaciones ? `<p><strong>Observaciones:</strong> ${venta.observaciones}</p>` : ""}
+        </div>
+        <ul>
+          ${Object.entries(resumen).map(([producto, cantidad]) => `<li>${producto} x${cantidad}</li>`).join("")}
+        </ul>
+        <p style="text-align: center; margin-top: 10px;">👨‍🍳 Preparar con cuidado</p>
+      </body>
+    </html>`;
+
+  const w = window.open("", "_blank", "width=400,height=600");
+  w.document.write(contenido);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+function editarVenta(index) {
+  if (!verificarAcceso(["admin"])) return;
+  const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+  const venta = ventas[index];
+  if (!venta) return alert("Venta no encontrada.");
+
+  // Cargar datos al formulario
+  document.getElementById("cliente").value = venta.cliente;
+  document.getElementById("formaPago").value = venta.formaPago;
+  document.getElementById("tipoPedido").value = venta.tipoPedido;
+  document.getElementById("observaciones").value = venta.observaciones || "";
+
+  // Cargar productos
+  pedido = [...venta.pedido];
+  total = venta.total;
+  actualizarVistaPedido();
+
+    // Conservar la comanda original
+  comandaEnEdicion = venta.comanda ?? null;
+  reciboEnEdicion = venta.recibo ?? venta.comanda ?? null;
+
+  // Quitar la venta del localStorage para que se reemplace al guardar
+  ventas.splice(index, 1);
+  localStorage.setItem("ventas", JSON.stringify(ventas));
+
+  mostrarVentas();
+  alert("Venta cargada para edición. Haz los cambios y presiona 'Guardar Venta'.");
+}
+
+
+function filtrarVentasPorCliente() {
+  paginaVentasActual = 1;
+  renderVentasTabla();
+}
+
+function abrirHistoricos() {
+  if (!esAdmin()) return alert("No tienes permiso para acceder a históricos.");
+  const appMain = document.getElementById("appMain");
+  const historicosVista = document.getElementById("historicosVista");
+  if (appMain) appMain.classList.add("hidden");
+  if (historicosVista) historicosVista.classList.remove("hidden");
+  actualizarHistoricos();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function volverAlPOS() {
+  const appMain = document.getElementById("appMain");
+  const historicosVista = document.getElementById("historicosVista");
+  if (historicosVista) historicosVista.classList.add("hidden");
+  if (appMain) appMain.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+
+    window.onload = () => {
+      mostrarVentas();
+      aplicarPermisosPorRol();
+    };
+  </script>
+
+  <script>
+  // --- Numeración diaria e históricos ---
+  function obtenerFechaLocalISO(fecha = new Date()) {
+    const offset = fecha.getTimezoneOffset();
+    const local = new Date(fecha.getTime() - offset * 60000);
+    return local.toISOString().slice(0, 10);
+  }
+
+  function obtenerClaveSemana(fecha) {
+    const d = new Date(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getUTCFullYear()}-S${String(weekNo).padStart(2, '0')}`;
+  }
+
+  function formatearDinero(valor) {
+    return `$${Number(valor || 0).toLocaleString('es-CO')}`;
+  }
+
+  function obtenerSiguienteNumeracionDelDia(diaClave) {
+    const key = `numeracionDia_${diaClave}`;
+    const actual = JSON.parse(localStorage.getItem(key) || '{"comanda":0,"recibo":0}');
+    const siguiente = {
+      comanda: Number(actual.comanda || 0) + 1,
+      recibo: Number(actual.recibo || 0) + 1
+    };
+    localStorage.setItem(key, JSON.stringify(siguiente));
+    return siguiente;
+  }
+
+  function normalizarVenta(v, index) {
+    const fechaBase = v.fechaISO ? new Date(v.fechaISO) : new Date(v.fecha);
+    const fechaValida = isNaN(fechaBase.getTime()) ? new Date() : fechaBase;
+    const diaClave = v.diaClave || obtenerFechaLocalISO(fechaValida);
+    return {
+      ...v,
+      fechaISO: v.fechaISO || fechaValida.toISOString(),
+      diaClave,
+      comanda: v.comanda ?? v.recibo ?? (index + 1),
+      recibo: v.recibo ?? v.comanda ?? (index + 1),
+      total: Number(v.total || 0)
+    };
+  }
+
+  function obtenerVentasNormalizadas() {
+    const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+    return ventas.map((v, i) => normalizarVenta(v, i));
+  }
+
+  function renderHistorico(bodyId, filas, etiquetaVacia) {
+    const body = document.getElementById(bodyId);
+    if (!body) return;
+    body.innerHTML = "";
+    if (!filas.length) {
+      body.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-gray-500">${etiquetaVacia}</td></tr>`;
+      return;
+    }
+    filas.forEach(fila => {
+      body.innerHTML += `
+        <tr>
+          <td class="p-2 border">${fila.label}</td>
+          <td class="p-2 border">${fila.ventas}</td>
+          <td class="p-2 border">${formatearDinero(fila.total)}</td>
+        </tr>
+      `;
+    });
+  }
+
+  function actualizarHistoricos() {
+    const ventas = obtenerVentasNormalizadas();
+    const hoy = obtenerFechaLocalISO(new Date());
+    const ahora = new Date();
+    const semanaActual = obtenerClaveSemana(ahora);
+    const mesActual = hoy.slice(0, 7);
+
+    const ventasHoy = ventas.filter(v => v.diaClave === hoy);
+    const ventasSemana = ventas.filter(v => {
+      const fecha = new Date(v.fechaISO || v.fecha);
+      return obtenerClaveSemana(fecha) === semanaActual;
+    });
+    const ventasMes = ventas.filter(v => (v.diaClave || "").slice(0, 7) === mesActual);
+
+    const setText = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+
+    setText("histHoyVentas", `${ventasHoy.length} venta(s)`);
+    setText("histHoyTotal", formatearDinero(ventasHoy.reduce((acc, v) => acc + Number(v.total || 0), 0)));
+    setText("histSemanaVentas", `${ventasSemana.length} venta(s)`);
+    setText("histSemanaTotal", formatearDinero(ventasSemana.reduce((acc, v) => acc + Number(v.total || 0), 0)));
+    setText("histMesVentas", `${ventasMes.length} venta(s)`);
+    setText("histMesTotal", formatearDinero(ventasMes.reduce((acc, v) => acc + Number(v.total || 0), 0)));
+
+    const diario = {};
+    const semanal = {};
+    const mensual = {};
+
+    ventas.forEach(v => {
+      const fecha = new Date(v.fechaISO || v.fecha);
+      const dia = v.diaClave;
+      const semana = obtenerClaveSemana(fecha);
+      const mes = dia.slice(0, 7);
+
+      if (!diario[dia]) diario[dia] = { label: dia, ventas: 0, total: 0 };
+      if (!semanal[semana]) semanal[semana] = { label: semana, ventas: 0, total: 0 };
+      if (!mensual[mes]) mensual[mes] = { label: mes, ventas: 0, total: 0 };
+
+      diario[dia].ventas += 1;
+      diario[dia].total += Number(v.total || 0);
+
+      semanal[semana].ventas += 1;
+      semanal[semana].total += Number(v.total || 0);
+
+      mensual[mes].ventas += 1;
+      mensual[mes].total += Number(v.total || 0);
+    });
+
+    const ordenarDesc = data => Object.values(data).sort((a, b) => b.label.localeCompare(a.label));
+
+    renderHistorico("historicoDiaBody", ordenarDesc(diario), "No hay ventas registradas por día.");
+    renderHistorico("historicoSemanaBody", ordenarDesc(semanal), "No hay ventas registradas por semana.");
+    renderHistorico("historicoMesBody", ordenarDesc(mensual), "No hay ventas registradas por mes.");
+  }
+
+  </script>
+
+</body>
+</html>
