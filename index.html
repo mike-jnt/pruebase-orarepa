@@ -12,6 +12,131 @@
 <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
 
 
+
+<style>
+  html { scroll-behavior: smooth; }
+  @media (max-width: 767px) {
+    body { padding-bottom: 120px; }
+    #appMain, #historicosVista { padding: 1rem; }
+    #productos > div { border-radius: 1rem; }
+    #productos button {
+      min-height: 72px;
+      font-size: 0.92rem;
+      line-height: 1.15rem;
+      font-weight: 700;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    #ventasSeccion table th,
+    #ventasSeccion table td {
+      white-space: nowrap;
+    }
+    #historicosVista table th,
+    #historicosVista table td {
+      white-space: nowrap;
+    }
+  }
+</style>
+
+
+  <style>
+    @media (min-width: 768px) {
+      #productos {
+        grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr) minmax(280px, 1fr) !important;
+        align-items: start;
+        gap: 1rem;
+      }
+      #productos > div {
+        min-width: 0;
+      }
+      #productos > div > .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      #productos button {
+        min-width: 0;
+        width: 100%;
+        font-size: clamp(0.74rem, 0.4vw + 0.56rem, 0.98rem);
+        line-height: 1.2;
+        padding: 0.9rem 0.65rem;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+    @media (min-width: 768px) and (max-width: 1279px) {
+      #productos > div > .grid {
+        grid-template-columns: 1fr;
+      }
+      #productos button {
+        font-size: clamp(0.78rem, 0.55vw + 0.52rem, 0.95rem);
+      }
+    }
+    @media (min-width: 1400px) {
+      #productos button {
+        font-size: 0.98rem;
+      }
+    }
+  </style>
+
+
+<style>
+  @media (max-width: 767px) {
+    #mobileHeaderMenu.fullscreen-menu {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      padding: 0;
+      background: rgba(255, 251, 235, 0.98);
+      backdrop-filter: blur(6px);
+    }
+    #mobileHeaderMenu.fullscreen-menu > div {
+      min-height: 100vh;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+    #mobileHeaderMenu .menu-link-text {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.85rem 0;
+      color: #374151;
+      font-weight: 700;
+      background: transparent;
+      border-radius: 0;
+      border: 0;
+    }
+    #mobileHeaderMenu .menu-link-text.admin {
+      color: #92400e;
+    }
+    #mobileMenuHeaderClose {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 9999px;
+      color: #374151;
+      background: rgba(255,255,255,0.85);
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    #mobileQuickBar {
+      display: none !important;
+    }
+  }
+</style>
+
 </head>
 
 <body class="bg-yellow-50 font-sans">
@@ -49,247 +174,303 @@
 <div id="appContent" class="hidden">
 
   <!-- Navegación -->
-  <nav id="topNav" class="bg-yellow-400 p-4 flex justify-between items-center text-white font-bold text-lg">
-  <div class="flex items-center space-x-2">
-    <img src="imagenes/señora.png" alt="Logo Señor Arepa" class="w-20 h-20 rounded-full" onerror="this.onerror=null;this.src='https://placehold.co/80x80/facc15/92400e?text=SA';">
-    <span class="text-xl">SEÑOR AREPA</span>
-  </div>
-  <div class="flex space-x-2">
-  <a href="finanzas1.html" data-role="admin-only" class="bg-white text-yellow-700 font-semibold px-3 py-1 rounded-lg shadow hover:bg-yellow-100 transition">
-    📋 Finanzas
-  </a>
-  <button type="button" onclick="abrirHistoricos()" data-role="admin-only" class="bg-white text-yellow-700 font-semibold px-3 py-1 rounded-lg shadow hover:bg-yellow-100 transition">
-    📈 Históricos
-  </button>
-  <a href="inventario.html" data-role="admin-only" class="bg-yellow-600 text-white font-semibold px-3 py-1 rounded-lg shadow hover:bg-yellow-700 transition">
-    📆 Inventario
-  </a>
-</div>
-</nav>
+  <nav id="topNav" class="sticky top-0 z-40 bg-yellow-400 px-4 py-3 text-white font-bold text-lg shadow-md">
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <img src="imagenes/señora.png" alt="Logo Señor Arepa" class="w-14 h-14 md:w-20 md:h-20 rounded-full" onerror="this.onerror=null;this.src='https://placehold.co/80x80/facc15/92400e?text=SA';">
+        <span class="text-lg md:text-xl truncate">SEÑOR AREPA</span>
+      </div>
 
-<!-- Estado de conexión y sesión -->
-<div id="roleControl" class="px-6 pt-4">
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
-    <div id="firebaseStatusCard" class="bg-white rounded-xl shadow-md p-4 border border-red-200">
-      <p class="text-sm text-gray-500">Base de datos</p>
-      <div class="mt-2 flex items-center gap-3">
-        <span id="firebaseStatusDot" class="inline-flex w-3 h-3 rounded-full bg-red-500"></span>
-        <div>
-          <p id="firebaseStatusText" class="font-bold text-red-600">Desconectado</p>
-          <p id="firebaseStatusSubtext" class="text-xs text-gray-500">Sin conexión con Firebase</p>
-        </div>
+      <button type="button" id="mobileMenuButton" onclick="toggleMobileMenu()" class="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-xl bg-yellow-500 hover:bg-yellow-600 shadow focus:outline-none focus:ring-2 focus:ring-white/70" aria-label="Abrir menú" aria-expanded="false" aria-controls="mobileHeaderMenu">
+        <svg id="mobileMenuIconOpen" xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        <svg id="mobileMenuIconClose" xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      <div class="hidden md:flex gap-2 w-auto items-center">
+        <a href="finanzas1.html" data-role="admin-only" class="bg-white text-yellow-700 font-semibold px-3 py-2 rounded-lg shadow hover:bg-yellow-100 transition text-center">
+          📋 Finanzas
+        </a>
+        <button type="button" onclick="abrirHistoricos()" data-role="admin-only" class="bg-white text-yellow-700 font-semibold px-3 py-2 rounded-lg shadow hover:bg-yellow-100 transition text-center">
+          📈 Históricos
+        </button>
+        <a href="inventario.html" data-role="admin-only" class="bg-yellow-600 text-white font-semibold px-3 py-2 rounded-lg shadow hover:bg-yellow-700 transition text-center">
+          📆 Inventario
+        </a>
+        <button type="button" onclick="cerrarSesionRol()" class="bg-white/20 text-white font-semibold px-3 py-2 rounded-lg shadow hover:bg-white/30 transition text-center border border-white/40">
+          🔒 Cerrar sesión
+        </button>
       </div>
     </div>
 
-  <div class="bg-white rounded-xl shadow-md p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 border border-yellow-200 lg:col-span-2">
-    <div>
-      <p class="text-sm text-gray-500">Sesión actual</p>
-      <p class="font-bold text-gray-800"><span id="usuarioActualTexto">Sin usuario</span> · <span id="rolActualTexto">Sin rol</span></p>
+    <div id="mobileHeaderMenu" class="md:hidden hidden fullscreen-menu">
+      <div class="px-5 py-5 text-gray-800">
+        <div class="flex items-start justify-between gap-4 border-b border-yellow-200 pb-4">
+          <div class="min-w-0">
+            <p class="text-xs uppercase tracking-wide text-gray-500">Sesión actual</p>
+            <p class="mt-1 font-bold text-gray-800 truncate"><span id="usuarioActualTexto">Sin usuario</span></p>
+            <p class="text-sm text-yellow-700 font-semibold"><span id="rolActualTexto">Sin rol</span></p>
+            <div class="mt-4">
+              <p class="text-xs uppercase tracking-wide text-gray-500">Base de datos</p>
+              <div class="mt-2 flex items-center gap-3">
+                <span id="firebaseStatusDot" class="inline-flex w-3 h-3 rounded-full bg-red-500"></span>
+                <div>
+                  <p id="firebaseStatusText" class="font-bold text-red-600">Desconectado</p>
+                  <p id="firebaseStatusSubtext" class="text-xs text-gray-500">Sin conexión con Firebase</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button type="button" id="mobileMenuHeaderClose" onclick="cerrarMobileMenu()" aria-label="Cerrar menú">✕</button>
+        </div>
+        <div class="pt-4 space-y-1">
+          <button type="button" onclick="guardarVenta(); cerrarMobileMenu();" class="menu-link-text">💾 Guardar venta</button>
+          <button type="button" onclick="imprimirUltimaCocinero(); cerrarMobileMenu();" class="menu-link-text">🖨️ Imprimir para cocina</button>
+          <button type="button" onclick="imprimirUltimaCliente(); cerrarMobileMenu();" class="menu-link-text">🧾 Imprimir recibo cliente</button>
+          <a href="finanzas1.html" data-role="admin-only" class="menu-link-text admin">📋 Finanzas</a>
+          <button type="button" onclick="abrirHistoricos(); cerrarMobileMenu();" data-role="admin-only" class="menu-link-text admin">📈 Históricos</button>
+          <a href="inventario.html" data-role="admin-only" class="menu-link-text admin">📆 Inventario</a>
+          <button type="button" onclick="exportarVentasExcelConEstilo(); cerrarMobileMenu();" id="btnExportarExcelMobile" data-role="admin-only" class="menu-link-text admin">📊 Exportar ventas a Excel</button>
+          <button type="button" onclick="borrarVentas(); cerrarMobileMenu();" data-role="admin-only" class="menu-link-text admin">🗑️ Borrar ventas</button>
+          <button type="button" onclick="generarResumenProductos(); cerrarMobileMenu();" data-role="admin-only" class="menu-link-text admin">📦 Ver resumen productos</button>
+          <button type="button" onclick="cerrarSesionRol()" class="menu-link-text">🔒 Cerrar sesión</button>
+        </div>
+      </div>
     </div>
-    <div class="flex flex-wrap gap-2">
-      <button onclick="cerrarSesionRol()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">🔒 Cerrar sesión</button>
-    </div>
+  </nav>
   </div>
+
+  <div id="mobileQuickBar" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-yellow-200 shadow-[0_-6px_18px_rgba(0,0,0,0.08)] px-3 py-3">
+  <div class="flex items-center gap-2 mb-2">
+    <button type="button" onclick="scrollToPedido()" class="flex-1 text-left bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2">
+      <p id="mobileResumenItems" class="text-xs text-gray-500">0 productos</p>
+      <p id="mobileResumenTotal" class="text-sm font-bold text-gray-800">Total: $0</p>
+    </button>
+    <button type="button" onclick="guardarVenta()" class="bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-3 rounded-xl whitespace-nowrap">💾 Guardar</button>
+  </div>
+  <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-2">
+    <button type="button" onclick="imprimirUltimaCocinero()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl">🖨️ Cocina</button>
+    <button type="button" onclick="imprimirUltimaCliente()" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 rounded-xl">🧾 Cliente</button>
   </div>
 </div>
-
-
 
   <!-- Sección Productos -->
-  <main id="appMain" class="p-6">
-    <h2 class="text-2xl font-bold text-gray-700 mb-4">Menú</h2>
-    <div id="productos" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-     <!-- Comida -->
-<div class="bg-white p-4 rounded-xl shadow-md">
-  <h3 class="text-xl font-semibold text-yellow-600 mb-2">Comida</h3>
-  <div class="grid grid-cols-2 gap-2">
-
-    <button onclick="agregarProducto('AREPA PAISA', 17000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ PAISA - $17.000</button>
-
-    <button onclick="agregarProducto('AREPA PAISA POLLO', 17000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ PAISA POLLO - $17.000</button>
-
-    <button onclick="agregarProducto('AREPA CHICHARRON', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ CHICHARRON - $14.000</button>
-
-    <button onclick="agregarProducto('AREPA EXTRA QUESILLO', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ EXTRA QUESILLO - $9.000</button>
-
-    <button onclick="agregarProducto('AREPA SEÑOR AREPA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ SEÑOR AREPA - $14.000</button>
-
-    <button onclick="agregarProducto('AREPA SEÑORA AREPA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ SEÑORA AREPA - $14.000</button>
-
-    <button onclick="agregarProducto('AREPA HAWAIANA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ HAWAIANA - $14.000</button>
-
-    <button onclick="agregarProducto('AREPA MEGAPAISA', 22000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ MEGAPAISA- $22.000</button>
-
-    <button onclick="agregarProducto('AREPA MIXTA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ MIXTA - $14.000</button>
-
-    <button onclick="agregarProducto('AREPA RANCHERA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ RANCHERA - $14.000</button>
-
-    <button onclick="agregarProducto('AREPA SOLO POLLO', 15000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ SOLO POLLO - $15.000</button>
-
-    <button onclick="agregarProducto('AREPA SOLO CARNE', 15000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ SOLO CARNE - $15.000</button>
-
-    <button onclick="agregarProducto('AREPA MEXICANA', 15000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ MEXICANA - $15.000</button>
-
-    <button onclick="agregarProducto('AREPA SOLA', 1000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪ AREPA SOLA - $1.000</button> 
-    <button onclick="agregarProducto('COMBO 1', 40000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪COMBO 1 - $40.000</button>
-    <button onclick="agregarProducto('COMBO 2', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪COMBO 2 - $30.000</button>
-    <button onclick="agregarProducto('COMBO 3', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪COMBO 3 - $30.000</button>
-    <button onclick="agregarProducto('COMBO marzo', 50000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">⚪COMBO MARZO - $50.000</button>
-
-
-
-
-
-
-  </div>
-</div>
-
-     <!-- Adiciones -->
-<div class="bg-white p-4 rounded-xl shadow-md">
-  <h3 class="text-xl font-semibold text-yellow-600 mb-2">Adiciones</h3>
-  <div class="grid grid-cols-2 gap-2">
-    <button onclick="agregarProducto('ADICION QUESO EXTRA', 5000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🧀 Queso Extra - $5.000</button>
-    
-    <button onclick="agregarProducto('ADICION MAIZ TIERNO', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🌽 MAIZ TIERNO - $3.000</button>
-
-    <button onclick="agregarProducto('ADICION PIÑA CALADA', 5000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍍 PIÑA CALADA - $5.000</button>
-
-    <button onclick="agregarProducto('ADICION POLLO', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍗 POLLO - $7.000</button>
-
-    <button onclick="agregarProducto('ADICION CARNE', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥩 CARNE - $7.000</button>
-
-    <button onclick="agregarProducto('ADICION CHICHARRON', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍖 CHICHARRON - $6.000</button>
-
-    <button onclick="agregarProducto('ADICION RANCHERA', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🔥 RANCHERA - $7.000</button>
-
-    <button onclick="agregarProducto('ADICION CHORIZO', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🌭 CHORIZO - $7.000</button>
-
-    <button onclick="agregarProducto('ADICION TOCINETA', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥓 TOCINETA - $7.000</button>
-
-    <button onclick="agregarProducto('ADICION MADURO', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍌  MADURO - $3.000</button>
-
-    <button onclick="agregarProducto('ADICION ARMA TU AREPA X5', 25000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍌 ARMA TU AREPA - $25.000</button>
-
-  </div>
-</div>
-
-      
-
-      <!-- Bebidas -->
-     <div class="bg-white p-4 rounded-xl shadow-md">
-         <h3 class="text-xl font-semibold text-yellow-600 mb-2">Bebidas</h3>
-        <div class="grid grid-cols-2 gap-2">
-
-           <button onclick="agregarProducto('QUATRO', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍋 QUATRO - $4.000</button>
-
-           <button onclick="agregarProducto('COCA COLA 400 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 COCA COLA - $4.000</button>
-
-           <button onclick="agregarProducto('COCA COLA 250 ml', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 COCA COLA - $3.000</button>
-
-           <button onclick="agregarProducto('JUGO HIT 500 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 JUGO HIT - $4.000</button>
-
-           <button onclick="agregarProducto('SPRITE', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 SPRITE - $4.000</button>
-
-           <button onclick="agregarProducto('COCA COLA ZERO', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 COCA COLA CERO - $4.000</button>
-
-           <button onclick="agregarProducto('BRISA LIMON', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 BRISA LIMON - $4.000</button>
-
-           <button onclick="agregarProducto('BRISA MANZANA', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">💧 BRISA MANZANA - $4.000</button>
-
-           <button onclick="agregarProducto('MISTER TEA', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 MISTER TEA - $4.000</button>
-
-           <button onclick="agregarProducto('AGUA CON GAS', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 AGUA CON GAS - $4.000</button>
-
-           <button onclick="agregarProducto('AGUA SABORISADA', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 AGUA SABORISADA - $4.000</button>
-
-           <button onclick="agregarProducto('POSTOBON 400 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 POSTOBON 400 - $4.000</button>
-
-           <button onclick="agregarProducto('POSTOBON 250 ml', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 POSTOBON 250 - $3.000</button>
-
-           <button onclick="agregarProducto('POSTOBON 1.5', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 POSTOBON 1.5 - $9.000</button>
-
-
-           <button onclick="agregarProducto('SODA BRETAÑA', 4500)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 SODA BRETAÑA - $4.000</button>
-
-           <button onclick="agregarProducto('GATORADE', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 GATORADE - $6.000</button>
-
-           <button onclick="agregarProducto('PREMIO 400 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 PREMIO 400 ml - $4.000</button>
-
-
-           <button onclick="agregarProducto('PREMIO 1.5l', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 PREMIO 1.5l - $9.000</button>
-
-           <button onclick="agregarProducto('QUATRO 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 QUATRO 1.5L - $9.000</button>
-
-           <button onclick="agregarProducto('COCA COLA 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 COCA COLA  1.5L - $9.000</button>
-
-           <button onclick="agregarProducto('JUGO HIT 1.L', 7500)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 JUGO HIT 1.L - $7.000</button>
-
-           <button onclick="agregarProducto('SPRITE 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 SPRITE 1.5L - $9.000</button>
-
-           <button onclick="agregarProducto('COCA COLA ZERO 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 COCA COLA ZERO 1.5L - $9.000</button>
-
-           <button onclick="agregarProducto(' AGUA', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥤 AGUA - $3.000</button>
-
-           <button onclick="agregarProducto('MILO CALIENTE', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🥛 MILO CALIENTE - $6.000</button>
-
-           <button onclick="agregarProducto('CAFE CON LECHE', 5000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">☕🥛 CAFE CON LECHE - $5.000</button>
-
-           <button onclick="agregarProducto('TINTO', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">☕ TINTO - $4.000</button>
-
-           <button onclick="agregarProducto('CERVEZA', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-2 rounded">🍺 CERVEZA - $6.000</button>
-
+  <main id="appMain" class="p-4 md:p-6">
+    <div class="md:hidden flex flex-col gap-4 mb-4">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-2xl font-bold text-gray-700">Nueva venta</h2>
+        <span class="text-sm text-gray-500">Paso <span id="ventaPasoActualTexto">1</span> de 3</span>
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <button type="button" id="stepBtn1" onclick="irAPasoVenta(1)" class="venta-step-btn bg-yellow-500 text-white rounded-2xl px-3 py-3 text-sm font-bold shadow-sm">1. Productos</button>
+        <button type="button" id="stepBtn2" onclick="irAPasoVenta(2)" class="venta-step-btn bg-white text-gray-600 rounded-2xl px-3 py-3 text-sm font-bold border border-yellow-200">2. Cliente</button>
+        <button type="button" id="stepBtn3" onclick="irAPasoVenta(3)" class="venta-step-btn bg-white text-gray-600 rounded-2xl px-3 py-3 text-sm font-bold border border-yellow-200">3. Confirmar</button>
+      </div>
+    </div>
+
+    <section id="ventaPaso1" class="venta-step-section md:block">
+      <div class="bg-white p-4 rounded-2xl shadow-md border border-yellow-100 mb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-bold text-gray-800"><span class="md:hidden">Paso 1: Selecciona los productos</span><span class="hidden md:inline">Menú</span></h3>
+            <p class="text-sm text-gray-500"><span class="md:hidden">Primero comida, luego adición y después bebida.</span><span class="hidden md:inline">Selecciona productos del menú para el pedido.</span></p>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3">
+            <p class="text-xs text-gray-500">Resumen actual</p>
+            <p id="resumenPaso1" class="font-bold text-gray-800">0 productos · $0</p>
+          </div>
         </div>
-    </div>
-    </div>
+      </div>
 
+      <div class="md:hidden bg-white p-4 rounded-2xl shadow-md border border-yellow-100 mb-4">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-yellow-700 font-bold">Selección guiada</p>
+            <h4 id="tituloCategoriaProducto" class="text-lg font-bold text-gray-800">1. Comida</h4>
+          </div>
+          <span id="indicadorCategoriaProducto" class="text-xs font-semibold bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">Paso 1 de 3</span>
+        </div>
+      </div>
 
+      <div id="productos" class="space-y-4 md:space-y-0 md:grid md:grid-cols-3 md:gap-4">
+        <!-- Comida -->
+        <div id="categoriaComida" class="bg-white p-4 rounded-xl shadow-md">
+          <h3 class="text-xl font-semibold text-yellow-600 mb-2">Comida</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+            <button onclick="agregarProducto('AREPA PAISA', 17000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ PAISA - $17.000</button>
+            <button onclick="agregarProducto('AREPA PAISA POLLO', 17000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ PAISA POLLO - $17.000</button>
+            <button onclick="agregarProducto('AREPA CHICHARRON', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ CHICHARRON - $14.000</button>
+            <button onclick="agregarProducto('AREPA EXTRA QUESILLO', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ EXTRA QUESILLO - $9.000</button>
+            <button onclick="agregarProducto('AREPA SEÑOR AREPA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ SEÑOR AREPA - $14.000</button>
+            <button onclick="agregarProducto('AREPA SEÑORA AREPA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ SEÑORA AREPA - $14.000</button>
+            <button onclick="agregarProducto('AREPA HAWAIANA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ HAWAIANA - $14.000</button>
+            <button onclick="agregarProducto('AREPA MEGAPAISA', 22000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ MEGAPAISA - $22.000</button>
+            <button onclick="agregarProducto('AREPA MIXTA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ MIXTA - $14.000</button>
+            <button onclick="agregarProducto('AREPA RANCHERA', 14000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ RANCHERA - $14.000</button>
+            <button onclick="agregarProducto('AREPA SOLO POLLO', 15000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ SOLO POLLO - $15.000</button>
+            <button onclick="agregarProducto('AREPA SOLO CARNE', 15000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ SOLO CARNE - $15.000</button>
+            <button onclick="agregarProducto('AREPA MEXICANA', 15000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ MEXICANA - $15.000</button>
+            <button onclick="agregarProducto('AREPA SOLA', 1000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ AREPA SOLA - $1.000</button>
+            <button onclick="agregarProducto('COMBO 1', 40000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 1 - $40.000</button>
+            <button onclick="agregarProducto('COMBO 2', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 2 - $30.000</button>
+            <button onclick="agregarProducto('COMBO 3', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 3 - $30.000</button>
+            <button onclick="agregarProducto('COMBO marzo', 50000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO MARZO - $50.000</button>
+          </div>
+        </div>
 
-    <!-- Detalle de Pedido -->
-    <div class="mt-6 bg-white p-4 rounded-xl shadow-md">
-      <h3 class="text-lg font-semibold mb-4 border-b pb-2">🛒 Pedido Actual</h3>
-      <ul id="listaPedido" class="list-disc pl-5 text-gray-700 space-y-1"></ul>
-      <p id="total" class="mt-4 font-bold text-lg text-gray-800">Total: $0</p>
-    </div>
+        <!-- Adiciones -->
+        <div id="categoriaAdiciones" class="bg-white p-4 rounded-xl shadow-md hidden md:block">
+          <h3 class="text-xl font-semibold text-yellow-600 mb-2">Adiciones</h3>
+          <p class="text-sm text-gray-500 mb-3">Opcional: agrega las adiciones que necesites.</p>
+          <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+            <button onclick="agregarProducto('ADICION QUESO EXTRA', 5000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🧀 Queso Extra - $5.000</button>
+            <button onclick="agregarProducto('ADICION MAIZ TIERNO', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🌽 MAIZ TIERNO - $3.000</button>
+            <button onclick="agregarProducto('ADICION PIÑA CALADA', 5000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🍍 PIÑA CALADA - $5.000</button>
+            <button onclick="agregarProducto('ADICION POLLO', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🍗 POLLO - $7.000</button>
+            <button onclick="agregarProducto('ADICION CARNE', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥩 CARNE - $7.000</button>
+            <button onclick="agregarProducto('ADICION CHICHARRON', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🍖 CHICHARRON - $6.000</button>
+            <button onclick="agregarProducto('ADICION RANCHERA', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🔥 RANCHERA - $7.000</button>
+            <button onclick="agregarProducto('ADICION CHORIZO', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🌭 CHORIZO - $7.000</button>
+            <button onclick="agregarProducto('ADICION TOCINETA', 7000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥓 TOCINETA - $7.000</button>
+            <button onclick="agregarProducto('ADICION MADURO', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🍌 MADURO - $3.000</button>
+            <button onclick="agregarProducto('ADICION ARMA TU AREPA X5', 25000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🍌 ARMA TU AREPA - $25.000</button>
+          </div>
+        </div>
 
-    <!-- Cliente y forma de pago -->
-    <div class="mt-4 flex flex-col md:flex-row gap-4">
-      <input type="text" id="cliente" placeholder="Nombre del Cliente" class="flex-1 p-2 border border-yellow-300 rounded" />
-      <input type="text" id="observaciones" placeholder="Observaciones (Ej: Sin cebolla, agregar salsas, etc.)" class="flex-1 p-2 border border-yellow-300 rounded" />
+        <!-- Bebidas -->
+        <div id="categoriaBebidas" class="bg-white p-4 rounded-xl shadow-md hidden md:block">
+          <h3 class="text-xl font-semibold text-yellow-600 mb-2">Bebidas</h3>
+          <p class="text-sm text-gray-500 mb-3">Opcional: agrega una o varias bebidas antes de continuar.</p>
+          <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+            <button onclick="agregarProducto('QUATRO', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🍋 QUATRO - $4.000</button>
+            <button onclick="agregarProducto('COCA COLA 400 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 COCA COLA - $4.000</button>
+            <button onclick="agregarProducto('COCA COLA 250 ml', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 COCA COLA - $3.000</button>
+            <button onclick="agregarProducto('JUGO HIT 500 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 JUGO HIT - $4.000</button>
+            <button onclick="agregarProducto('SPRITE', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 SPRITE - $4.000</button>
+            <button onclick="agregarProducto('COCA COLA ZERO', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 COCA COLA CERO - $4.000</button>
+            <button onclick="agregarProducto('BRISA LIMON', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 BRISA LIMON - $4.000</button>
+            <button onclick="agregarProducto('BRISA MANZANA', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">💧 BRISA MANZANA - $4.000</button>
+            <button onclick="agregarProducto('MISTER TEA', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 MISTER TEA - $4.000</button>
+            <button onclick="agregarProducto('AGUA CON GAS', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 AGUA CON GAS - $4.000</button>
+            <button onclick="agregarProducto('AGUA SABORISADA', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 AGUA SABORIZADA - $4.000</button>
+            <button onclick="agregarProducto('POSTOBON 400 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 POSTOBON 400 - $4.000</button>
+            <button onclick="agregarProducto('POSTOBON 250 ml', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 POSTOBON 250 - $3.000</button>
+            <button onclick="agregarProducto('POSTOBON 1.5', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 POSTOBON 1.5 - $9.000</button>
+            <button onclick="agregarProducto('SODA BRETAÑA', 4500)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 SODA BRETAÑA - $4.500</button>
+            <button onclick="agregarProducto('GATORADE', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 GATORADE - $6.000</button>
+            <button onclick="agregarProducto('PREMIO 400 ml', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 PREMIO 400 ml - $4.000</button>
+            <button onclick="agregarProducto('PREMIO 1.5l', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 PREMIO 1.5L - $9.000</button>
+            <button onclick="agregarProducto('QUATRO 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 QUATRO 1.5L - $9.000</button>
+            <button onclick="agregarProducto('COCA COLA 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 COCA COLA 1.5L - $9.000</button>
+            <button onclick="agregarProducto('JUGO HIT 1.L', 7500)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 JUGO HIT 1L - $7.500</button>
+            <button onclick="agregarProducto('SPRITE 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 SPRITE 1.5L - $9.000</button>
+            <button onclick="agregarProducto('COCA COLA ZERO 1.5L', 9000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 COCA COLA ZERO 1.5L - $9.000</button>
+            <button onclick="agregarProducto('AGUA', 3000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥤 AGUA - $3.000</button>
+            <button onclick="agregarProducto('MILO CALIENTE', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥛 MILO CALIENTE - $6.000</button>
+            <button onclick="agregarProducto('CAFE CON LECHE', 5000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">☕🥛 CAFÉ CON LECHE - $5.000</button>
+            <button onclick="agregarProducto('TINTO', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">☕ TINTO - $4.000</button>
+            <button onclick="agregarProducto('CERVEZA', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🍺 CERVEZA - $6.000</button>
+          </div>
+        </div>
+      </div>
 
+      <div class="mt-5 bg-white p-4 rounded-2xl shadow-md border border-yellow-100">
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h4 class="text-base font-bold text-gray-800">Productos seleccionados</h4>
+            <p class="text-sm text-gray-500">Si te equivocas, quita el producto aquí mismo.</p>
+          </div>
+          <span id="contadorItemsPaso1" class="text-xs font-semibold bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">0 items</span>
+        </div>
+        <ul id="listaPedidoPaso1" class="space-y-2 text-sm text-gray-700"></ul>
+        <p id="totalPaso1" class="mt-3 font-bold text-lg text-gray-800">Total: $0</p>
+      </div>
 
-      <select id="formaPago" class="flex-1 p-2 border border-yellow-300 rounded">
-        <option value="">Seleccione forma de pago</option>
-        <option value="Efectivo">Efectivo</option>
-        <option value="Tarjeta">Tarjeta</option>
-        <option value="Transferencia">Transferencia</option>
-        <option value="Nequi/Daviplata">Nequi/Daviplata</option>
-      </select>
-    </div>
+      <div class="md:hidden mt-5 flex flex-col sm:flex-row gap-2 sm:justify-between">
+        <button type="button" id="btnVolverCategoriaProducto" onclick="anteriorCategoriaProducto()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-3 rounded-2xl font-semibold hidden">← Volver</button>
+        <button type="button" id="btnSiguienteCategoriaProducto" onclick="siguienteCategoriaProducto()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-3 rounded-2xl font-semibold shadow-sm sm:ml-auto">Continuar con adiciones →</button>
+      </div>
+    </section>
 
-    <!-- Tipo de pedido: Local o Domicilio -->
-<div class="mt-4">
-  <label for="tipoPedido" class="block text-sm font-medium text-gray-700">Tipo de Pedido</label>
-  <select id="tipoPedido" class="mt-1 p-2 border rounded w-full">
-    <option value="">Selecciona</option>
-    <option value="Aquí">Aquí</option>
-    <option value="Para llevar">Para llevar</option>
-    <option value="Domicilio">Domicilio</option>
-  </select>
-</div>
+<section id="ventaPaso2" class="venta-step-section hidden md:block">
+      <div class="bg-white p-4 rounded-2xl shadow-md border border-yellow-100 mb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-bold text-gray-800"><span class="md:hidden">Paso 2: Datos del pedido</span><span class="hidden md:inline">Datos del pedido</span></h3>
+            <p class="text-sm text-gray-500"><span class="md:hidden">Completa la información básica del cliente y la entrega.</span><span class="hidden md:inline">Ingresa los datos del cliente y la entrega.</span></p>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3">
+            <p class="text-xs text-gray-500">Pedido actual</p>
+            <p id="resumenPaso2" class="font-bold text-gray-800">0 productos · $0</p>
+          </div>
+        </div>
+      </div>
 
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <input type="text" id="cliente" placeholder="Nombre del Cliente" class="w-full p-3 border border-yellow-300 rounded-xl text-base" />
+        <select id="formaPago" class="w-full p-3 border border-yellow-300 rounded-xl text-base">
+          <option value="">Seleccione forma de pago</option>
+          <option value="Efectivo">Efectivo</option>
+          <option value="Tarjeta">Tarjeta</option>
+          <option value="Transferencia">Transferencia</option>
+          <option value="Nequi/Daviplata">Nequi/Daviplata</option>
+        </select>
+        <div>
+          <label for="tipoPedido" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Pedido</label>
+          <select id="tipoPedido" class="p-3 border border-yellow-300 rounded-xl w-full text-base">
+            <option value="">Selecciona</option>
+            <option value="Aquí">Aquí</option>
+            <option value="Para llevar">Para llevar</option>
+            <option value="Domicilio">Domicilio</option>
+          </select>
+        </div>
+        <input type="text" id="observaciones" placeholder="Observaciones (Ej: Sin cebolla, agregar salsas, etc.)" class="w-full p-3 border border-yellow-300 rounded-xl text-base" />
+      </div>
 
-    <!-- Botones de acción -->
-    <div class="mt-6 flex flex-wrap gap-2">
-      <button onclick="guardarVenta()" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded">💾 Guardar Venta</button>
-      <button onclick="imprimirUltimaCocinero()" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">🖨️ Imprimir para Cocina</button>
-      <button onclick="imprimirUltimaCliente()" class="bg-purple-500 hover:bg-purple-600 text-white p-2 rounded">🧾 Imprimir Recibo Cliente</button>
-     <button id="btnExportarExcel" onclick="exportarVentasExcelConEstilo()" data-role="admin-only" class="bg-green-600 hover:bg-green-700 text-white p-2 rounded">
-      📊 Exportar Ventas a Excel
-     </button>
+      <div class="md:hidden mt-5 flex flex-col sm:flex-row gap-2 sm:justify-between">
+        <button type="button" onclick="anteriorPasoVenta()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-3 rounded-2xl font-semibold">← Volver a productos</button>
+        <button type="button" onclick="siguientePasoVenta()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-3 rounded-2xl font-semibold shadow-sm">Revisar pedido →</button>
+      </div>
+    </section>
 
-      <button onclick="borrarVentas()" data-role="admin-only" class="bg-red-500 hover:bg-red-600 text-white p-2 rounded">🗑️ Borrar Ventas</button>
-      <button onclick="generarResumenProductos()" data-role="admin-only" class="bg-indigo-500 hover:bg-indigo-600 text-white p-2 rounded">📊 Ver Resumen Productos</button>
-    </div>
+    <section id="ventaPaso3" class="venta-step-section hidden md:block">
+      <div class="bg-white p-4 rounded-2xl shadow-md border border-yellow-100 mb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-bold text-gray-800"><span class="md:hidden">Paso 3: Confirmación</span><span class="hidden md:inline">Confirmación</span></h3>
+            <p class="text-sm text-gray-500"><span class="md:hidden">Revisa el pedido y guarda o imprime.</span><span class="hidden md:inline">Revisa el pedido, guarda la venta o imprime.</span></p>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3">
+            <p class="text-xs text-gray-500">Resumen final</p>
+            <p id="resumenPaso3" class="font-bold text-gray-800">0 productos · $0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detalle de Pedido -->
+      <div id="pedidoActualCard" class="mt-4 bg-white p-4 rounded-2xl shadow-md border border-yellow-100">
+        <h3 class="text-lg font-semibold mb-4 border-b pb-2">🛒 Pedido Actual</h3>
+        <ul id="listaPedido" class="list-disc pl-5 text-gray-700 space-y-1"></ul>
+        <p id="total" class="mt-4 font-bold text-lg text-gray-800">Total: $0</p>
+      </div>
+
+      <!-- Botones de acción -->
+      <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:flex gap-2">
+        <button type="button" onclick="anteriorPasoVenta()" class="md:hidden bg-gray-200 hover:bg-gray-300 text-gray-800 p-3 rounded-xl font-semibold">← Volver</button>
+        <button onclick="guardarVenta()" class="hidden md:inline-flex bg-green-500 hover:bg-green-600 text-white p-3 rounded-xl font-semibold">💾 Guardar Venta</button>
+        <button onclick="imprimirUltimaCocinero()" class="hidden md:inline-flex bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-xl font-semibold">🖨️ Imprimir para Cocina</button>
+        <button onclick="imprimirUltimaCliente()" class="hidden md:inline-flex bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">🧾 Imprimir Recibo Cliente</button>
+       <button id="btnExportarExcel" onclick="exportarVentasExcelConEstilo()" data-role="admin-only" class="hidden md:inline-flex bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl font-semibold">
+        📊 Exportar Ventas a Excel
+       </button>
+
+        <button onclick="borrarVentas()" data-role="admin-only" class="hidden md:inline-flex bg-red-500 hover:bg-red-600 text-white p-3 rounded-xl font-semibold">🗑️ Borrar Ventas</button>
+        <button onclick="generarResumenProductos()" data-role="admin-only" class="hidden md:inline-flex bg-indigo-500 hover:bg-indigo-600 text-white p-3 rounded-xl font-semibold">📊 Ver Resumen Productos</button>
+      </div>
+    </section>
 
     <!-- Visualización de Ventas Guardadas -->
     <div id="ventasSeccion" class="mt-8 bg-white p-4 rounded-xl shadow-md">
@@ -299,7 +480,9 @@
   <input type="text" id="filtroCliente" oninput="filtrarVentasPorCliente()" placeholder="🔍 Filtrar por cliente..." class="w-full md:w-1/3 p-2 border border-yellow-300 rounded" />
   </div>
 
-  <div class="overflow-auto">
+  <div id="ventasGuardadasMobile" class="md:hidden space-y-3"></div>
+
+  <div class="hidden md:block overflow-auto">
     <table class="min-w-full text-left border">
       <thead>
         <tr class="bg-yellow-200">
@@ -339,7 +522,7 @@
 
 
 
-  <main id="historicosVista" data-role="admin-only" class="p-6 hidden">
+  <main id="historicosVista" data-role="admin-only" class="p-4 md:p-6 hidden">
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div>
@@ -487,29 +670,25 @@ let monitorFirebaseInterval = null;
 
 function actualizarIndicadorFirebase(estado, detalle = "") {
   firebaseConexionEstado = estado;
-  const card = document.getElementById("firebaseStatusCard");
   const dot = document.getElementById("firebaseStatusDot");
   const text = document.getElementById("firebaseStatusText");
   const sub = document.getElementById("firebaseStatusSubtext");
-  if (!card || !dot || !text || !sub) return;
+  if (!dot || !text || !sub) return;
 
   const estados = {
     conectado: {
-      card: "bg-white rounded-xl shadow-md p-4 border border-green-200",
       dot: "inline-flex w-3 h-3 rounded-full bg-green-500",
       textClass: "font-bold text-green-600",
       text: "Conectado",
       sub: detalle || "Base de datos sincronizada con Firebase"
     },
     verificando: {
-      card: "bg-white rounded-xl shadow-md p-4 border border-yellow-200",
       dot: "inline-flex w-3 h-3 rounded-full bg-yellow-400 animate-pulse",
       textClass: "font-bold text-yellow-600",
       text: "Verificando",
       sub: detalle || "Validando conexión con Firebase"
     },
     desconectado: {
-      card: "bg-white rounded-xl shadow-md p-4 border border-red-200",
       dot: "inline-flex w-3 h-3 rounded-full bg-red-500",
       textClass: "font-bold text-red-600",
       text: "Desconectado",
@@ -518,7 +697,6 @@ function actualizarIndicadorFirebase(estado, detalle = "") {
   };
 
   const conf = estados[estado] || estados.desconectado;
-  card.className = conf.card;
   dot.className = conf.dot;
   text.className = conf.textClass;
   text.textContent = conf.text;
@@ -658,11 +836,16 @@ async function inicializarFirebaseVentas() {
         const email = String(user.email || '').toLowerCase();
         const registro = resolverRegistroUsuario(email) || resolverRegistroUsuario(user.displayName || '') || { usuario: email.split('@')[0], rol: 'cajero', nombre: user.displayName || email };
         aplicarSesionAutenticada(registro.usuario || email.split('@')[0], registro.rol || 'cajero', user.email || '');
+        escucharVentasFirestore();
       } else {
+        if (typeof ventasUnsubscribe === 'function') {
+          ventasUnsubscribe();
+          ventasUnsubscribe = null;
+        }
         limpiarSesionLocal();
+        guardarVentasEnCache([]);
       }
     });
-    escucharVentasFirestore();
   } catch (error) {
     console.error("Error al inicializar Firebase:", error);
     firestoreDisponible = false;
@@ -814,16 +997,40 @@ function verificarAcceso(rolesPermitidos) {
 
 async function cerrarSesionRol() {
   volverAlPOS();
+  cerrarMobileMenu();
+  document.body.classList.remove('overflow-hidden');
+  if (typeof ventasUnsubscribe === 'function') {
+    ventasUnsubscribe();
+    ventasUnsubscribe = null;
+  }
+  limpiarSesionLocal();
+  guardarVentasEnCache([]);
   try {
     if (firebaseAuth) {
       await firebaseAuth.signOut();
-    } else {
-      limpiarSesionLocal();
     }
   } catch (error) {
     console.error("Error al cerrar sesión:", error);
-    limpiarSesionLocal();
   }
+}
+
+function toggleMobileMenu(forceOpen = null) {
+  const menu = document.getElementById('mobileHeaderMenu');
+  const button = document.getElementById('mobileMenuButton');
+  const iconOpen = document.getElementById('mobileMenuIconOpen');
+  const iconClose = document.getElementById('mobileMenuIconClose');
+  if (!menu || !button) return;
+
+  const willOpen = forceOpen === null ? menu.classList.contains('hidden') : !!forceOpen;
+  menu.classList.toggle('hidden', !willOpen);
+  button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  if (iconOpen) iconOpen.classList.toggle('hidden', willOpen);
+  if (iconClose) iconClose.classList.toggle('hidden', !willOpen);
+  document.body.classList.toggle('overflow-hidden', willOpen && window.innerWidth < 768);
+}
+
+function cerrarMobileMenu() {
+  toggleMobileMenu(false);
 }
 
 function aplicarPermisosPorRol() {
@@ -832,13 +1039,18 @@ function aplicarPermisosPorRol() {
   if (loginScreen) loginScreen.classList.toggle("hidden", sesionActiva && tieneRolValido());
   if (appContent) appContent.classList.toggle("hidden", !(sesionActiva && tieneRolValido()));
 
-  const textoRol = document.getElementById("rolActualTexto");
-  const textoUsuario = document.getElementById("usuarioActualTexto");
-  if (textoRol) {
-    textoRol.textContent = rolActual ? (rolActual === "admin" ? "Admin" : "Cajero") : "Sin rol";
-  }
-  if (textoUsuario) {
-    textoUsuario.textContent = usuarioActual || "Sin usuario";
+  const rolLabel = rolActual ? (rolActual === "admin" ? "Admin" : "Cajero") : "Sin rol";
+  ["rolActualTexto", "rolActualTextoDesktop"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = rolLabel;
+  });
+  ["usuarioActualTexto", "usuarioActualTextoDesktop"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = usuarioActual || "Sin usuario";
+  });
+  const loginError = document.getElementById("loginError");
+  if (loginError && sesionActiva && tieneRolValido()) {
+    loginError.classList.add("hidden");
   }
 
   document.querySelectorAll('[data-role="admin-only"]').forEach(el => {
@@ -870,10 +1082,172 @@ function aplicarPermisosPorRol() {
   }
 
   mostrarVentas();
+  actualizarIndicadoresPasoVenta();
+  actualizarResumenPasosVenta();
   const historicosVista = document.getElementById("historicosVista");
   if (historicosVista) historicosVista.classList.add("hidden");
+
+  if (!sesionActiva || !tieneRolValido()) {
+    const campoClave = document.getElementById("loginClave");
+    const toggle = document.getElementById("toggleClave");
+    if (campoClave) campoClave.value = "";
+    if (toggle) toggle.checked = false;
+    toggleVerClave();
+  }
 }
 
+
+  let ventaPasoActual = 1;
+  let categoriaProductoActual = 1;
+
+  function esVistaMovil() {
+    return window.innerWidth < 768;
+  }
+
+  function actualizarCategoriasProducto() {
+    const categorias = [
+      { id: 'categoriaComida', titulo: '1. Comida', indicador: 'Paso 1 de 3' },
+      { id: 'categoriaAdiciones', titulo: '2. Adiciones', indicador: 'Paso 2 de 3' },
+      { id: 'categoriaBebidas', titulo: '3. Bebidas', indicador: 'Paso 3 de 3' }
+    ];
+
+    const esMovil = esVistaMovil();
+
+    categorias.forEach((cat, index) => {
+      const el = document.getElementById(cat.id);
+      if (!el) return;
+      if (esMovil) {
+        el.classList.toggle('hidden', categoriaProductoActual !== index + 1);
+      } else {
+        el.classList.remove('hidden');
+      }
+    });
+
+    const titulo = document.getElementById('tituloCategoriaProducto');
+    const indicador = document.getElementById('indicadorCategoriaProducto');
+    const btnVolver = document.getElementById('btnVolverCategoriaProducto');
+    const btnSiguiente = document.getElementById('btnSiguienteCategoriaProducto');
+
+    const actual = categorias[categoriaProductoActual - 1];
+    if (titulo && actual) titulo.textContent = actual.titulo;
+    if (indicador && actual) indicador.textContent = actual.indicador;
+    if (btnVolver) btnVolver.classList.toggle('hidden', !esMovil || categoriaProductoActual === 1);
+    if (btnSiguiente) {
+      if (categoriaProductoActual === 1) btnSiguiente.textContent = 'Continuar con adiciones →';
+      else if (categoriaProductoActual === 2) btnSiguiente.textContent = 'Continuar con bebidas →';
+      else btnSiguiente.textContent = 'Continuar con datos del cliente →';
+    }
+  }
+
+  function siguienteCategoriaProducto() {
+    if (categoriaProductoActual === 1 && pedido.length === 0) {
+      alert('Primero agrega al menos un producto de comida.');
+      return;
+    }
+    if (categoriaProductoActual < 3) {
+      categoriaProductoActual += 1;
+      actualizarCategoriasProducto();
+      const main = document.getElementById('appMain');
+      if (main) main.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    categoriaProductoActual = 1;
+    irAPasoVenta(2);
+  }
+
+  function anteriorCategoriaProducto() {
+    if (categoriaProductoActual > 1) {
+      categoriaProductoActual -= 1;
+      actualizarCategoriasProducto();
+      const main = document.getElementById('appMain');
+      if (main) main.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function actualizarIndicadoresPasoVenta() {
+    const textoPaso = document.getElementById("ventaPasoActualTexto");
+    if (textoPaso) textoPaso.textContent = String(ventaPasoActual);
+    const esMovil = esVistaMovil();
+    [1,2,3].forEach(num => {
+      const section = document.getElementById(`ventaPaso${num}`);
+      const btn = document.getElementById(`stepBtn${num}`);
+      if (section) {
+        if (esMovil) section.classList.toggle('hidden', num !== ventaPasoActual);
+        else section.classList.remove('hidden');
+      }
+      if (btn) {
+        const activo = num === ventaPasoActual;
+        btn.classList.toggle('bg-yellow-500', activo);
+        btn.classList.toggle('text-white', activo);
+        btn.classList.toggle('shadow-sm', activo);
+        btn.classList.toggle('bg-white', !activo);
+        btn.classList.toggle('text-gray-600', !activo);
+        btn.classList.toggle('border', !activo);
+        btn.classList.toggle('border-yellow-200', !activo);
+      }
+    });
+    actualizarCategoriasProducto();
+  }
+
+  function validarPasoVenta(paso) {
+    if (paso === 1 && pedido.length === 0) {
+      alert('Agrega productos al pedido.');
+      return false;
+    }
+    if (paso === 2) {
+      if (pedido.length === 0) {
+        alert('Agrega productos al pedido.');
+        irAPasoVenta(1);
+        return false;
+      }
+      const cliente = document.getElementById('cliente').value.trim();
+      const formaPago = document.getElementById('formaPago').value;
+      const tipoPedido = document.getElementById('tipoPedido').value;
+      if (!cliente) {
+        alert('Por favor ingresa el nombre del cliente.');
+        return false;
+      }
+      if (!formaPago) {
+        alert('Por favor selecciona una forma de pago.');
+        return false;
+      }
+      if (!tipoPedido) {
+        alert('Por favor selecciona un tipo de pedido.');
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function irAPasoVenta(paso) {
+    if (paso < 1 || paso > 3) return;
+    if (paso > ventaPasoActual) {
+      for (let p = ventaPasoActual; p < paso; p++) {
+        if (!validarPasoVenta(p)) return;
+      }
+    }
+    ventaPasoActual = paso;
+    if (ventaPasoActual === 1 && pedido.length === 0) categoriaProductoActual = 1;
+    actualizarIndicadoresPasoVenta();
+    const main = document.getElementById('appMain');
+    if (main) main.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function siguientePasoVenta() {
+    irAPasoVenta(ventaPasoActual + 1);
+  }
+
+  function anteriorPasoVenta() {
+    irAPasoVenta(ventaPasoActual - 1);
+  }
+
+  function actualizarResumenPasosVenta() {
+    const resumen = `${pedido.length} ${pedido.length === 1 ? 'producto' : 'productos'} · ${formatearCOP(total)}`;
+    ['resumenPaso1','resumenPaso2','resumenPaso3'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = resumen;
+    });
+  }
 
   // Agrega un producto al pedido y actualiza la vista
   function agregarProducto(nombre, precio) {
@@ -899,13 +1273,56 @@ function aplicarPermisosPorRol() {
   // Actualiza la lista del pedido en la interfaz
   function actualizarVistaPedido() {
     const lista = document.getElementById("listaPedido");
-    lista.innerHTML = "";
+    const listaPaso1 = document.getElementById("listaPedidoPaso1");
+    if (lista) lista.innerHTML = "";
+    if (listaPaso1) listaPaso1.innerHTML = "";
+
+    if (pedido.length === 0) {
+      if (lista) {
+        const liVacio = document.createElement("li");
+        liVacio.className = "list-none text-gray-400";
+        liVacio.textContent = "Aún no has agregado productos.";
+        lista.appendChild(liVacio);
+      }
+      if (listaPaso1) {
+        const liVacioPaso1 = document.createElement("li");
+        liVacioPaso1.className = "text-gray-400";
+        liVacioPaso1.textContent = "Aún no has agregado productos.";
+        listaPaso1.appendChild(liVacioPaso1);
+      }
+    }
+
     pedido.forEach((p, i) => {
-      const li = document.createElement("li");
-      li.innerHTML = `${p.nombre} - $${p.precio.toLocaleString('es-CO')} <button onclick="quitarProducto(${i})" class='text-red-600 ml-2'>❌</button>`;
-      lista.appendChild(li);
+      if (lista) {
+        const li = document.createElement("li");
+        li.innerHTML = `${p.nombre} - $${p.precio.toLocaleString('es-CO')} <button onclick="quitarProducto(${i})" class='text-red-600 ml-2'>❌</button>`;
+        lista.appendChild(li);
+      }
+      if (listaPaso1) {
+        const liPaso1 = document.createElement("li");
+        liPaso1.className = "flex items-center justify-between gap-3 border border-yellow-100 rounded-xl px-3 py-2";
+        liPaso1.innerHTML = `
+          <div>
+            <p class="font-medium text-gray-800">${p.nombre}</p>
+            <p class="text-xs text-gray-500">$${p.precio.toLocaleString('es-CO')}</p>
+          </div>
+          <button type="button" onclick="quitarProducto(${i})" class="shrink-0 bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-xl font-semibold">Quitar</button>
+        `;
+        listaPaso1.appendChild(liPaso1);
+      }
     });
-    document.getElementById("total").textContent = `Total: $${total.toLocaleString('es-CO')}`;
+
+    if (document.getElementById("total")) {
+      document.getElementById("total").textContent = `Total: $${total.toLocaleString('es-CO')}`;
+    }
+    if (document.getElementById("totalPaso1")) {
+      document.getElementById("totalPaso1").textContent = `Total: $${total.toLocaleString('es-CO')}`;
+    }
+    if (document.getElementById("contadorItemsPaso1")) {
+      document.getElementById("contadorItemsPaso1").textContent = `${pedido.length} item${pedido.length === 1 ? '' : 's'}`;
+    }
+    actualizarResumenMovil();
+    actualizarResumenPasosVenta();
   }
 
   // Limpia el pedido y el formulario cliente/pago
@@ -917,6 +1334,7 @@ function aplicarPermisosPorRol() {
   document.getElementById("formaPago").value = "";
   document.getElementById("tipoPedido").value = "";
   document.getElementById("observaciones").value = ""; // 👈 esta línea nueva
+  irAPasoVenta(1);
 }
 
 
@@ -1033,6 +1451,72 @@ function aplicarPermisosPorRol() {
     `;
   }
 
+  function formatearCOP(valor) {
+    return `$${Number(valor || 0).toLocaleString('es-CO')}`;
+  }
+
+  function actualizarResumenMovil() {
+    const items = document.getElementById("mobileResumenItems");
+    const totalEl = document.getElementById("mobileResumenTotal");
+    if (items) {
+      items.textContent = `${pedido.length} ${pedido.length === 1 ? 'producto' : 'productos'}`;
+    }
+    if (totalEl) {
+      totalEl.textContent = `Total: ${formatearCOP(total)}`;
+    }
+  }
+
+  function scrollToPedido() {
+    const destino = document.getElementById("pedidoActualCard");
+    if (destino) destino.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function construirTarjetaVenta(v, i) {
+    const resumen = {};
+    (v.pedido || []).forEach(p => {
+      resumen[p.nombre] = (resumen[p.nombre] || 0) + 1;
+    });
+    const productosResumen = Object.entries(resumen)
+      .map(([prod, cant]) => `<li class="flex justify-between gap-3"><span>${prod}</span><strong>x${cant}</strong></li>`)
+      .join("");
+
+    let botonesAccion = `
+      <div class="grid grid-cols-2 gap-2 mt-3">
+        <button onclick="imprimirVentaCliente(${i})" class="bg-purple-500 text-white px-3 py-2 rounded-lg text-sm font-semibold">🧾 Cliente</button>
+        <button onclick="imprimirVentaCocina(${i})" class="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-semibold">👨‍🍳 Cocina</button>
+      </div>
+    `;
+
+    if (esAdmin()) {
+      botonesAccion += `
+        <button onclick="editarVenta(${i})" class="bg-yellow-600 text-white px-3 py-2 rounded-lg text-sm font-semibold w-full mt-2">📝 Editar</button>
+      `;
+    }
+
+    return `
+      <article class="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-xs text-gray-500">Venta #${v.comanda ?? v.recibo ?? (i + 1)}</p>
+            <h4 class="font-bold text-gray-800">${v.cliente || 'Sin cliente'}</h4>
+          </div>
+          <p class="text-sm font-bold text-gray-800">${formatearCOP(v.total)}</p>
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <div class="bg-white rounded-xl p-2 border border-yellow-100"><span class="text-gray-500 block text-xs">Fecha</span><strong>${v.fecha || '-'}</strong></div>
+          <div class="bg-white rounded-xl p-2 border border-yellow-100"><span class="text-gray-500 block text-xs">Pago</span><strong>${v.formaPago || '-'}</strong></div>
+          <div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Tipo de pedido</span><strong>${v.tipoPedido || '-'}</strong></div>
+          ${(v.observaciones || '').trim() ? `<div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Observaciones</span><strong>${v.observaciones}</strong></div>` : ''}
+        </div>
+        <div class="mt-3 bg-white rounded-xl p-3 border border-yellow-100">
+          <p class="text-xs text-gray-500 mb-2">Productos</p>
+          <ul class="space-y-2 text-sm text-gray-700">${productosResumen}</ul>
+        </div>
+        ${botonesAccion}
+      </article>
+    `;
+  }
+
   function actualizarControlesPaginacion(totalVentasFiltradas) {
     const totalPaginas = Math.max(1, Math.ceil(totalVentasFiltradas / VENTAS_POR_PAGINA));
     const inicio = totalVentasFiltradas === 0 ? 0 : ((paginaVentasActual - 1) * VENTAS_POR_PAGINA) + 1;
@@ -1064,6 +1548,13 @@ function aplicarPermisosPorRol() {
     contenedor.innerHTML = ventasPagina.length
       ? ventasPagina.map(({ venta, index }) => construirFilaVenta(venta, index)).join("")
       : `<tr><td colspan="8" class="border p-3 text-center text-gray-500">No hay ventas para mostrar.</td></tr>`;
+
+    const contenedorMobile = document.getElementById("ventasGuardadasMobile");
+    if (contenedorMobile) {
+      contenedorMobile.innerHTML = ventasPagina.length
+        ? ventasPagina.map(({ venta, index }) => construirTarjetaVenta(venta, index)).join("")
+        : `<div class="bg-white border border-yellow-200 rounded-2xl p-4 text-center text-gray-500">No hay ventas para mostrar.</div>`;
+    }
 
     actualizarControlesPaginacion(ventasFiltradas.length);
   }
@@ -1296,7 +1787,35 @@ URL.revokeObjectURL(url);
           font-size: 19px;
         }
       </style>
-    </head>
+    
+<style>
+  html { scroll-behavior: smooth; }
+  @media (max-width: 767px) {
+    body { padding-bottom: 120px; }
+    #appMain, #historicosVista { padding: 1rem; }
+    #productos > div { border-radius: 1rem; }
+    #productos button {
+      min-height: 72px;
+      font-size: 0.92rem;
+      line-height: 1.15rem;
+      font-weight: 700;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    #ventasSeccion table th,
+    #ventasSeccion table td {
+      white-space: nowrap;
+    }
+    #historicosVista table th,
+    #historicosVista table td {
+      white-space: nowrap;
+    }
+  }
+</style>
+
+</head>
     <body>
       <h2>🧾 PEDIDO A COCINA</h2>
       <div class="info">
@@ -1395,7 +1914,35 @@ function imprimirUltimaCliente() {
             font-size: 15px;
           }
         </style>
-      </head>
+      
+<style>
+  html { scroll-behavior: smooth; }
+  @media (max-width: 767px) {
+    body { padding-bottom: 120px; }
+    #appMain, #historicosVista { padding: 1rem; }
+    #productos > div { border-radius: 1rem; }
+    #productos button {
+      min-height: 72px;
+      font-size: 0.92rem;
+      line-height: 1.15rem;
+      font-weight: 700;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    #ventasSeccion table th,
+    #ventasSeccion table td {
+      white-space: nowrap;
+    }
+    #historicosVista table th,
+    #historicosVista table td {
+      white-space: nowrap;
+    }
+  }
+</style>
+
+</head>
       <body>
         <h2>SEÑOR AREPA</h2>
         <div class="sub-info">
@@ -1496,7 +2043,35 @@ function imprimirVentaCliente(index) {
             font-size: 15px;
           }
         </style>
-      </head>
+      
+<style>
+  html { scroll-behavior: smooth; }
+  @media (max-width: 767px) {
+    body { padding-bottom: 120px; }
+    #appMain, #historicosVista { padding: 1rem; }
+    #productos > div { border-radius: 1rem; }
+    #productos button {
+      min-height: 72px;
+      font-size: 0.92rem;
+      line-height: 1.15rem;
+      font-weight: 700;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    #ventasSeccion table th,
+    #ventasSeccion table td {
+      white-space: nowrap;
+    }
+    #historicosVista table th,
+    #historicosVista table td {
+      white-space: nowrap;
+    }
+  }
+</style>
+
+</head>
       <body>
         <h2>SEÑOR AREPA</h2>
         <div class="line"></div>
@@ -1570,7 +2145,35 @@ function imprimirVentaCocina(index) {
             font-size: 19px;
           }
         </style>
-      </head>
+      
+<style>
+  html { scroll-behavior: smooth; }
+  @media (max-width: 767px) {
+    body { padding-bottom: 120px; }
+    #appMain, #historicosVista { padding: 1rem; }
+    #productos > div { border-radius: 1rem; }
+    #productos button {
+      min-height: 72px;
+      font-size: 0.92rem;
+      line-height: 1.15rem;
+      font-weight: 700;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    #ventasSeccion table th,
+    #ventasSeccion table td {
+      white-space: nowrap;
+    }
+    #historicosVista table th,
+    #historicosVista table td {
+      white-space: nowrap;
+    }
+  }
+</style>
+
+</head>
       <body>
         <h2>🧾 PEDIDO A COCINA</h2>
         <div class="info">
@@ -1619,6 +2222,7 @@ function editarVenta(index) {
   ventaOriginalEnEdicion = { ...venta };
 
   mostrarVentas();
+  irAPasoVenta(3);
   alert("Venta cargada para edición. Haz los cambios y presiona 'Guardar Venta'.");
 }
 
@@ -1649,6 +2253,7 @@ function volverAlPOS() {
 
     window.onload = async () => {
       mostrarVentas();
+      actualizarResumenMovil();
       aplicarPermisosPorRol();
       await inicializarFirebaseVentas();
       const loginUsuario = document.getElementById("loginUsuario");
@@ -1855,7 +2460,16 @@ function volverAlPOS() {
     verVentasDetalladasPorFecha();
   }
 
-  </script>
+  
+window.addEventListener('DOMContentLoaded', () => {
+  const appContent = document.getElementById('appContent');
+  const loginScreen = document.getElementById('loginScreen');
+  if (appContent) appContent.classList.add('hidden');
+  if (loginScreen) loginScreen.classList.remove('hidden');
+  aplicarPermisosPorRol();
+});
+
+</script>
 
 </body>
 </html>
