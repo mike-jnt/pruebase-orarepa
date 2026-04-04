@@ -474,7 +474,7 @@
 
     <!-- Visualización de Ventas Guardadas -->
     <div id="ventasSeccion" class="mt-8 bg-white p-4 rounded-xl shadow-md">
-  <h3 class="text-lg font-semibold mb-2">Ventas Guardadas</h3>
+  <h3 class="text-lg font-semibold mb-2">Ventas del día actual</h3>
 
   <div class="mb-4">
   <input type="text" id="filtroCliente" oninput="filtrarVentasPorCliente()" placeholder="🔍 Filtrar por cliente..." class="w-full md:w-1/3 p-2 border border-yellow-300 rounded" />
@@ -615,6 +615,7 @@
               <input type="date" id="filtroHistoricoFecha" class="p-2 border border-yellow-300 rounded-lg" />
             </div>
             <button onclick="verVentasDetalladasPorFecha()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">Ver ventas del día</button>
+            <button onclick="exportarVentasDelDiaHistorico()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">Exportar Excel del día</button>
           </div>
         </div>
 
@@ -877,7 +878,7 @@ function escucharVentasFirestore() {
       mostrarVentas();
       if (document.getElementById("historicosVista") && !document.getElementById("historicosVista").classList.contains("hidden")) {
         actualizarHistoricos();
-        cargarVentasDelDiaSeleccionado();
+        verVentasDetalladasPorFecha();
       }
     }, (error) => {
       console.error("Error al escuchar ventas de Firebase:", error);
@@ -1530,11 +1531,26 @@ function aplicarPermisosPorRol() {
     document.getElementById("btnNextVentas").classList.toggle("opacity-50", paginaVentasActual >= totalPaginas);
   }
 
+  function obtenerClaveDiaActual() {
+    return obtenerFechaLocalISO(new Date());
+  }
+
+  function obtenerVentasDelDiaActualConIndices() {
+    const hoy = obtenerClaveDiaActual();
+    const ventas = obtenerVentasStorage();
+    return ventas
+      .map((venta, index) => ({ venta, index }))
+      .filter(({ venta }) => {
+        const fechaBase = venta.fechaISO ? new Date(venta.fechaISO) : new Date(venta.fecha || Date.now());
+        const diaVenta = venta.diaClave || obtenerFechaLocalISO(fechaBase);
+        return diaVenta === hoy;
+      });
+  }
+
   function renderVentasTabla() {
     const filtro = document.getElementById("filtroCliente").value.toLowerCase().trim();
-    const ventas = obtenerVentasStorage();
-    const ventasFiltradas = ventas
-      .map((venta, index) => ({ venta, index }))
+    const ventasDelDia = obtenerVentasDelDiaActualConIndices();
+    const ventasFiltradas = ventasDelDia
       .filter(({ venta }) => (venta.cliente || "").toLowerCase().includes(filtro));
 
     const totalPaginas = Math.max(1, Math.ceil(ventasFiltradas.length / VENTAS_POR_PAGINA));
@@ -1547,13 +1563,13 @@ function aplicarPermisosPorRol() {
     const contenedor = document.getElementById("ventasGuardadas");
     contenedor.innerHTML = ventasPagina.length
       ? ventasPagina.map(({ venta, index }) => construirFilaVenta(venta, index)).join("")
-      : `<tr><td colspan="8" class="border p-3 text-center text-gray-500">No hay ventas para mostrar.</td></tr>`;
+      : `<tr><td colspan="8" class="border p-3 text-center text-gray-500">No hay ventas del día para mostrar.</td></tr>`;
 
     const contenedorMobile = document.getElementById("ventasGuardadasMobile");
     if (contenedorMobile) {
       contenedorMobile.innerHTML = ventasPagina.length
         ? ventasPagina.map(({ venta, index }) => construirTarjetaVenta(venta, index)).join("")
-        : `<div class="bg-white border border-yellow-200 rounded-2xl p-4 text-center text-gray-500">No hay ventas para mostrar.</div>`;
+        : `<div class="bg-white border border-yellow-200 rounded-2xl p-4 text-center text-gray-500">No hay ventas del día para mostrar.</div>`;
     }
 
     actualizarControlesPaginacion(ventasFiltradas.length);
@@ -2395,6 +2411,21 @@ function volverAlPOS() {
         </tr>
       `;
     });
+  }
+
+  async function exportarVentasDelDiaHistorico() {
+    if (!verificarAcceso(["admin"])) return;
+    const input = document.getElementById('filtroHistoricoFecha');
+    const fechaSeleccionada = input?.value || obtenerFechaLocalISO(new Date());
+    if (input && !input.value) input.value = fechaSeleccionada;
+
+    const ventas = obtenerVentasNormalizadas().filter(v => v.diaClave === fechaSeleccionada);
+    if (ventas.length === 0) {
+      alert("No hay ventas registradas para la fecha seleccionada.");
+      return;
+    }
+
+    await exportarVentasAExcel(ventas, `Ventas_${fechaSeleccionada}.xlsx`, `Ventas ${fechaSeleccionada}`);
   }
 
   function actualizarHistoricos() {
