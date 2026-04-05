@@ -1380,7 +1380,7 @@ function aplicarPermisosPorRol() {
       observaciones,
       pedido: [...pedido],
       total,
-      fecha: ventaOriginalEnEdicion?.fecha || ahora.toLocaleString(),
+      fecha: ventaOriginalEnEdicion?.fecha || formatearFechaHoraColombia(ahora),
       fechaISO: ventaOriginalEnEdicion?.fechaISO || ahora.toISOString(),
       diaClave,
       comanda: numeracionDia.comanda,
@@ -1442,7 +1442,7 @@ function aplicarPermisosPorRol() {
     return `
       <tr>
         <td class='border p-1'>${v.comanda ?? v.recibo ?? (i + 1)}</td>
-        <td class='border p-1'>${v.fecha}</td>
+        <td class='border p-1'>${formatearFechaHoraColombia(v.fechaISO || v.fecha)}</td>
         <td class='border p-1'>${v.cliente}</td>
         <td class='border p-1'>${v.formaPago}</td>
         <td class='border p-1'>${v.tipoPedido}</td>
@@ -1505,7 +1505,7 @@ function aplicarPermisosPorRol() {
           <p class="text-sm font-bold text-gray-800">${formatearCOP(v.total)}</p>
         </div>
         <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div class="bg-white rounded-xl p-2 border border-yellow-100"><span class="text-gray-500 block text-xs">Fecha</span><strong>${v.fecha || '-'}</strong></div>
+          <div class="bg-white rounded-xl p-2 border border-yellow-100"><span class="text-gray-500 block text-xs">Fecha</span><strong>${formatearFechaHoraColombia(v.fechaISO || v.fecha)}</strong></div>
           <div class="bg-white rounded-xl p-2 border border-yellow-100"><span class="text-gray-500 block text-xs">Pago</span><strong>${v.formaPago || '-'}</strong></div>
           <div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Tipo de pedido</span><strong>${v.tipoPedido || '-'}</strong></div>
           ${(v.observaciones || '').trim() ? `<div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Observaciones</span><strong>${v.observaciones}</strong></div>` : ''}
@@ -1653,7 +1653,7 @@ function aplicarPermisosPorRol() {
       (pedido || []).forEach(producto => {
         sheet.addRow([
           venta.comanda ?? venta.recibo ?? (i + 1),
-          fecha,
+          formatearFechaHoraColombia(venta.fechaISO || fecha),
           cliente,
           formaPago,
           tipoPedido,
@@ -1838,8 +1838,9 @@ function aplicarPermisosPorRol() {
         
           <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${ultimaVenta.comanda ?? ultimaVenta.recibo ?? ventas.length}</p>
 <p><strong>Cliente:</strong> ${ultimaVenta.cliente || "Sin nombre"}</p>
-        <p><strong>Hora:</strong> ${ultimaVenta.fecha || "Sin hora"}</p>
+        <p><strong>Hora:</strong> ${formatearHoraColombia(ultimaVenta.fechaISO || ultimaVenta.fecha)}</p>
         <p><strong>Tipo de Pedido:</strong> ${ultimaVenta.tipoPedido || "-"}</p>
+        <p><strong>Método de pago:</strong> ${ultimaVenta.formaPago || "-"}</p>
         ${ultimaVenta.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaVenta.observaciones}</p>` : ""}
       </div>
       <ul>
@@ -1972,8 +1973,9 @@ function imprimirUltimaCliente() {
 <p style="text-align:center; font-weight:bold; margin:6px 0;">
   COMANDA #${ultimaVenta.comanda ?? ultimaVenta.recibo ?? ventas.length}</p>
 <p><strong>Cliente:</strong> ${ultimaVenta.cliente || "N/A"}</p>
-          <p><strong>Fecha:</strong> ${ultimaVenta.fecha}</p>
+          <p><strong>Fecha:</strong> ${formatearFechaHoraColombia(ultimaVenta.fechaISO || ultimaVenta.fecha)}</p>
           <p><strong>Tipo de Pedido:</strong> ${ultimaVenta.tipoPedido || "-"}</p>
+        <p><strong>Método de pago:</strong> ${ultimaVenta.formaPago || "-"}</p>
           ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ""}
         </div>
         <div class="line"></div>
@@ -2094,8 +2096,9 @@ function imprimirVentaCliente(index) {
           <p style="text-align:center; font-weight:bold; margin:6px 0;">RECIBO #${venta.recibo ?? venta.comanda ?? (index + 1)}</p>
           <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${venta.comanda ?? venta.recibo ?? (index + 1)}</p>
           <p><strong>Cliente:</strong> ${venta.cliente || "N/A"}</p>
-          <p><strong>Fecha:</strong> ${venta.fecha}</p>
+          <p><strong>Fecha:</strong> ${formatearFechaHoraColombia(venta.fechaISO || venta.fecha)}</p>
           <p><strong>Tipo de Pedido:</strong> ${venta.tipoPedido || "-"}</p>
+          <p><strong>Método de pago:</strong> ${venta.formaPago || "-"}</p>
           ${venta.observaciones ? `<p><strong>Observaciones:</strong> ${venta.observaciones}</p>` : ""}
         </div>
         <div class="line"></div>
@@ -2195,8 +2198,9 @@ function imprimirVentaCocina(index) {
           <p style="text-align:center; font-weight:bold; margin:6px 0;">RECIBO #${venta.recibo ?? venta.comanda ?? (index + 1)}</p>
           <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${venta.comanda ?? venta.recibo ?? (index + 1)}</p>
           <p><strong>Cliente:</strong> ${venta.cliente || "Sin nombre"}</p>
-          <p><strong>Hora:</strong> ${venta.fecha || "Sin hora"}</p>
+          <p><strong>Hora:</strong> ${formatearHoraColombia(venta.fechaISO || venta.fecha)}</p>
           <p><strong>Tipo de Pedido:</strong> ${venta.tipoPedido || "-"}</p>
+          <p><strong>Método de pago:</strong> ${venta.formaPago || "-"}</p>
           ${venta.observaciones ? `<p><strong>Observaciones:</strong> ${venta.observaciones}</p>` : ""}
         </div>
         <ul>
@@ -2284,14 +2288,60 @@ function volverAlPOS() {
 
   <script>
   // --- Numeración diaria e históricos ---
+  const TIMEZONE_CO = 'America/Bogota';
+
+  function obtenerPartesColombia(fecha = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: TIMEZONE_CO,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(fecha)).filter(p => p.type !== 'literal').map(p => [p.type, p.value])
+    );
+    return parts;
+  }
+
   function obtenerFechaLocalISO(fecha = new Date()) {
-    const offset = fecha.getTimezoneOffset();
-    const local = new Date(fecha.getTime() - offset * 60000);
-    return local.toISOString().slice(0, 10);
+    const partes = obtenerPartesColombia(fecha);
+    return `${partes.year}-${partes.month}-${partes.day}`;
+  }
+
+  function formatearFechaHoraColombia(fecha) {
+    const fechaObj = new Date(fecha);
+    if (isNaN(fechaObj.getTime())) return String(fecha || '-');
+    return new Intl.DateTimeFormat('es-CO', {
+      timeZone: TIMEZONE_CO,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    }).format(fechaObj);
+  }
+
+  function formatearHoraColombia(fecha) {
+    const fechaObj = new Date(fecha);
+    if (isNaN(fechaObj.getTime())) return '-';
+    return new Intl.DateTimeFormat('es-CO', {
+      timeZone: TIMEZONE_CO,
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    }).format(fechaObj);
   }
 
   function obtenerClaveSemana(fecha) {
-    const d = new Date(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()));
+    const partes = obtenerPartesColombia(fecha);
+    const d = new Date(Date.UTC(Number(partes.year), Number(partes.month) - 1, Number(partes.day)));
     const dayNum = d.getUTCDay() || 7;
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
@@ -2353,9 +2403,7 @@ function volverAlPOS() {
   }
 
   function formatearHora(fechaTexto) {
-    const fecha = new Date(fechaTexto);
-    if (isNaN(fecha.getTime())) return "-";
-    return fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return formatearHoraColombia(fechaTexto);
   }
 
   function resumirProductosPedido(pedido = []) {
@@ -2400,7 +2448,7 @@ function volverAlPOS() {
         <tr>
           <td class="p-2 border">${v.recibo ?? '-'}</td>
           <td class="p-2 border">${v.comanda ?? '-'}</td>
-          <td class="p-2 border">${formatearHora(v.fechaISO || v.fecha)}</td>
+          <td class="p-2 border">${formatearHoraColombia(v.fechaISO || v.fecha)}</td>
           <td class="p-2 border">${v.cliente || 'N/A'}</td>
           <td class="p-2 border">${v.formaPago || '-'}</td>
           <td class="p-2 border">${v.tipoPedido || '-'}</td>
