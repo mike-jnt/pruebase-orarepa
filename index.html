@@ -1628,16 +1628,16 @@ function aplicarPermisosPorRol() {
     document.getElementById("resumenProductos").scrollIntoView({ behavior: "smooth" });
   }
 
-  // Exportar ventas a Excel con estilo y toda la info incluida
-  async function exportarVentasExcelConEstilo() {
-    if (!verificarAcceso(["admin"])) return;
-    const ventas = obtenerVentasStorage();
-    if (ventas.length === 0) return alert("No hay ventas registradas.");
+  async function exportarVentasAExcel(ventas, nombreArchivo, nombreHoja = "Ventas") {
+    const ventasNormalizadas = Array.isArray(ventas) ? ventas : [];
+    if (!ventasNormalizadas.length) {
+      alert("No hay ventas para exportar.");
+      return;
+    }
 
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Ventas del Día");
+    const sheet = workbook.addWorksheet(nombreHoja);
 
-    // Encabezados
     const headers = [
       "#", "Fecha", "Cliente", "Forma de Pago", "Tipo de Pedido", "Producto", "Precio (COP)", "Total Venta (COP)"
     ];
@@ -1645,15 +1645,14 @@ function aplicarPermisosPorRol() {
 
     let totalGlobal = 0;
     const conteoProductos = {};
-    let rowIndex = 2;
 
-    ventas.forEach((venta, i) => {
+    ventasNormalizadas.forEach((venta, i) => {
       const { fecha, cliente, formaPago, tipoPedido, total, pedido } = venta;
       totalGlobal += parseFloat(total) || 0;
 
-      pedido.forEach(producto => {
+      (pedido || []).forEach(producto => {
         sheet.addRow([
-          venta.comanda ?? (i + 1),
+          venta.comanda ?? venta.recibo ?? (i + 1),
           fecha,
           cliente,
           formaPago,
@@ -1662,20 +1661,15 @@ function aplicarPermisosPorRol() {
           parseFloat(producto.precio),
           parseFloat(total)
         ]);
-
-        // Conteo para más vendido
         conteoProductos[producto.nombre] = (conteoProductos[producto.nombre] || 0) + 1;
-
-        rowIndex++;
       });
     });
 
-    // Estilos encabezado
     sheet.getRow(1).eachCell(cell => {
       cell.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: "FF1F4E78" }  // azul oscuro
+        fgColor: { argb: "FF1F4E78" }
       };
       cell.font = { color: { argb: "FFFFFFFF" }, bold: true };
       cell.alignment = { vertical: "middle", horizontal: "center" };
@@ -1685,7 +1679,6 @@ function aplicarPermisosPorRol() {
       };
     });
 
-    // Estilo para filas alternas
     for (let i = 2; i <= sheet.rowCount; i++) {
       const row = sheet.getRow(i);
       const isEven = i % 2 === 0;
@@ -1702,54 +1695,59 @@ function aplicarPermisosPorRol() {
       });
     }
 
-    // Formato moneda COP en columnas precio y total
     for (let i = 2; i <= sheet.rowCount; i++) {
       sheet.getRow(i).getCell(7).numFmt = '"$"#,##0';
       sheet.getRow(i).getCell(8).numFmt = '"$"#,##0';
     }
 
-    // Total global
     sheet.addRow([]);
-    const totalRow = sheet.addRow(["", "", "", "", "", "TOTAL DEL DÍA:", "", totalGlobal]);
+    const totalRow = sheet.addRow(["", "", "", "", "", "TOTAL:", "", totalGlobal]);
     totalRow.getCell(8).numFmt = '"$"#,##0';
     totalRow.font = { bold: true };
 
-    // Producto más vendido
-    let productoMasVendido = "", maxCantidad = 0;
+    let productoMasVendido = "";
+    let maxCantidad = 0;
     for (const [prod, cantidad] of Object.entries(conteoProductos)) {
       if (cantidad > maxCantidad) {
         maxCantidad = cantidad;
         productoMasVendido = prod;
       }
     }
-    const resumenRow = sheet.addRow(["", "", "", "", "", "Producto más vendido:", "", `${productoMasVendido} (${maxCantidad})`]);
+    const resumenRow = sheet.addRow(["", "", "", "", "", "Producto más vendido:", "", productoMasVendido ? `${productoMasVendido} (${maxCantidad})` : "-"]);
     resumenRow.font = { italic: true };
 
-    // Ajustar ancho columnas
     sheet.columns.forEach(col => {
       col.width = 18;
     });
 
-    
-    // Guardar Excel y descargar
-const buffer = await workbook.xlsx.writeBuffer();
-const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-const url = URL.createObjectURL(blob);
-const a = document.createElement("a");
-a.href = url;
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 
-// Corrección de la fecha local
-const fechaLocal = new Date();
-const yyyy = fechaLocal.getFullYear();
-const mm = String(fechaLocal.getMonth() + 1).padStart(2, '0');
-const dd = String(fechaLocal.getDate()).padStart(2, '0');
-a.download = `Ventas_del_día_${yyyy}-${mm}-${dd}.xlsx`;
+  // Exportar ventas a Excel con estilo y toda la info incluida
+  async function exportarVentasExcelConEstilo() {
+    if (!verificarAcceso(["admin"])) return;
+    const hoy = obtenerClaveDiaActual();
+    const ventas = obtenerVentasStorage().filter(venta => {
+      const fechaBase = venta.fechaISO ? new Date(venta.fechaISO) : new Date(venta.fecha || Date.now());
+      const diaVenta = venta.diaClave || obtenerFechaLocalISO(fechaBase);
+      return diaVenta === hoy;
+    });
 
-document.body.appendChild(a);
-a.click();
-a.remove();
-URL.revokeObjectURL(url);
+    if (ventas.length === 0) {
+      alert("No hay ventas registradas para el día actual.");
+      return;
+    }
 
+    await exportarVentasAExcel(ventas, `Ventas_del_dia_${hoy}.xlsx`, `Ventas ${hoy}`);
   }
     // Borra todas las ventas guardadas
   function imprimirUltimaCocinero() {
