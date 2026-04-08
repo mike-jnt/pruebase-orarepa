@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestor de Finanzas</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+  body {
+    background-color: #fffbea;
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: #3b2f1e;
+  }
+
+  main {
+    flex: 1;
+  }
+
+  .titulo-seccion {
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #a16207;
+  }
+
+  .seccion-agregar,
+  .seccion-filtro,
+  .resumen,
+  .seccion-tabla {
+    background: white;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+
+  .seccion-agregar {
+    background: #fef9c3;
+  }
+
+  .seccion-filtro {
+    background: #fef3c7;
+  }
+
+  .resumen {
+    background: #fcd34d;
+    color: #4b3205;
+    font-weight: bold;
+  }
+
+  .seccion-tabla {
+    background: #fff;
+  }
+
+  #grafico {
+    max-height: 300px;
+  }
+
+  .tabla-container {
+    overflow-x: auto;
+  }
+
+  /* Botón PDF / Excel */
+  .btn-success {
+    background-color: #22c55e !important;
+    border-color: #22c55e !important;
+  }
+
+  .btn-success:hover {
+    background-color: #16a34a !important;
+    border-color: #16a34a !important;
+  }
+
+  .btn-outline-primary {
+    border-color: #facc15;
+    color: #b45309;
+  }
+
+  .btn-outline-primary:hover {
+    background-color: #facc15;
+    color: white;
+  }
+
+  .btn-outline-secondary:hover {
+    background-color: #fef08a;
+    color: #3b2f1e;
+  }
+
+  .btn-primary {
+    background-color: #facc15;
+    border-color: #facc15;
+    color: #3b2f1e;
+    font-weight: bold;
+  }
+
+  .btn-primary:hover {
+    background-color: #eab308;
+    border-color: #eab308;
+    color: white;
+  }
+
+  /* Modo oscuro adaptado */
+  body.dark-mode {
+    background-color: #1e1e1e;
+    color: #eee;
+  }
+
+  body.dark-mode .seccion-agregar {
+    background: #3f3f2f;
+  }
+
+  body.dark-mode .seccion-filtro {
+    background: #374151;
+  }
+
+  body.dark-mode .resumen {
+    background: #4b5563;
+    color: #fff;
+  }
+
+  body.dark-mode .seccion-tabla {
+    background: #2d2d2d;
+  }
+
+  body.dark-mode .table {
+    color: #f1f1f1;
+  }
+
+  body.dark-mode .table-light th {
+    background-color: #444;
+    color: #fff;
+  }
+
+  .dark-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+  }
+
+
+  .form-select {
+  background-color: #fffdf5;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: box-shadow 0.2s ease;
+}
+
+.form-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #facc15;
+  border-color: #facc15;
+}
+
+
+.bloque-analitico {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  margin-top: 20px;
+}
+
+.subseccion {
+  background-color: #fefce8;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.resumen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-size: 0.9rem;
+  padding: 10px 15px;
+  font-weight: bold;
+  background: #fcd34d;
+  color: #4b3205;
+  border-radius: 14px;
+  height: 100px;
+}
+
+
+.resumen h5 {
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.resumen p {
+  margin: 2px 0;
+  font-size: 0.85rem;
+}
+
+
+
+.titulo-seccion {
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+
+
+body.dark-mode .bloque-analitico {
+  background-color: #2d2d2d;
+}
+
+body.dark-mode .subseccion {
+  background-color: #3a3a3a;
+}
+
+
+
+
+</style>
+
+</head>
+<body>
+  <button class="btn btn-sm btn-secondary dark-toggle" onclick="toggleDarkMode()">
+    <i class="bi bi-moon-fill"></i> Modo Oscuro
+  </button>
+  <main class="container py-4">
+    <div class="row">
+      <div class="col-md-4">
+        <div class="seccion-agregar">
+          <h5 class="titulo-seccion"><i class="bi bi-plus-circle-fill"></i> Agregar Movimiento</h5>
+          <form id="formulario">
+            <div class="row">
+              <div class="col-6">
+                <label class="form-label">Tipo</label>
+                <select class="form-select" id="tipo">
+                  <option value="ingreso">Ingreso</option>
+                  <option value="gasto">Gasto</option>
+                </select>
+                <label class="form-label mt-2">Monto</label>
+                <input type="text" class="form-control" id="monto" required oninput="formatearComoCOP(this)">
+
+                <label class="form-label mt-2">Foto</label>
+                <div id="vistaFoto" class="mt-2 text-center border rounded p-2 bg-light"></div>
+
+
+                <input type="file" class="form-control" id="foto" accept="image/*">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Categoría</label>
+                <select class="form-select" id="categoria">
+                  <option value="Ventas">Ventas</option>
+                  <option value="Compras">Compras</option>
+                  <option value="Servicios">Servicios</option>
+                  <option value="Mantenimiento">Mantenimiento</option>
+                  <option value="Publicidad">Publicidad</option>
+                  <option value="Transporte">Transporte</option>
+                  <option value="Impuestos">Impuestos</option>
+                </select>
+                <label class="form-label mt-2">Fecha</label>
+                <input type="date" class="form-control" id="fecha" required>
+                <label class="form-label mt-2">Descripción</label>
+                <textarea class="form-control" id="descripcion" rows="2" placeholder="Ej: Detalles del movimiento..."></textarea>
+              </div>
+            </div>
+            <button class="btn btn-primary w-100 mt-3" type="submit">
+              <i class="bi bi-check-circle-fill me-1"></i>Guardar Movimiento
+            </button>
+          </form>
+        </div>
+      </div>
+      
+      <div class="col-md-8">
+        <div class="seccion-filtro">
+          <h5 class="titulo-seccion"><i class="bi bi-funnel-fill"></i> Filtrar Movimientos</h5>
+          <label>Desde:</label>
+          <input type="date" class="form-control mb-2" id="desde">
+          <label>Hasta:</label>
+          <input type="date" class="form-control mb-2" id="hasta">
+          <label>Categoría:</label>
+          <input type="text" id="filtroCategoria" class="form-control mb-2" placeholder="Ej: Ventas, Compras...">
+          <div class="d-flex justify-content-between">
+
+            <label class="form-label mt-2">Tipo de Movimiento</label>
+              <select id="filtroTipo" class="form-select border border-yellow-300 shadow-sm rounded mb-3">
+                 <option value="">📂 Todos</option>
+                 <option value="ingreso">💰 Ingresos</option>
+                 <option value="gasto">📉 Gastos</option>
+              </select>
+
+
+
+
+            <button class="btn btn-outline-primary btn-sm mt-2" onclick="filtrarMovimientos()">
+              <i class="bi bi-search"></i> Aplicar Filtro
+            </button>
+            <button class="btn btn-outline-secondary btn-sm mt-2" onclick="limpiarFiltros()">
+              <i class="bi bi-x-circle"></i> Limpiar Filtro
+            </button>
+          </div>
+        </div>
+       </main>
+  
+<!-- CONTENEDOR UNIFICADO PARA GRÁFICOS Y RESUMEN -->
+<main class="bloque-analitico mb-4">
+  <div class="row g-4">
+
+    <!-- Columna lateral: Resumen -->
+    <div class="col-lg-3 col-md-4">
+      <div class="resumen text-center h-100 p-3">
+        <h5><i class="bi bi-graph-up-arrow"></i> Resumen</h5>
+        <p>Ingresos: <span id="totalIngresos">$0</span></p>
+        <p>Gastos: <span id="totalGastos">$0</span></p>
+        <p>Balance: <span id="balance">$0</span></p>
+      </div>
+    </div>
+
+    <!-- Columna más ancha: Gráficas -->
+    <div class="col-lg-9 col-md-8">
+      <div class="row g-4">
+
+        <!-- Gráfico por Categoría -->
+        <div class="col-md-6">
+          <div class="subseccion text-center h-100">
+            <h5 class="titulo-seccion"><i class="bi bi-bar-chart-fill"></i> Gasto por Categoría</h5>
+            <canvas id="graficoCategorias" style="height: 200px; width: 100%;"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico de Pastel -->
+        <div class="col-md-6">
+          <div class="subseccion text-center h-100">
+            <h5 class="titulo-seccion"><i class="bi bi-pie-chart-fill"></i> Ingresos vs Gastos</h5>
+            <canvas id="grafico" style="height: 200px; width: 100%;"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</main>
+
+
+<div class="seccion-tabla mb-4">
+  <h5 class="titulo-seccion"><i class="bi bi-calendar3"></i> Resumen Mensual</h5>
+  <div class="tabla-container">
+    <table class="table table-bordered table-sm text-center">
+      <thead class="table-light">
+        <tr>
+          <th>Mes</th>
+          <th>Ingresos</th>
+          <th>Gastos</th>
+          <th>Balance</th>
+        </tr>
+      </thead>
+      <tbody id="tablaResumenMensual"></tbody>
+    </table>
+  </div>
+</div>
+
+
+
+
+
+    <div class="seccion-tabla">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="titulo-seccion"><i class="bi bi-journal-text"></i> Historial de Movimientos</h5>
+        <button class="btn btn-success btn-sm" onclick="exportarExcel()">
+          <i class="bi bi-file-earmark-excel-fill me-1"></i> Exportar a Excel
+        </button>
+        <button onclick="exportarExcelYZip()" class="btn btn-success">
+          Exportar Excel + Imágenes
+       </button>
+       <button onclick="exportarExcelConImagenes()" class="btn btn-success">
+  <i class="bi bi-image-fill me-1"></i> Exportar Excel con Imágenes
+</button>
+
+
+      </div>
+
+
+      <div class="tabla-container">
+        <table class="table table-bordered table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>Tipo</th>
+              <th>Monto</th>
+              <th>Categoría</th>
+              <th>Fecha</th>
+              <th>Descripción</th>
+              <th>Foto</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tablaMovimientos"></tbody>
+        </table>
+      </div>
+    </div>
+ 
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- ExcelJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<!-- JSZip -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- FileSaver -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+
+  <script>
+    let indiceEdicion = null;
+    let movimientos = JSON.parse(localStorage.getItem('movimientos')) || [];
+
+    document.getElementById('formulario').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const tipo = document.getElementById('tipo').value;
+      const montoTexto = document.getElementById('monto').value;
+      const monto = parseFloat(montoTexto.replace(/[^0-9]/g, '')) || 0;
+      const categoria = document.getElementById('categoria').value;
+      const fecha = document.getElementById('fecha').value;
+      const descripcion = document.getElementById('descripcion').value.trim();
+      const fotoInput = document.getElementById('foto');
+      const reader = new FileReader();
+
+      if (fotoInput.files.length > 0) {
+        reader.readAsDataURL(fotoInput.files[0]);
+        reader.onload = () => {
+          const imagenBase64 = reader.result;
+          guardarMovimiento(tipo, monto, categoria, fecha, descripcion, imagenBase64);
+        };
+      } else {
+        guardarMovimiento(tipo, monto, categoria, fecha, descripcion, null);
+      }
+    });
+
+    function guardarMovimiento(tipo, monto, categoria, fecha, descripcion, imagen) {
+  const movimiento = { tipo, monto, categoria, fecha, descripcion, imagen };
+
+  if (indiceEdicion !== null) {
+    movimientos[indiceEdicion] = movimiento;
+    indiceEdicion = null;
+  } else {
+    movimientos.push(movimiento);
+  }
+
+  localStorage.setItem('movimientos', JSON.stringify(movimientos));
+  document.getElementById('formulario').reset();
+  document.getElementById('monto').value = '';
+  actualizarTodo();
+  document.getElementById('vistaFoto').innerHTML = "";
+
+}
+
+
+function filtrarMovimientos() {
+  const desde = document.getElementById('desde').value;
+  const hasta = document.getElementById('hasta').value;
+  const categoriaFiltro = document.getElementById('filtroCategoria').value.trim().toLowerCase();
+  const tipoFiltro = document.getElementById('filtroTipo').value;
+
+  const filtrados = movimientos.filter(m => {
+    const fechaValida = (!desde || m.fecha >= desde) && (!hasta || m.fecha <= hasta);
+    const categoriaValida = !categoriaFiltro || m.categoria.toLowerCase().includes(categoriaFiltro);
+    const tipoValido = !tipoFiltro || m.tipo === tipoFiltro;
+
+    return fechaValida && categoriaValida && tipoValido;
+  });
+
+  actualizarTabla(filtrados);
+  actualizarResumen(filtrados);
+  actualizarGrafico(filtrados);
+}
+
+
+    document.getElementById('filtroCategoria').addEventListener('input', filtrarMovimientos);
+
+    function limpiarFiltros() {
+      document.getElementById('filtroTipo').value = "";
+      document.getElementById('desde').value = "";
+      document.getElementById('hasta').value = "";
+      document.getElementById('filtroCategoria').value = "";
+      actualizarTodo();
+    }
+
+    function actualizarTodo() {
+      actualizarTabla(movimientos);
+      actualizarResumen(movimientos);
+      actualizarGrafico(movimientos);
+    }
+
+    function actualizarTabla(data = movimientos) {
+      const tabla = document.getElementById('tablaMovimientos');
+      tabla.innerHTML = "";
+      data.forEach((m, i) => {
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+          <td>${m.tipo}</td>
+          <td>$${m.monto.toLocaleString('es-CO')}</td>
+          <td>${m.categoria}</td>
+          <td>${m.fecha}</td>
+          <td>${m.descripcion || ''}</td>
+          <td>${m.imagen ? '<a href="' + m.imagen + '" download="comprobante.png" class="btn btn-sm btn-outline-primary">Ver</a>' : 'Sin imagen'}</td>
+          <td>
+             <button class="btn btn-warning btn-sm me-1" onclick="editarMovimiento(${i})"><i class="bi bi-pencil"></i></button>
+             <button class="btn btn-danger btn-sm" onclick="eliminarMovimiento(${i})"><i class="bi bi-trash"></i></button>
+          </td>
+
+        `;
+        tabla.appendChild(fila);
+      });
+    }
+
+    function eliminarMovimiento(index) {
+      movimientos.splice(index, 1);
+      localStorage.setItem('movimientos', JSON.stringify(movimientos));
+      actualizarTodo();
+    }
+
+    function actualizarResumen(data = movimientos) {
+      const ingresos = data.filter(m => m.tipo === 'ingreso').reduce((acc, m) => acc + m.monto, 0);
+      const gastos = data.filter(m => m.tipo === 'gasto').reduce((acc, m) => acc + m.monto, 0);
+      document.getElementById('totalIngresos').textContent = ingresos.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+      document.getElementById('totalGastos').textContent = gastos.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+      document.getElementById('balance').textContent = (ingresos - gastos).toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+    }
+
+    let grafico;
+    let graficoCategorias;
+
+    function actualizarGrafico(data = movimientos) {
+      const ingresos = data.filter(m => m.tipo === 'ingreso').reduce((acc, m) => acc + m.monto, 0);
+      const gastos = data.filter(m => m.tipo === 'gasto').reduce((acc, m) => acc + m.monto, 0);
+      const ctx = document.getElementById('grafico').getContext('2d');
+      if (grafico) grafico.destroy();
+      grafico = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: ['Ingresos', 'Gastos'],
+          datasets: [{ data: [ingresos, gastos], backgroundColor: ['#34d399', '#f87171'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+
+
+      });
+
+      // Agrupar por categoría
+const categorias = {};
+data.forEach(m => {
+  if (!categorias[m.categoria]) categorias[m.categoria] = 0;
+  categorias[m.categoria] += m.monto;
+});
+
+// Destruir gráfico anterior si existe
+if (graficoCategorias) graficoCategorias.destroy();
+
+const ctxCat = document.getElementById('graficoCategorias').getContext('2d');
+graficoCategorias = new Chart(ctxCat, {
+  type: 'bar',
+  data: {
+    labels: Object.keys(categorias),
+    datasets: [{
+      label: 'Total por Categoría',
+      data: Object.values(categorias),
+      backgroundColor: '#facc15',
+      borderRadius: 5
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      y: {
+        ticks: {
+          callback: function(value) {
+            return '$' + value.toLocaleString('es-CO');
+          }
+        }
+      }
+    }
+  }
+});
+    }
+
+   async function exportarExcel() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Movimientos");
+
+  // Título
+  sheet.mergeCells("A1:E1");
+  const titleCell = sheet.getCell("A1");
+  titleCell.value = "Gestor de Finanzas - Movimientos";
+  titleCell.font = { size: 16, bold: true };
+  titleCell.alignment = { horizontal: "center" };
+
+  // Fila vacía
+  sheet.addRow([]);
+
+  // Encabezado
+  const headerRow = sheet.addRow(["Tipo", "Monto", "Categoría", "Fecha", "Descripción"]);
+
+  // Filtros automáticos
+  sheet.autoFilter = {
+    from: `A${headerRow.number}`,
+    to: `E${headerRow.number}`
+  };
+
+  // Estilo del encabezado
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "1F4E78" },
+    };
+    cell.font = { bold: true, color: { argb: "FFFFFF" } };
+    cell.alignment = { horizontal: "center" };
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+
+  // Datos
+  let totalIngresos = 0;
+  let totalGastos = 0;
+
+  movimientos.forEach((m) => {
+    const monto = Number(m.monto);
+    const row = sheet.addRow([
+      m.tipo,
+      monto,
+      m.categoria,
+      m.fecha,
+      m.descripcion || ""
+    ]);
+
+    // Estilo a monto (columna B)
+    row.getCell(2).numFmt = '"$"#,##0';
+
+    // Alternar color de fondo
+    if (sheet.rowCount % 2 === 0) {
+      row.eachCell((cell) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "F3F4F6" }
+        };
+      });
+    }
+
+    // Bordes y alineación
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+      cell.alignment = { vertical: "middle" };
+    });
+
+    if (m.tipo.toLowerCase() === "ingreso") totalIngresos += monto;
+    if (m.tipo.toLowerCase() === "gasto") totalGastos += monto;
+  });
+
+  // Totales
+  const resumenStart = sheet.rowCount + 2;
+
+  const ingresosRow = sheet.getRow(resumenStart);
+  ingresosRow.getCell(1).value = "TOTAL INGRESOS";
+  ingresosRow.getCell(2).value = totalIngresos;
+  ingresosRow.getCell(2).numFmt = '"$"#,##0';
+  ingresosRow.font = { bold: true };
+
+  const gastosRow = sheet.getRow(resumenStart + 1);
+  gastosRow.getCell(1).value = "TOTAL GASTOS";
+  gastosRow.getCell(2).value = totalGastos;
+  gastosRow.getCell(2).numFmt = '"$"#,##0';
+  gastosRow.font = { bold: true };
+
+  const netoRow = sheet.getRow(resumenStart + 2);
+  netoRow.getCell(1).value = "TOTAL NETO";
+  netoRow.getCell(2).value = totalIngresos - totalGastos;
+  netoRow.getCell(2).numFmt = '"$"#,##0';
+  netoRow.font = { bold: true };
+  netoRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "28A745" },
+    };
+    cell.font = { color: { argb: "FFFFFF" } };
+  });
+
+  // Ajuste de columnas
+  sheet.columns = [
+    { width: 15 },
+    { width: 18 },
+    { width: 20 },
+    { width: 15 },
+    { width: 40 },
+  ];
+
+  // Generar nombre de archivo con mes y año
+  const fecha = new Date();
+  const meses = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+  ];
+  const nombreArchivo = `movimientos_${meses[fecha.getMonth()]}_${fecha.getFullYear()}.xlsx`;
+
+  // Exportar archivo
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), nombreArchivo);
+}
+
+
+
+async function exportarExcel() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Movimientos");
+
+  // Título
+  sheet.mergeCells("A1:E1");
+  const titleCell = sheet.getCell("A1");
+  titleCell.value = "Gestor de Finanzas - Movimientos";
+  titleCell.font = { size: 16, bold: true };
+  titleCell.alignment = { horizontal: "center" };
+
+  // Fila vacía
+  sheet.addRow([]);
+
+  // Encabezado
+  const headerRow = sheet.addRow(["Tipo", "Monto", "Categoría", "Fecha", "Descripción"]);
+
+  // ✅ Filtros automáticos en columnas A-E
+  sheet.autoFilter = {
+    from: `A${headerRow.number}`,
+    to: `E${headerRow.number}`
+  };
+
+  // Estilo del encabezado
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "1F4E78" },
+    };
+    cell.font = { bold: true, color: { argb: "FFFFFF" } };
+    cell.alignment = { horizontal: "center" };
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+
+  // ✅ Congelar encabezado para mantenerlo visible
+  sheet.views = [{ state: 'frozen', ySplit: headerRow.number }];
+
+  // Datos
+  let totalIngresos = 0;
+  let totalGastos = 0;
+
+  movimientos.forEach((m) => {
+    const monto = Number(m.monto);
+    const row = sheet.addRow([
+      m.tipo,
+      monto,
+      m.categoria,
+      m.fecha,
+      m.descripcion || ""
+    ]);
+
+    // Formato moneda
+    row.getCell(2).numFmt = '"$"#,##0';
+
+    // Alternar color de fondo
+    if (sheet.rowCount % 2 === 0) {
+      row.eachCell((cell) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "F3F4F6" }
+        };
+      });
+    }
+
+    // Bordes y alineación
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+      cell.alignment = { vertical: "middle" };
+    });
+
+    if (m.tipo.toLowerCase() === "ingreso") totalIngresos += monto;
+    if (m.tipo.toLowerCase() === "gasto") totalGastos += monto;
+  });
+
+  // Totales
+  const resumenStart = sheet.rowCount + 2;
+
+  const ingresosRow = sheet.getRow(resumenStart);
+  ingresosRow.getCell(1).value = "TOTAL INGRESOS";
+  ingresosRow.getCell(2).value = totalIngresos;
+  ingresosRow.getCell(2).numFmt = '"$"#,##0';
+  ingresosRow.font = { bold: true };
+
+  const gastosRow = sheet.getRow(resumenStart + 1);
+  gastosRow.getCell(1).value = "TOTAL GASTOS";
+  gastosRow.getCell(2).value = totalGastos;
+  gastosRow.getCell(2).numFmt = '"$"#,##0';
+  gastosRow.font = { bold: true };
+
+  const netoRow = sheet.getRow(resumenStart + 2);
+  netoRow.getCell(1).value = "TOTAL NETO";
+  netoRow.getCell(2).value = totalIngresos - totalGastos;
+  netoRow.getCell(2).numFmt = '"$"#,##0';
+  netoRow.font = { bold: true };
+  netoRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "28A745" },
+    };
+    cell.font = { color: { argb: "FFFFFF" } };
+  });
+
+  // Ajuste de columnas (solo A-E)
+  sheet.columns = [
+    { width: 15 },  // Tipo
+    { width: 18 },  // Monto
+    { width: 20 },  // Categoría
+    { width: 15 },  // Fecha
+    { width: 40 },  // Descripción
+  ];
+
+  // Nombre del archivo con mes y año
+  const fecha = new Date();
+  const meses = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+  ];
+  const nombreArchivo = `movimientos_${meses[fecha.getMonth()]}_${fecha.getFullYear()}.xlsx`;
+
+  // Exportar
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), nombreArchivo);
+}
+
+
+
+async function exportarExcelYZip() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Movimientos");
+
+  // TÍTULO
+  sheet.mergeCells("A1:E1");
+  const titleCell = sheet.getCell("A1");
+  titleCell.value = "Gestor de Finanzas - Movimientos";
+  titleCell.font = { size: 16, bold: true };
+  titleCell.alignment = { horizontal: "center" };
+
+  sheet.addRow([]);
+
+  const encabezado = ["Tipo", "Monto", "Categoría", "Fecha", "Descripción"];
+  const headerRow = sheet.addRow(encabezado);
+
+  // Filtros automáticos
+  sheet.autoFilter = {
+    from: `A${headerRow.number}`,
+    to: `E${headerRow.number}`
+  };
+
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "1F4E78" },
+    };
+    cell.font = { color: { argb: "FFFFFF" }, bold: true };
+    cell.alignment = { horizontal: "center" };
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+
+  sheet.views = [{ state: 'frozen', ySplit: headerRow.number }];
+
+  // DATOS
+  let totalIngresos = 0;
+  let totalGastos = 0;
+
+  movimientos.forEach((m, index) => {
+    const row = sheet.addRow([
+      m.tipo,
+      m.monto,
+      m.categoria,
+      m.fecha,
+      m.descripcion || ""
+    ]);
+
+    row.getCell(2).numFmt = '"$"#,##0.00;[Red]\-"$"#,##0.00';
+
+    if ((sheet.rowCount % 2) === 0) {
+      row.eachCell((cell) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "F3F4F6" }
+        };
+      });
+    }
+
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+      cell.alignment = { vertical: "middle" };
+    });
+
+    // Acumuladores
+    if (m.tipo.toLowerCase() === "ingreso") totalIngresos += m.monto;
+    if (m.tipo.toLowerCase() === "gasto") totalGastos += m.monto;
+  });
+
+  // 🔢 Agregar Totales
+  const resumenStart = sheet.rowCount + 2;
+
+  const ingresosRow = sheet.getRow(resumenStart);
+  ingresosRow.getCell(1).value = "TOTAL INGRESOS";
+  ingresosRow.getCell(2).value = totalIngresos;
+  ingresosRow.getCell(2).numFmt = '"$"#,##0';
+  ingresosRow.font = { bold: true };
+
+  const gastosRow = sheet.getRow(resumenStart + 1);
+  gastosRow.getCell(1).value = "TOTAL GASTOS";
+  gastosRow.getCell(2).value = totalGastos;
+  gastosRow.getCell(2).numFmt = '"$"#,##0';
+  gastosRow.font = { bold: true };
+
+  const netoRow = sheet.getRow(resumenStart + 2);
+  netoRow.getCell(1).value = "TOTAL NETO";
+  netoRow.getCell(2).value = totalIngresos - totalGastos;
+  netoRow.getCell(2).numFmt = '"$"#,##0';
+  netoRow.font = { bold: true };
+  netoRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "28A745" },
+    };
+    cell.font = { color: { argb: "FFFFFF" } };
+  });
+
+  // Columnas
+  sheet.columns = [
+    { width: 12 },
+    { width: 14 },
+    { width: 20 },
+    { width: 15 },
+    { width: 50 },
+  ];
+
+  // Nombre del Excel
+  const fecha = new Date();
+  const meses = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+  ];
+  const nombreExcel = `movimientos_${meses[fecha.getMonth()]}_${fecha.getFullYear()}.xlsx`;
+
+  const bufferExcel = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([bufferExcel]), nombreExcel);
+
+  // ZIP de imágenes con nombre detallado
+  const zip = new JSZip();
+  const carpeta = zip.folder("imagenes_movimientos");
+
+  const imagenes = movimientos.filter(m => m.imagen);
+
+  for (let i = 0; i < imagenes.length; i++) {
+    const m = imagenes[i];
+    try {
+      const response = await fetch(m.imagen);
+      const blob = await response.blob();
+      const ext = blob.type.split("/")[1] || "jpg";
+
+      // Nombre con fecha y tipo
+      const tipo = m.tipo.toLowerCase();
+      const fechaNom = m.fecha || `movimiento_${i + 1}`;
+      const archivoNombre = `${fechaNom}_${tipo}.${ext}`;
+
+      carpeta.file(archivoNombre, blob);
+    } catch (err) {
+      console.error("Error al descargar imagen:", m.imagen);
+    }
+  }
+
+  if (imagenes.length > 0) {
+    const zipContent = await zip.generateAsync({ type: "blob" });
+    saveAs(zipContent, "imagenes_movimientos.zip");
+  }
+}
+
+
+
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+      localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'true' : 'false');
+    }
+
+    (function () {
+      if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+      }
+
+    
+
+      
+      actualizarTodo();
+      generarResumenMensual();
+    })();
+  </script>
+
+  <script>
+    function formatearComoCOP(input) {
+  let valor = input.value.replace(/\D/g, ""); // Elimina todo lo que no sea número
+  if (!valor) {
+    input.value = "";
+    return;
+  }
+
+  const numero = parseInt(valor);
+  input.value = numero.toLocaleString("es-CO", {
+    style: "currency",
+    currency: "COP",
+    minimumFractionDigits: 0
+  });
+}
+
+function editarMovimiento(index) {
+  const m = movimientos[index];
+  indiceEdicion = index;
+
+  document.getElementById('tipo').value = m.tipo;
+  document.getElementById('monto').value = m.monto.toLocaleString('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0
+  });
+  document.getElementById('categoria').value = m.categoria;
+  document.getElementById('fecha').value = m.fecha;
+  document.getElementById('descripcion').value = m.descripcion || "";
+
+  // Ocultar imagen (no se puede recuperar por seguridad del navegador)
+  document.getElementById('foto').value = "";
+  document.getElementById('foto').disabled = true;
+
+  document.getElementById('formulario').scrollIntoView({ behavior: "smooth" });
+}
+
+
+
+document.getElementById('foto').addEventListener('change', function () {
+  const vista = document.getElementById('vistaFoto');
+  const archivo = this.files[0];
+
+  if (archivo) {
+    const lector = new FileReader();
+    lector.onload = function (e) {
+      vista.innerHTML = `<img src="${e.target.result}" alt="Comprobante" style="max-width: 100%; max-height: 180px; border-radius: 8px;" />`;
+    };
+    lector.readAsDataURL(archivo);
+  } else {
+    vista.innerHTML = "";
+  }
+});
+
+
+function generarResumenMensual() {
+  const resumen = {};
+
+  movimientos.forEach(m => {
+    const mes = m.fecha.slice(0, 7); // "YYYY-MM"
+    if (!resumen[mes]) {
+      resumen[mes] = { ingresos: 0, gastos: 0 };
+    }
+    if (m.tipo === "ingreso") {
+      resumen[mes].ingresos += m.monto;
+    } else {
+      resumen[mes].gastos += m.monto;
+    }
+  });
+
+  const cuerpo = document.getElementById("tablaResumenMensual");
+  cuerpo.innerHTML = "";
+
+  Object.entries(resumen).forEach(([mes, datos]) => {
+    const balance = datos.ingresos - datos.gastos;
+    const fila = `
+      <tr>
+        <td>${mes}</td>
+        <td>$${datos.ingresos.toLocaleString("es-CO")}</td>
+        <td>$${datos.gastos.toLocaleString("es-CO")}</td>
+        <td class="${balance < 0 ? 'text-danger' : 'text-success'}">
+          $${balance.toLocaleString("es-CO")}
+        </td>
+      </tr>
+    `;
+    cuerpo.innerHTML += fila;
+  });
+}
+
+
+actualizarTodo();
+      generarResumenMensual();
+
+  </script>
+
+  <script>
+async function exportarExcelConImagenes() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Movimientos");
+
+  // Título
+  sheet.mergeCells("A1:F1");
+  const titleCell = sheet.getCell("A1");
+  titleCell.value = "Gestor de Finanzas - Movimientos";
+  titleCell.font = { size: 16, bold: true };
+  titleCell.alignment = { horizontal: "center" };
+
+  // Encabezado
+  sheet.addRow([]);
+  const headerRow = sheet.addRow(["Tipo", "Monto", "Categoría", "Fecha", "Descripción", "Foto"]);
+  sheet.autoFilter = {
+  from: 'A' + headerRow.number,
+  to: 'F' + headerRow.number
+};
+
+
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "1F4E78" },
+    };
+    cell.font = { color: { argb: "FFFFFF" }, bold: true };
+    cell.alignment = { horizontal: "center" };
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+
+  // Insertar datos y fotos
+  for (let i = 0; i < movimientos.length; i++) {
+    const m = movimientos[i];
+    const rowIndex = sheet.rowCount + 1;
+    const row = sheet.addRow([
+      m.tipo,
+      m.monto,
+      m.categoria,
+      m.fecha,
+      m.descripcion || "",
+      "" // celda para imagen
+    ]);
+    row.getCell(2).numFmt = '"$"#,##0';
+
+    // Insertar imagen si existe
+    if (m.imagen) {
+      const base64 = m.imagen.split(',')[1];
+      const extension = m.imagen.includes('image/png') ? 'png' : 'jpeg';
+      const imageId = workbook.addImage({
+        base64: m.imagen,
+        extension
+      });
+
+      // Celda "F" + número de fila (columna 6)
+      sheet.addImage(imageId, {
+        tl: { col: 5, row: rowIndex - 1 },
+        ext: { width: 100, height: 80 }
+      });
+
+      // Ajuste de alto de fila
+      sheet.getRow(rowIndex).height = 60;
+    }
+  }
+
+  // Ajuste de anchos de columnas
+  sheet.columns = [
+    { width: 12 }, // Tipo
+    { width: 14 }, // Monto
+    { width: 20 }, // Categoría
+    { width: 15 }, // Fecha
+    { width: 35 }, // Descripción
+    { width: 18 }, // Foto
+  ];
+
+  // Guardar con nombre con fecha
+  const fecha = new Date();
+  const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const nombreArchivo = `movimientos_con_fotos_${meses[fecha.getMonth()]}_${fecha.getFullYear()}.xlsx`;
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), nombreArchivo);
+}
+</script>
+
+</body>
+</html>
