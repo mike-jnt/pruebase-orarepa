@@ -348,7 +348,7 @@
             <button onclick="agregarProducto('COMBO 1', 40000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 1 - $40.000</button>
             <button onclick="agregarProducto('COMBO 2', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 2 - $30.000</button>
             <button onclick="agregarProducto('COMBO 3', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 3 - $30.000</button>
-            <button onclick="agregarProducto('COMBO DESVARE', 50000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO DESVARE - $50.000</button>
+            <button onclick="agregarProducto('COMBO marzo', 50000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO MARZO - $50.000</button>
           </div>
         </div>
 
@@ -418,6 +418,7 @@
         </div>
         <ul id="listaPedidoPaso1" class="space-y-2 text-sm text-gray-700"></ul>
         <p id="totalPaso1" class="mt-3 font-bold text-lg text-gray-800">Total: $0</p>
+        <p id="detalleTotalPaso1" class="mt-1 text-sm text-gray-500 hidden"></p>
       </div>
 
       <div class="md:hidden mt-5 flex flex-col sm:flex-row gap-2 sm:justify-between">
@@ -460,6 +461,11 @@
             <option value="Domicilio">Domicilio</option>
           </select>
         </div>
+        <div id="grupoCostoDomicilio" class="hidden">
+          <label for="costoDomicilio" class="block text-sm font-medium text-gray-700 mb-1">Costo del domicilio</label>
+          <input type="number" id="costoDomicilio" min="0" step="500" inputmode="numeric" placeholder="Ej: 3000" class="w-full p-3 border border-yellow-300 rounded-xl text-base" />
+          <p class="mt-1 text-xs text-gray-500">Este valor se suma al total del pedido.</p>
+        </div>
         <input type="text" id="observaciones" placeholder="Observaciones (Ej: Sin cebolla, agregar salsas, etc.)" class="w-full p-3 border border-yellow-300 rounded-xl text-base" />
       </div>
 
@@ -488,6 +494,7 @@
         <h3 class="text-lg font-semibold mb-4 border-b pb-2">🛒 Pedido Actual</h3>
         <ul id="listaPedido" class="list-disc pl-5 text-gray-700 space-y-1"></ul>
         <p id="total" class="mt-4 font-bold text-lg text-gray-800">Total: $0</p>
+        <p id="detalleTotalPedido" class="mt-1 text-sm text-gray-500 hidden"></p>
       </div>
 
       <!-- Botones de acción -->
@@ -895,11 +902,14 @@ function limpiarSesionLocal() {
 
 function normalizarVenta(venta = {}) {
   const copia = JSON.parse(JSON.stringify(venta));
-  copia.total = Number(copia.total || 0);
   copia.estado = obtenerEstadoVenta(copia);
   copia.pedido = Array.isArray(copia.pedido)
     ? copia.pedido.map(p => ({ nombre: p.nombre, precio: Number(p.precio || 0) }))
     : [];
+  const subtotalProductos = copia.pedido.reduce((acc, p) => acc + Number(p.precio || 0), 0);
+  copia.subtotalProductos = Number(copia.subtotalProductos ?? subtotalProductos);
+  copia.costoDomicilio = Number(copia.costoDomicilio || 0);
+  copia.total = Number(copia.total || (copia.subtotalProductos + copia.costoDomicilio));
   return copia;
 }
 
@@ -1320,6 +1330,14 @@ function aplicarPermisosPorRol() {
         alert('Por favor selecciona un tipo de pedido.');
         return false;
       }
+      if (tipoPedido === 'Domicilio') {
+        const costoTexto = String(document.getElementById('costoDomicilio')?.value || '').trim();
+        const costo = Number(costoTexto || 0);
+        if (costoTexto === '' || !Number.isFinite(costo) || costo < 0) {
+          alert('Ingresa un valor válido para el domicilio.');
+          return false;
+        }
+      }
     }
     return true;
   }
@@ -1370,9 +1388,46 @@ function aplicarPermisosPorRol() {
     }
   }
 
-  // Recalcula el total sumando todos los precios
+  function obtenerSubtotalPedidoActual() {
+    return pedido.reduce((acc, p) => acc + Number(p.precio || 0), 0);
+  }
+
+  function obtenerCostoDomicilioActual() {
+    const tipoPedido = document.getElementById("tipoPedido")?.value || "";
+    if (tipoPedido !== "Domicilio") return 0;
+    const valor = Number(document.getElementById("costoDomicilio")?.value || 0);
+    return Number.isFinite(valor) && valor >= 0 ? valor : 0;
+  }
+
+  function actualizarCampoCostoDomicilio() {
+    const tipoPedido = document.getElementById("tipoPedido")?.value || "";
+    const grupo = document.getElementById("grupoCostoDomicilio");
+    const input = document.getElementById("costoDomicilio");
+    const mostrar = tipoPedido === "Domicilio";
+    if (grupo) grupo.classList.toggle("hidden", !mostrar);
+    if (!mostrar && input) input.value = "";
+    actualizarTotal();
+    actualizarVistaPedido();
+  }
+
+  function actualizarDetalleTotalPedido() {
+    const subtotalProductos = obtenerSubtotalPedidoActual();
+    const costoDomicilio = obtenerCostoDomicilioActual();
+    const detalleTexto = costoDomicilio > 0
+      ? `Productos: ${formatearCOP(subtotalProductos)} · Domicilio: ${formatearCOP(costoDomicilio)}`
+      : "";
+    const detallePaso1 = document.getElementById("detalleTotalPaso1");
+    const detallePedido = document.getElementById("detalleTotalPedido");
+    [detallePaso1, detallePedido].forEach(el => {
+      if (!el) return;
+      el.textContent = detalleTexto;
+      el.classList.toggle("hidden", !detalleTexto);
+    });
+  }
+
+  // Recalcula el total sumando productos y domicilio si aplica
   function actualizarTotal() {
-    total = pedido.reduce((acc, p) => acc + p.precio, 0);
+    total = obtenerSubtotalPedidoActual() + obtenerCostoDomicilioActual();
   }
 
   // Actualiza la lista del pedido en la interfaz
@@ -1426,6 +1481,7 @@ function aplicarPermisosPorRol() {
     if (document.getElementById("contadorItemsPaso1")) {
       document.getElementById("contadorItemsPaso1").textContent = `${pedido.length} item${pedido.length === 1 ? '' : 's'}`;
     }
+    actualizarDetalleTotalPedido();
     actualizarResumenMovil();
     actualizarResumenPasosVenta();
   }
@@ -1434,11 +1490,14 @@ function aplicarPermisosPorRol() {
  function limpiarPedido() {
   pedido = [];
   total = 0;
-  actualizarVistaPedido();
   document.getElementById("cliente").value = "";
   document.getElementById("formaPago").value = "";
   document.getElementById("tipoPedido").value = "";
+  const costoDomicilioInput = document.getElementById("costoDomicilio");
+  if (costoDomicilioInput) costoDomicilioInput.value = "";
   document.getElementById("observaciones").value = "";
+  actualizarCampoCostoDomicilio();
+  actualizarVistaPedido();
   irAPasoVenta(1);
 }
 
@@ -1490,6 +1549,20 @@ function cancelarPedidoActual() {
       return;
     }
 
+    const costoDomicilioInput = document.getElementById("costoDomicilio");
+    const costoDomicilioTexto = String(costoDomicilioInput?.value || "").trim();
+    if (tipoPedido === "Domicilio" && costoDomicilioTexto === "") {
+      alert("Por favor ingresa el valor del domicilio.");
+      return;
+    }
+    const costoDomicilio = tipoPedido === "Domicilio" ? Number(costoDomicilioTexto || 0) : 0;
+    if (!Number.isFinite(costoDomicilio) || costoDomicilio < 0) {
+      alert("Ingresa un valor válido para el domicilio.");
+      return;
+    }
+
+    actualizarTotal();
+    const subtotalProductos = obtenerSubtotalPedidoActual();
     const observaciones = document.getElementById("observaciones").value.trim();
 
     const ahora = new Date();
@@ -1503,6 +1576,8 @@ function cancelarPedidoActual() {
       cliente,
       formaPago,
       tipoPedido,
+      costoDomicilio,
+      subtotalProductos,
       observaciones,
       pedido: [...pedido],
       total,
@@ -1574,7 +1649,7 @@ function cancelarPedidoActual() {
         <td class='border p-1'>${formatearFechaHoraColombia(v.fechaISO || v.fecha)}</td>
         <td class='border p-1'>${v.cliente}</td>
         <td class='border p-1'>${v.formaPago}</td>
-        <td class='border p-1'>${v.tipoPedido}</td>
+        <td class='border p-1'>${formatearTipoPedidoVisual(v)}</td>
         <td class='border p-1'>${obtenerBadgeEstadoVenta(v)}</td>
         <td class='border p-1'>${productosResumen}</td>
         <td class='border p-1 font-semibold ${ventaCancelada ? 'text-red-600' : ''}'>$${v.total.toLocaleString('es-CO')}</td>
@@ -1585,6 +1660,14 @@ function cancelarPedidoActual() {
 
   function formatearCOP(valor) {
     return `$${Number(valor || 0).toLocaleString('es-CO')}`;
+  }
+
+  function formatearTipoPedidoVisual(venta = {}) {
+    const tipo = venta?.tipoPedido || '-';
+    const costoDomicilio = Number(venta?.costoDomicilio || 0);
+    return tipo === 'Domicilio' && costoDomicilio > 0
+      ? `${tipo} · ${formatearCOP(costoDomicilio)}`
+      : tipo;
   }
 
   function actualizarResumenMovil() {
@@ -1651,7 +1734,8 @@ function cancelarPedidoActual() {
         <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
           <div class="bg-white rounded-xl p-2 border border-yellow-100"><span class="text-gray-500 block text-xs">Fecha</span><strong>${formatearFechaHoraColombia(v.fechaISO || v.fecha)}</strong></div>
           <div class="bg-white rounded-xl p-2 border border-yellow-100"><span class="text-gray-500 block text-xs">Pago</span><strong>${v.formaPago || '-'}</strong></div>
-          <div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Tipo de pedido</span><strong>${v.tipoPedido || '-'}</strong></div>
+          <div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Tipo de pedido</span><strong>${formatearTipoPedidoVisual(v)}</strong></div>
+          ${Number(v.costoDomicilio || 0) > 0 ? `<div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Costo domicilio</span><strong>${formatearCOP(v.costoDomicilio)}</strong></div>` : ''}
           ${(v.observaciones || '').trim() ? `<div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Observaciones</span><strong>${v.observaciones}</strong></div>` : ''}
         </div>
         <div class="mt-3 bg-white rounded-xl p-3 border border-yellow-100">
@@ -1784,7 +1868,7 @@ function cancelarPedidoActual() {
     const sheet = workbook.addWorksheet(nombreHoja);
 
     const headers = [
-      "#", "Fecha", "Cliente", "Forma de Pago", "Tipo de Pedido", "Estado", "Producto", "Precio (COP)", "Total Venta (COP)"
+      "#", "Fecha", "Cliente", "Forma de Pago", "Tipo de Pedido", "Costo domicilio (COP)", "Estado", "Producto", "Precio (COP)", "Total Venta (COP)"
     ];
     sheet.addRow(headers);
 
@@ -1792,7 +1876,7 @@ function cancelarPedidoActual() {
     const conteoProductos = {};
 
     ventasNormalizadas.forEach((venta, i) => {
-      const { fecha, cliente, formaPago, tipoPedido, total, pedido } = venta;
+      const { fecha, cliente, formaPago, tipoPedido, total, pedido, costoDomicilio } = venta;
       const ventaCancelada = esVentaCancelada(venta);
       if (!ventaCancelada) {
         totalGlobal += parseFloat(total) || 0;
@@ -1805,6 +1889,7 @@ function cancelarPedidoActual() {
           cliente,
           formaPago,
           tipoPedido,
+          parseFloat(costoDomicilio || 0),
           ventaCancelada ? "Cancelada" : "Activa",
           producto.nombre,
           parseFloat(producto.precio),
@@ -1994,8 +2079,9 @@ function cancelarPedidoActual() {
           <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${ultimaVenta.comanda ?? ultimaVenta.recibo ?? 1}</p>
 <p><strong>Cliente:</strong> ${ultimaVenta.cliente || "Sin nombre"}</p>
         <p><strong>Hora:</strong> ${formatearHoraColombia(ultimaVenta.fechaISO || ultimaVenta.fecha)}</p>
-        <p><strong>Tipo de Pedido:</strong> ${ultimaVenta.tipoPedido || "-"}</p>
+        <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(ultimaVenta)}</p>
         <p><strong>Método de pago:</strong> ${ultimaVenta.formaPago || "-"}</p>
+        ${Number(ultimaVenta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(ultimaVenta.costoDomicilio)}</p>` : ""}
         ${ultimaVenta.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaVenta.observaciones}</p>` : ""}
       </div>
       <ul>
@@ -2133,8 +2219,9 @@ function imprimirUltimaCliente() {
   COMANDA #${ultimaVenta.comanda ?? ultimaVenta.recibo ?? 1}</p>
 <p><strong>Cliente:</strong> ${ultimaVenta.cliente || "N/A"}</p>
           <p><strong>Fecha:</strong> ${formatearFechaHoraColombia(ultimaVenta.fechaISO || ultimaVenta.fecha)}</p>
-          <p><strong>Tipo de Pedido:</strong> ${ultimaVenta.tipoPedido || "-"}</p>
+          <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(ultimaVenta)}</p>
         <p><strong>Método de pago:</strong> ${ultimaVenta.formaPago || "-"}</p>
+          ${Number(ultimaVenta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(ultimaVenta.costoDomicilio)}</p>` : ""}
           ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ""}
         </div>
         <div class="line"></div>
@@ -2143,6 +2230,10 @@ function imprimirUltimaCliente() {
   ultimaVenta.pedido.forEach(p => {
     contenido += `<li>${p.nombre} - $${Number(p.precio).toLocaleString('es-CO')}</li>`;
   });
+
+  if (Number(ultimaVenta.costoDomicilio || 0) > 0) {
+    contenido += `<li>Domicilio - ${formatearCOP(ultimaVenta.costoDomicilio)}</li>`;
+  }
 
   contenido += `
         </ul>
@@ -2257,13 +2348,15 @@ function imprimirVentaCliente(index) {
           <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${venta.comanda ?? venta.recibo ?? (index + 1)}</p>
           <p><strong>Cliente:</strong> ${venta.cliente || "N/A"}</p>
           <p><strong>Fecha:</strong> ${formatearFechaHoraColombia(venta.fechaISO || venta.fecha)}</p>
-          <p><strong>Tipo de Pedido:</strong> ${venta.tipoPedido || "-"}</p>
+          <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(venta)}</p>
           <p><strong>Método de pago:</strong> ${venta.formaPago || "-"}</p>
+          ${Number(venta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(venta.costoDomicilio)}</p>` : ""}
           ${venta.observaciones ? `<p><strong>Observaciones:</strong> ${venta.observaciones}</p>` : ""}
         </div>
         <div class="line"></div>
         <ul>
           ${venta.pedido.map(p => `<li>${p.nombre} - $${Number(p.precio).toLocaleString('es-CO')}</li>`).join("")}
+          ${Number(venta.costoDomicilio || 0) > 0 ? `<li>Domicilio - ${formatearCOP(venta.costoDomicilio)}</li>` : ""}
         </ul>
         <div class="line"></div>
         <p class="total">Total: $${Number(venta.total).toLocaleString('es-CO')}</p>
@@ -2360,8 +2453,9 @@ function imprimirVentaCocina(index) {
           <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${venta.comanda ?? venta.recibo ?? (index + 1)}</p>
           <p><strong>Cliente:</strong> ${venta.cliente || "Sin nombre"}</p>
           <p><strong>Hora:</strong> ${formatearHoraColombia(venta.fechaISO || venta.fecha)}</p>
-          <p><strong>Tipo de Pedido:</strong> ${venta.tipoPedido || "-"}</p>
+          <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(venta)}</p>
           <p><strong>Método de pago:</strong> ${venta.formaPago || "-"}</p>
+          ${Number(venta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(venta.costoDomicilio)}</p>` : ""}
           ${venta.observaciones ? `<p><strong>Observaciones:</strong> ${venta.observaciones}</p>` : ""}
         </div>
         <ul>
@@ -2435,11 +2529,15 @@ function editarVenta(index) {
   document.getElementById("cliente").value = venta.cliente;
   document.getElementById("formaPago").value = venta.formaPago;
   document.getElementById("tipoPedido").value = venta.tipoPedido;
+  const costoDomicilioInput = document.getElementById("costoDomicilio");
+  if (costoDomicilioInput) costoDomicilioInput.value = Number(venta.costoDomicilio || 0) > 0 ? Number(venta.costoDomicilio || 0) : "";
   document.getElementById("observaciones").value = venta.observaciones || "";
+
+  actualizarCampoCostoDomicilio();
 
   // Cargar productos
   pedido = [...venta.pedido];
-  total = venta.total;
+  actualizarTotal();
   actualizarVistaPedido();
 
     // Conservar la venta original para actualizarla sin duplicar
@@ -2482,6 +2580,16 @@ function volverAlPOS() {
       mostrarVentas();
       actualizarResumenMovil();
       aplicarPermisosPorRol();
+      const tipoPedidoSelect = document.getElementById("tipoPedido");
+      const costoDomicilioInput = document.getElementById("costoDomicilio");
+      if (tipoPedidoSelect) tipoPedidoSelect.addEventListener("change", actualizarCampoCostoDomicilio);
+      if (costoDomicilioInput) {
+        costoDomicilioInput.addEventListener("input", () => {
+          actualizarTotal();
+          actualizarVistaPedido();
+        });
+      }
+      actualizarCampoCostoDomicilio();
       await inicializarFirebaseVentas();
       const loginUsuario = document.getElementById("loginUsuario");
       const loginClave = document.getElementById("loginClave");
@@ -2576,14 +2684,22 @@ function volverAlPOS() {
     const fechaBase = v.fechaISO ? new Date(v.fechaISO) : new Date(v.fecha);
     const fechaValida = isNaN(fechaBase.getTime()) ? new Date() : fechaBase;
     const diaClave = v.diaClave || obtenerFechaLocalISO(fechaValida);
+    const pedidoNormalizado = Array.isArray(v.pedido)
+      ? v.pedido.map(p => ({ nombre: p.nombre, precio: Number(p.precio || 0) }))
+      : [];
+    const subtotalProductos = pedidoNormalizado.reduce((acc, p) => acc + Number(p.precio || 0), 0);
+    const costoDomicilio = Number(v.costoDomicilio || 0);
     return {
       ...v,
+      pedido: pedidoNormalizado,
       estado: obtenerEstadoVenta(v),
       fechaISO: v.fechaISO || fechaValida.toISOString(),
       diaClave,
       comanda: v.comanda ?? v.recibo ?? (index + 1),
       recibo: v.recibo ?? v.comanda ?? (index + 1),
-      total: Number(v.total || 0)
+      subtotalProductos: Number(v.subtotalProductos ?? subtotalProductos),
+      costoDomicilio,
+      total: Number(v.total || (subtotalProductos + costoDomicilio))
     };
   }
 
@@ -2663,7 +2779,7 @@ function volverAlPOS() {
           <td class="p-2 border">${formatearHoraColombia(v.fechaISO || v.fecha)}</td>
           <td class="p-2 border">${v.cliente || 'N/A'}</td>
           <td class="p-2 border">${v.formaPago || '-'}</td>
-          <td class="p-2 border">${v.tipoPedido || '-'}</td>
+          <td class="p-2 border">${formatearTipoPedidoVisual(v)}</td>
           <td class="p-2 border">${obtenerBadgeEstadoVenta(v)}</td>
           <td class="p-2 border">${v.observaciones || '-'}</td>
           <td class="p-2 border">${resumirProductosPedido(v.pedido || [])}</td>
