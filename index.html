@@ -348,7 +348,7 @@
             <button onclick="agregarProducto('COMBO 1', 40000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 1 - $40.000</button>
             <button onclick="agregarProducto('COMBO 2', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 2 - $30.000</button>
             <button onclick="agregarProducto('COMBO 3', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 3 - $30.000</button>
-            <button onclick="agregarProducto('COMBO DESVARE', 50000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO DESVARE - $50.000</button>
+            <button onclick="agregarProducto('COMBO marzo', 50000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO MARZO - $50.000</button>
           </div>
         </div>
 
@@ -909,7 +909,7 @@ function normalizarVenta(venta = {}) {
   const subtotalProductos = copia.pedido.reduce((acc, p) => acc + Number(p.precio || 0), 0);
   copia.subtotalProductos = Number(copia.subtotalProductos ?? subtotalProductos);
   copia.costoDomicilio = Number(copia.costoDomicilio || 0);
-  copia.total = Number(copia.total || (copia.subtotalProductos + copia.costoDomicilio));
+  copia.total = Number(copia.subtotalProductos || 0);
   return copia;
 }
 
@@ -1414,7 +1414,7 @@ function aplicarPermisosPorRol() {
     const subtotalProductos = obtenerSubtotalPedidoActual();
     const costoDomicilio = obtenerCostoDomicilioActual();
     const detalleTexto = costoDomicilio > 0
-      ? `Productos: ${formatearCOP(subtotalProductos)} · Domicilio: ${formatearCOP(costoDomicilio)}`
+      ? `Venta: ${formatearCOP(subtotalProductos)} · Domicilio: ${formatearCOP(costoDomicilio)}`
       : "";
     const detallePaso1 = document.getElementById("detalleTotalPaso1");
     const detallePedido = document.getElementById("detalleTotalPedido");
@@ -1425,9 +1425,9 @@ function aplicarPermisosPorRol() {
     });
   }
 
-  // Recalcula el total sumando productos y domicilio si aplica
+  // Recalcula el total usando solo los productos.
   function actualizarTotal() {
-    total = obtenerSubtotalPedidoActual() + obtenerCostoDomicilioActual();
+    total = obtenerSubtotalPedidoActual();
   }
 
   // Actualiza la lista del pedido en la interfaz
@@ -1580,7 +1580,7 @@ function cancelarPedidoActual() {
       subtotalProductos,
       observaciones,
       pedido: [...pedido],
-      total,
+      total: subtotalProductos,
       estado: ventaOriginalEnEdicion?.estado || ESTADO_VENTA_ACTIVA,
       fechaCancelacion: ventaOriginalEnEdicion?.fechaCancelacion || null,
       canceladaPor: ventaOriginalEnEdicion?.canceladaPor || "",
@@ -2231,10 +2231,6 @@ function imprimirUltimaCliente() {
     contenido += `<li>${p.nombre} - $${Number(p.precio).toLocaleString('es-CO')}</li>`;
   });
 
-  if (Number(ultimaVenta.costoDomicilio || 0) > 0) {
-    contenido += `<li>Domicilio - ${formatearCOP(ultimaVenta.costoDomicilio)}</li>`;
-  }
-
   contenido += `
         </ul>
         <div class="line"></div>
@@ -2356,7 +2352,6 @@ function imprimirVentaCliente(index) {
         <div class="line"></div>
         <ul>
           ${venta.pedido.map(p => `<li>${p.nombre} - $${Number(p.precio).toLocaleString('es-CO')}</li>`).join("")}
-          ${Number(venta.costoDomicilio || 0) > 0 ? `<li>Domicilio - ${formatearCOP(venta.costoDomicilio)}</li>` : ""}
         </ul>
         <div class="line"></div>
         <p class="total">Total: $${Number(venta.total).toLocaleString('es-CO')}</p>
@@ -2699,7 +2694,7 @@ function volverAlPOS() {
       recibo: v.recibo ?? v.comanda ?? (index + 1),
       subtotalProductos: Number(v.subtotalProductos ?? subtotalProductos),
       costoDomicilio,
-      total: Number(v.total || (subtotalProductos + costoDomicilio))
+      total: Number(v.subtotalProductos ?? subtotalProductos)
     };
   }
 
