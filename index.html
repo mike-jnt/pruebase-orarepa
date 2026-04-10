@@ -137,6 +137,38 @@
   }
 </style>
 
+
+<style>
+  @keyframes bebidaParpadeoStock {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.25); }
+    50% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.12); }
+  }
+  .bebida-stock-bajo {
+    position: relative;
+    border: 2px solid #dc2626 !important;
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    animation: bebidaParpadeoStock 1s infinite;
+  }
+  .bebida-stock-agotado {
+    position: relative;
+    border: 2px solid #7f1d1d !important;
+    background: #fecaca !important;
+    color: #7f1d1d !important;
+    animation: bebidaParpadeoStock 0.8s infinite;
+  }
+  .stock-alert-badge {
+    display: inline-flex;
+    margin-top: 0.35rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
+    background: rgba(255,255,255,0.9);
+  }
+</style>
+
 </head>
 
 <body class="bg-yellow-50 font-sans">
@@ -875,14 +907,22 @@ let firebaseConexionEstado = "desconectado";
 let ultimoHeartbeatFirebase = 0;
 let monitorFirebaseInterval = null;
 const ULTIMA_VENTA_GUARDADA_KEY = "ultimaVentaGuardada";
+const VENTAS_PENDIENTES_SYNC_KEY = "ventasPendientesSync";
 const ESTADO_VENTA_ACTIVA = "activa";
 const ESTADO_VENTA_CANCELADA = "cancelada";
+let sincronizandoVentasPendientes = false;
+let temporizadorSyncVentasPendientes = null;
 const CONTROL_CAJA_STORAGE_KEY = "controlCajaPorDia";
 let controlCajaCache = JSON.parse(localStorage.getItem(CONTROL_CAJA_STORAGE_KEY) || "{}");
 let controlCajaFirebasePermisosDisponibles = true;
 let controlCajaFirebasePermisosAvisados = false;
 const INVENTARIO_STORAGE_KEY = "inventarioCocina";
 const INVENTARIO_COLLECTION = "inventario";
+const STOCK_BEBIDA_BAJO_UMBRAL = 5;
+let inventarioUnsubscribe = null;
+let inventarioBebidasEstado = {};
+let inventarioPermisosAvisados = false;
+
 
 function normalizarClaveInventario(nombre = "") {
   return String(nombre || "")
@@ -891,6 +931,98 @@ function normalizarClaveInventario(nombre = "") {
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, "")
     .trim();
+}
+
+function obtenerMapaInventarioDesdeArray(items = []) {
+  const mapa = {};
+  (Array.isArray(items) ? items : []).forEach(item => {
+    const clave = normalizarClaveInventario(item?.nombreNormalizado || item?.nombre || "");
+    if (!clave) return;
+    mapa[clave] = {
+      nombre: item?.nombre || clave,
+      cantidad: Number(item?.cantidad || 0),
+      unidad: item?.unidad || "unidades"
+    };
+  });
+  return mapa;
+}
+
+function obtenerMapaInventarioLocal() {
+  try {
+    return obtenerMapaInventarioDesdeArray(JSON.parse(localStorage.getItem(INVENTARIO_STORAGE_KEY) || "[]"));
+  } catch (error) {
+    console.error("No se pudo leer el inventario local:", error);
+    return {};
+  }
+}
+
+function prepararBotonesBebidaParaAlertas() {
+  document.querySelectorAll('#categoriaBebidas button').forEach(btn => {
+    if (!btn.dataset.originalLabel) {
+      btn.dataset.originalLabel = btn.textContent.trim();
+    }
+    if (!btn.dataset.productName) {
+      const onclick = btn.getAttribute('onclick') || '';
+      const match = onclick.match(/agregarProducto\('([^']+)'\s*,/);
+      if (match) btn.dataset.productName = match[1];
+    }
+  });
+}
+
+function aplicarEstadoVisualBotonBebida(btn, infoStock = null) {
+  const nombreProducto = btn.dataset.productName || "";
+  const original = btn.dataset.originalLabel || btn.textContent.trim();
+  const cantidad = Number(infoStock?.cantidad ?? NaN);
+  const tieneStock = Number.isFinite(cantidad);
+  const agotado = tieneStock && cantidad <= 0;
+  const bajo = tieneStock && cantidad > 0 && cantidad <= STOCK_BEBIDA_BAJO_UMBRAL;
+
+  btn.classList.remove('bebida-stock-bajo', 'bebida-stock-agotado');
+  btn.removeAttribute('title');
+  btn.innerHTML = `<span>${original}</span>`;
+
+  if (!nombreProducto || (!agotado && !bajo)) return;
+
+  const etiqueta = agotado ? 'AGOTADO' : `POCO STOCK (${cantidad})`;
+  btn.classList.add(agotado ? 'bebida-stock-agotado' : 'bebida-stock-bajo');
+  btn.title = `${nombreProducto} · ${etiqueta}`;
+  btn.innerHTML = `<span>${original}</span><span class="stock-alert-badge">${etiqueta}</span>`;
+}
+
+function actualizarAlertasStockBebidas(origen = null) {
+  prepararBotonesBebidaParaAlertas();
+  const mapa = (origen && Object.keys(origen).length) ? origen : (Object.keys(inventarioBebidasEstado).length ? inventarioBebidasEstado : obtenerMapaInventarioLocal());
+  document.querySelectorAll('#categoriaBebidas button').forEach(btn => {
+    const clave = normalizarClaveInventario(btn.dataset.productName || "");
+    aplicarEstadoVisualBotonBebida(btn, mapa[clave] || null);
+  });
+}
+
+function escucharInventarioFirestore() {
+  if (!firestoreDisponible || !firestoreDb) {
+    actualizarAlertasStockBebidas();
+    return;
+  }
+  if (typeof inventarioUnsubscribe === 'function') inventarioUnsubscribe();
+
+  inventarioUnsubscribe = firestoreDb.collection(INVENTARIO_COLLECTION).onSnapshot((snapshot) => {
+    inventarioPermisosAvisados = false;
+    const items = snapshot.docs.map(doc => ({ _docId: doc.id, ...doc.data() }));
+    inventarioBebidasEstado = obtenerMapaInventarioDesdeArray(items);
+    try {
+      localStorage.setItem(INVENTARIO_STORAGE_KEY, JSON.stringify(items));
+    } catch (error) {
+      console.error("No se pudo actualizar el inventario local desde Firebase:", error);
+    }
+    actualizarAlertasStockBebidas(inventarioBebidasEstado);
+  }, (error) => {
+    if (!inventarioPermisosAvisados) {
+      console.error("No se pudo sincronizar el inventario de bebidas desde Firebase:", error);
+      inventarioPermisosAvisados = true;
+    }
+    inventarioBebidasEstado = obtenerMapaInventarioLocal();
+    actualizarAlertasStockBebidas(inventarioBebidasEstado);
+  });
 }
 
 const PRODUCTOS_BEBIDA_INVENTARIO = new Set([
@@ -953,6 +1085,8 @@ function aplicarAjustesInventarioLocal(ajustes = {}) {
     });
     if (cambio) {
       localStorage.setItem(INVENTARIO_STORAGE_KEY, JSON.stringify(inventarioLocal));
+      inventarioBebidasEstado = obtenerMapaInventarioDesdeArray(inventarioLocal);
+      actualizarAlertasStockBebidas(inventarioBebidasEstado);
     }
   } catch (error) {
     console.error("No se pudo actualizar el inventario local de bebidas:", error);
@@ -1614,6 +1748,8 @@ function normalizarVenta(venta = {}) {
   copia.costoDomicilio = Number(copia.costoDomicilio || 0);
   const numeroDomicilio = Number(copia.numeroDomicilio || 0);
   copia.numeroDomicilio = Number.isFinite(numeroDomicilio) && numeroDomicilio > 0 ? numeroDomicilio : null;
+  copia._localId = String(copia._localId || copia._docId || '').trim() || null;
+  copia._syncEstado = copia._syncEstado === 'pendiente' ? 'pendiente' : 'sincronizado';
   copia.total = Number(copia.subtotalProductos || 0);
   return copia;
 }
@@ -1626,6 +1762,118 @@ function guardarVentasEnCache(ventas) {
 
 function obtenerVentasStorage() {
   return Array.isArray(ventasCache) ? ventasCache.map(normalizarVenta) : [];
+}
+
+function generarIdVentaLocal() {
+  return `venta_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function obtenerVentasPendientesSync() {
+  try {
+    const data = JSON.parse(localStorage.getItem(VENTAS_PENDIENTES_SYNC_KEY) || '[]');
+    return Array.isArray(data) ? data.map(item => ({
+      venta: normalizarVenta(item?.venta || {}),
+      ajustesInventario: item?.ajustesInventario || {}
+    })) : [];
+  } catch (error) {
+    console.error("No se pudieron leer las ventas pendientes de sincronización:", error);
+    return [];
+  }
+}
+
+function guardarVentasPendientesSync(items = []) {
+  const lista = (Array.isArray(items) ? items : []).map(item => ({
+    venta: normalizarVenta(item?.venta || {}),
+    ajustesInventario: item?.ajustesInventario || {}
+  }));
+  localStorage.setItem(VENTAS_PENDIENTES_SYNC_KEY, JSON.stringify(lista));
+  return lista;
+}
+
+function guardarVentaPendienteSync(venta, ajustesInventario = {}) {
+  const pendiente = { venta: normalizarVenta(venta), ajustesInventario: ajustesInventario || {} };
+  const lista = obtenerVentasPendientesSync();
+  const clave = pendiente.venta._localId || pendiente.venta._docId;
+  const index = lista.findIndex(item => (item.venta._localId || item.venta._docId) === clave);
+  if (index >= 0) lista[index] = pendiente;
+  else lista.push(pendiente);
+  guardarVentasPendientesSync(lista);
+}
+
+function quitarVentaPendienteSync(localId = "") {
+  const clave = String(localId || "").trim();
+  if (!clave) return;
+  const lista = obtenerVentasPendientesSync().filter(item => (item.venta._localId || item.venta._docId) !== clave);
+  guardarVentasPendientesSync(lista);
+}
+
+function upsertVentaEnCacheLocal(venta) {
+  const ventaLista = normalizarVenta(venta);
+  const ventas = obtenerVentasStorage();
+  const index = ventas.findIndex(item =>
+    (ventaLista._docId && item._docId === ventaLista._docId) ||
+    (ventaLista._localId && item._localId === ventaLista._localId)
+  );
+  if (index >= 0) ventas[index] = { ...ventas[index], ...ventaLista };
+  else ventas.push(ventaLista);
+  guardarVentasEnCache(ordenarVentasDesc(ventas));
+  return ventaLista;
+}
+
+function fusionarVentasRemotasConPendientes(ventasRemotas = []) {
+  const remotas = Array.isArray(ventasRemotas) ? ventasRemotas.map(normalizarVenta) : [];
+  const pendientes = obtenerVentasPendientesSync().map(item => normalizarVenta(item.venta));
+  if (!pendientes.length) return remotas;
+
+  const clavesRemotas = new Set();
+  remotas.forEach(venta => {
+    if (venta._docId) clavesRemotas.add(`doc:${venta._docId}`);
+    if (venta._localId) clavesRemotas.add(`local:${venta._localId}`);
+  });
+
+  const extras = pendientes.filter(venta => {
+    const claveDoc = venta._docId ? `doc:${venta._docId}` : "";
+    const claveLocal = venta._localId ? `local:${venta._localId}` : "";
+    return !(claveDoc && clavesRemotas.has(claveDoc)) && !(claveLocal && clavesRemotas.has(claveLocal));
+  });
+
+  return ordenarVentasDesc([...remotas, ...extras]);
+}
+
+function programarSyncVentasPendientes(delay = 200) {
+  if (temporizadorSyncVentasPendientes) clearTimeout(temporizadorSyncVentasPendientes);
+  temporizadorSyncVentasPendientes = setTimeout(() => {
+    temporizadorSyncVentasPendientes = null;
+    sincronizarVentasPendientesEnSegundoPlano();
+  }, delay);
+}
+
+async function sincronizarVentasPendientesEnSegundoPlano() {
+  if (sincronizandoVentasPendientes) return;
+  if (!firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) return;
+
+  const pendientes = obtenerVentasPendientesSync();
+  if (!pendientes.length) return;
+
+  sincronizandoVentasPendientes = true;
+  try {
+    for (const item of pendientes) {
+      const ventaPendiente = normalizarVenta(item.venta);
+      const localId = ventaPendiente._localId || ventaPendiente._docId;
+      try {
+        const docId = await guardarVentaEnFirebase(ventaPendiente, ventaPendiente._docId || null);
+        await aplicarAjustesInventarioFirestore(item.ajustesInventario || {});
+        const ventaSincronizada = { ...ventaPendiente, _docId: docId, _syncEstado: 'sincronizado' };
+        upsertVentaEnCacheLocal(ventaSincronizada);
+        quitarVentaPendienteSync(localId);
+        guardarReferenciaUltimaVenta(ventaSincronizada);
+      } catch (error) {
+        console.error("No se pudo sincronizar una venta pendiente con Firebase:", error);
+      }
+    }
+  } finally {
+    sincronizandoVentasPendientes = false;
+  }
 }
 
 function ordenarVentasDesc(ventas) {
@@ -1657,11 +1905,19 @@ async function inicializarFirebaseVentas() {
         const registro = resolverRegistroUsuario(email) || resolverRegistroUsuario(user.displayName || '') || { usuario: email.split('@')[0], rol: 'cajero', nombre: user.displayName || email };
         aplicarSesionAutenticada(registro.usuario || email.split('@')[0], registro.rol || 'cajero', user.email || '');
         escucharVentasFirestore();
+        escucharInventarioFirestore();
+        programarSyncVentasPendientes(50);
       } else {
         if (typeof ventasUnsubscribe === 'function') {
           ventasUnsubscribe();
           ventasUnsubscribe = null;
         }
+        if (typeof inventarioUnsubscribe === 'function') {
+          inventarioUnsubscribe();
+          inventarioUnsubscribe = null;
+        }
+        inventarioBebidasEstado = obtenerMapaInventarioLocal();
+        actualizarAlertasStockBebidas(inventarioBebidasEstado);
         limpiarSesionLocal();
         guardarVentasEnCache([]);
       }
@@ -1684,14 +1940,18 @@ function escucharVentasFirestore() {
     .onSnapshot(async (snapshot) => {
       registrarHeartbeatFirebase();
       const ventasRemotas = snapshot.docs.map(doc => normalizarVenta({ _docId: doc.id, ...doc.data() }));
-      guardarVentasEnCache(ventasRemotas);
+      guardarVentasEnCache(fusionarVentasRemotasConPendientes(ventasRemotas));
 
       if (primeraCarga && ventasRemotas.length === 0) {
-        const ventasLocales = JSON.parse(localStorage.getItem("ventas") || "[]").map(normalizarVenta);
+        const pendientes = obtenerVentasPendientesSync();
+        const clavesPendientes = new Set(pendientes.map(item => item.venta?._localId).filter(Boolean));
+        const ventasLocales = JSON.parse(localStorage.getItem("ventas") || "[]").map(normalizarVenta).filter(venta => !venta._docId && !(venta._localId && clavesPendientes.has(venta._localId)));
         if (ventasLocales.length > 0) {
           await migrarVentasLocalesAFirebase(ventasLocales);
         }
       }
+
+      programarSyncVentasPendientes(50);
       primeraCarga = false;
 
       mostrarVentas();
@@ -1720,6 +1980,7 @@ async function guardarVentaEnFirebase(venta, docId = null) {
   }
   const limpia = normalizarVenta(venta);
   delete limpia._docId;
+  delete limpia._syncEstado;
 
   if (docId) {
     await firestoreDb.collection("ventas").doc(docId).set(limpia, { merge: true });
@@ -2305,25 +2566,38 @@ function cancelarPedidoActual() {
     };
 
     try {
-      if (firestoreDisponible) {
-        const docIdGuardado = await guardarVentaEnFirebase(venta, ventaDocIdEnEdicion);
-        venta._docId = docIdGuardado;
-      } else {
-        const ventas = obtenerVentasStorage();
-        if (ventaDocIdEnEdicion) {
-          const index = ventas.findIndex(v => v._docId === ventaDocIdEnEdicion);
-          if (index >= 0) ventas[index] = { ...venta, _docId: ventaDocIdEnEdicion };
-          else ventas.push({ ...venta, _docId: ventaDocIdEnEdicion });
-        } else {
-          ventas.push(venta);
+      const esVentaNueva = !ventaDocIdEnEdicion;
+      venta._localId = venta._localId || ventaOriginalEnEdicion?._localId || generarIdVentaLocal();
+
+      if (esVentaNueva) {
+        const ajustesInventario = calcularAjustesInventarioBebidas([], venta.pedido || []);
+        const ventaLocal = { ...venta, _syncEstado: firestoreDisponible ? 'pendiente' : 'sincronizado' };
+
+        upsertVentaEnCacheLocal(ventaLocal);
+        aplicarAjustesInventarioLocal(ajustesInventario);
+
+        if (firestoreDisponible) {
+          guardarVentaPendienteSync(ventaLocal, ajustesInventario);
+          programarSyncVentasPendientes(50);
         }
-        guardarVentasEnCache(ordenarVentasDesc(ventas));
+
+        guardarReferenciaUltimaVenta(ventaLocal);
+        limpiarContextoEdicionVenta();
+        alert(firestoreDisponible ? "Venta guardada al instante. Se está sincronizando con la base de datos." : "Venta guardada exitosamente.");
+      } else {
+        if (firestoreDisponible) {
+          const docIdGuardado = await guardarVentaEnFirebase(venta, ventaDocIdEnEdicion);
+          venta._docId = docIdGuardado;
+        } else {
+          upsertVentaEnCacheLocal({ ...venta, _docId: ventaDocIdEnEdicion || venta._docId || null, _syncEstado: 'sincronizado' });
+        }
+
+        await sincronizarInventarioBebidasPorCambio(venta, ventaOriginalEnEdicion);
+        guardarReferenciaUltimaVenta(venta);
+        limpiarContextoEdicionVenta();
+        alert("Venta guardada exitosamente.");
       }
 
-      await sincronizarInventarioBebidasPorCambio(venta, ventaOriginalEnEdicion);
-      guardarReferenciaUltimaVenta(venta);
-      limpiarContextoEdicionVenta();
-      alert("Venta guardada exitosamente.");
       limpiarPedido();
       mostrarVentas();
       document.getElementById("resumenProductos").classList.add("hidden");
@@ -3316,6 +3590,15 @@ function volverAlPOS() {
       mostrarVentas();
       actualizarResumenMovil();
       aplicarPermisosPorRol();
+      prepararBotonesBebidaParaAlertas();
+      inventarioBebidasEstado = obtenerMapaInventarioLocal();
+      actualizarAlertasStockBebidas(inventarioBebidasEstado);
+      window.addEventListener('storage', (event) => {
+        if (event.key === INVENTARIO_STORAGE_KEY) {
+          inventarioBebidasEstado = obtenerMapaInventarioLocal();
+          actualizarAlertasStockBebidas(inventarioBebidasEstado);
+        }
+      });
       const tipoPedidoSelect = document.getElementById("tipoPedido");
       const costoDomicilioInput = document.getElementById("costoDomicilio");
       if (tipoPedidoSelect) tipoPedidoSelect.addEventListener("change", actualizarCampoCostoDomicilio);
