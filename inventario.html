@@ -252,6 +252,15 @@
   <!-- Sección: Agregar Producto -->
   <div class="seccion">
     <h2>➕ Agregar Producto</h2>
+    <label for="bebidaMenuSelect" style="display:block; font-weight:700; color:#92400e; margin-top:4px;">Bebidas del menú Señor Arepa</label>
+    <select id="bebidaMenuSelect" onchange="aplicarBebidaMenuSeleccionada()">
+      <option value="">Selecciona una bebida del menú</option>
+    </select>
+    <div style="display: flex; gap: 10px;">
+      <button type="button" onclick="agregarBebidaMenuRapida()">Agregar bebida del menú</button>
+      <button type="button" onclick="sincronizarBebidasMenuFaltantes()">Crear bebidas faltantes</button>
+    </div>
+    <small style="display:block; margin-top:4px; color:#78716c;">Este selector usa exactamente los mismos nombres de la sección de bebidas del POS para descontar stock correctamente.</small>
     <input type="text" id="nombreProducto" placeholder="Nombre del producto" />
     <input type="number" id="cantidadInicial" placeholder="Cantidad inicial" />
     <select id="unidadMedida">
@@ -262,7 +271,7 @@
       <option value="unidades">Unidades</option>
     </select>
     <input type="date" id="fechaIngresoProducto" />
-    <button onclick="agregarProducto()">Agregar</button>
+    <button onclick="agregarProducto()">Agregar producto manual</button>
   </div>
 
   <!-- Sección: Actualizar Stock -->
@@ -333,6 +342,95 @@
       measurementId: "G-8JGY4PVMMV"
     };
 
+
+    const BEBIDAS_MENU_SENOR_AREPA = [
+      'QUATRO', 'COCA COLA 400 ml', 'COCA COLA 250 ml', 'JUGO HIT 500 ml', 'SPRITE', 'COCA COLA ZERO',
+      'BRISA LIMON', 'BRISA MANZANA', 'MISTER TEA', 'AGUA CON GAS', 'AGUA SABORISADA', 'POSTOBON 400 ml',
+      'POSTOBON 250 ml', 'POSTOBON 1.5', 'SODA BRETAÑA', 'GATORADE', 'PREMIO 400 ml', 'PREMIO 1.5l',
+      'QUATRO 1.5L', 'COCA COLA 1.5L', 'JUGO HIT 1.L', 'SPRITE 1.5L', 'COCA COLA ZERO 1.5L', 'AGUA',
+      'MILO CALIENTE', 'CAFE CON LECHE', 'TINTO', 'CERVEZA POKER', 'CERVEZA CORONA'
+    ];
+
+    let migracionInventarioEjecutada = false;
+
+    function normalizarClaveInventario(nombre = '') {
+      return String(nombre || '')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, '')
+        .trim();
+    }
+
+    function esBebidaMenu(nombre = '') {
+      const clave = normalizarClaveInventario(nombre);
+      return BEBIDAS_MENU_SENOR_AREPA.some(item => normalizarClaveInventario(item) === clave);
+    }
+
+    function cargarOpcionesBebidasMenu() {
+      const select = document.getElementById('bebidaMenuSelect');
+      if (!select) return;
+      const actual = select.value;
+      select.innerHTML = '<option value="">Selecciona una bebida del menú</option>';
+      BEBIDAS_MENU_SENOR_AREPA.forEach(nombre => {
+        const option = document.createElement('option');
+        option.value = nombre;
+        option.textContent = nombre;
+        select.appendChild(option);
+      });
+      if (actual && BEBIDAS_MENU_SENOR_AREPA.includes(actual)) select.value = actual;
+    }
+
+    function aplicarBebidaMenuSeleccionada() {
+      const select = document.getElementById('bebidaMenuSelect');
+      const inputNombre = document.getElementById('nombreProducto');
+      const unidad = document.getElementById('unidadMedida');
+      if (!select || !inputNombre || !unidad || !select.value) return;
+      inputNombre.value = select.value;
+      unidad.value = 'unidades';
+    }
+
+    function limpiarFormularioAgregarProducto(limpiarSelect = true) {
+      const nombre = document.getElementById('nombreProducto');
+      const cantidad = document.getElementById('cantidadInicial');
+      const fecha = document.getElementById('fechaIngresoProducto');
+      const unidad = document.getElementById('unidadMedida');
+      const selectBebida = document.getElementById('bebidaMenuSelect');
+      if (nombre) nombre.value = '';
+      if (cantidad) cantidad.value = '';
+      if (fecha) fecha.value = '';
+      if (unidad) unidad.value = 'unidades';
+      if (limpiarSelect && selectBebida) selectBebida.value = '';
+    }
+
+    async function agregarBebidaMenuRapida() {
+      const select = document.getElementById('bebidaMenuSelect');
+      const cantidadInput = document.getElementById('cantidadInicial');
+      if (!select?.value) {
+        alert('Selecciona una bebida del menú.');
+        return;
+      }
+      if (!cantidadInput?.value) {
+        alert('Ingresa la cantidad inicial para la bebida seleccionada.');
+        return;
+      }
+      aplicarBebidaMenuSeleccionada();
+      await agregarProducto();
+    }
+
+    async function sincronizarBebidasMenuFaltantes() {
+      const fecha = document.getElementById('fechaIngresoProducto')?.value || obtenerFechaHoy();
+      let creadas = 0;
+      for (const nombre of BEBIDAS_MENU_SENOR_AREPA) {
+        const existe = inventario.some(item => normalizarClaveInventario(item.nombreNormalizado || item.nombre) === normalizarClaveInventario(nombre));
+        if (existe) continue;
+        const guardado = await persistirInventario({ nombre, cantidad: 0, unidad: 'unidades', fecha, categoria: 'bebida', origen: 'menu-bebidas' }, null, { sumarSiExiste: false, silencioso: true });
+        if (guardado) creadas += 1;
+      }
+      actualizarInventario();
+      alert(creadas ? `Se crearon ${creadas} bebida(s) faltante(s) del menú.` : 'Todas las bebidas del menú ya existen en el inventario.');
+    }
+
     function obtenerFechaHoy() {
       return new Intl.DateTimeFormat('en-CA', {
         timeZone: TIMEZONE_CO,
@@ -382,12 +480,18 @@
     }
 
     function normalizarItem(item = {}, fallbackId = '') {
+      const nombre = String(item.nombre || '').trim();
+      const nombreNormalizado = normalizarClaveInventario(item.nombreNormalizado || nombre);
+      const esBebida = item.categoria === 'bebida' || item.origen === 'menu-bebidas' || esBebidaMenu(nombre);
       return {
-        id: item.id || fallbackId || `${String(item.nombre || 'producto').toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-        nombre: String(item.nombre || '').trim(),
+        id: item.id || fallbackId || `${String(nombre || 'producto').toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+        nombre,
+        nombreNormalizado,
         cantidad: Number(item.cantidad || 0),
         unidad: item.unidad || 'unidades',
-        fecha: item.fecha || obtenerFechaHoy()
+        fecha: item.fecha || obtenerFechaHoy(),
+        categoria: esBebida ? 'bebida' : (item.categoria || 'general'),
+        origen: esBebida ? 'menu-bebidas' : (item.origen || 'manual')
       };
     }
 
@@ -442,6 +546,7 @@
           guardarInventarioLocal();
           actualizarIndicadorDB('conectado');
           actualizarInventario();
+          if (!migracionInventarioEjecutada) sincronizarMetadatosInventarioExistente();
         }, (error) => {
           console.warn('No se pudo sincronizar inventario desde Firebase:', error);
           actualizarIndicadorDB('desconectado', 'Sin permisos o sin conexión. Se muestra el inventario local.');
@@ -455,14 +560,30 @@
       const producto = normalizarItem(item, item.id);
       const payload = {
         nombre: producto.nombre,
+        nombreNormalizado: producto.nombreNormalizado,
         cantidad: producto.cantidad,
         unidad: producto.unidad,
-        fecha: producto.fecha
+        fecha: producto.fecha,
+        categoria: producto.categoria,
+        origen: producto.origen
       };
+
       if (producto.id) {
         await firestoreDb.collection('inventario').doc(producto.id).set(payload, { merge: true });
         return producto.id;
       }
+
+      const existente = await firestoreDb.collection('inventario')
+        .where('nombreNormalizado', '==', producto.nombreNormalizado)
+        .limit(1)
+        .get();
+
+      if (!existente.empty) {
+        const doc = existente.docs[0];
+        await firestoreDb.collection('inventario').doc(doc.id).set(payload, { merge: true });
+        return doc.id;
+      }
+
       const ref = await firestoreDb.collection('inventario').add(payload);
       return ref.id;
     }
@@ -472,8 +593,28 @@
       await firestoreDb.collection('inventario').doc(id).delete();
     }
 
-    async function persistirInventario(item, indexLocal = null) {
-      const producto = normalizarItem(item, item.id);
+    async function persistirInventario(item, indexLocal = null, opciones = {}) {
+      const { sumarSiExiste = indexLocal === null, silencioso = false } = opciones;
+      let producto = normalizarItem(item, item.id);
+      const indexDuplicado = inventario.findIndex((registro, idx) => idx !== indexLocal && normalizarClaveInventario(registro.nombreNormalizado || registro.nombre) === producto.nombreNormalizado);
+
+      if (indexLocal !== null && indexDuplicado >= 0) {
+        if (!silencioso) alert('Ya existe un producto con ese nombre en el inventario.');
+        return false;
+      }
+
+      if (indexLocal === null && sumarSiExiste && indexDuplicado >= 0) {
+        const existente = normalizarItem(inventario[indexDuplicado], inventario[indexDuplicado].id);
+        producto = {
+          ...existente,
+          ...producto,
+          id: existente.id,
+          cantidad: Number(existente.cantidad || 0) + Number(producto.cantidad || 0),
+          fecha: producto.fecha || obtenerFechaHoy()
+        };
+        indexLocal = indexDuplicado;
+      }
+
       try {
         if (firestoreDisponible && firebaseAuth?.currentUser) {
           producto.id = await guardarProductoEnFirebase(producto);
@@ -490,12 +631,14 @@
         guardarInventarioLocal();
       }
       actualizarInventario();
+      return true;
     }
 
     async function agregarProducto() {
-      const nombre = document.getElementById('nombreProducto').value.trim();
+      const selectBebida = document.getElementById('bebidaMenuSelect');
+      const nombre = (document.getElementById('nombreProducto').value.trim() || selectBebida?.value || '').trim();
       const cantidad = parseFloat(document.getElementById('cantidadInicial').value);
-      const unidad = document.getElementById('unidadMedida').value;
+      const unidad = esBebidaMenu(nombre) ? 'unidades' : document.getElementById('unidadMedida').value;
       const fechaInput = document.getElementById('fechaIngresoProducto').value;
       const fecha = fechaInput || obtenerFechaHoy();
 
@@ -504,11 +647,15 @@
         return;
       }
 
-      await persistirInventario({ nombre, cantidad, unidad, fecha });
-
-      document.getElementById('nombreProducto').value = '';
-      document.getElementById('cantidadInicial').value = '';
-      document.getElementById('fechaIngresoProducto').value = '';
+      const guardado = await persistirInventario({
+        nombre,
+        cantidad,
+        unidad,
+        fecha,
+        categoria: esBebidaMenu(nombre) ? 'bebida' : 'general',
+        origen: esBebidaMenu(nombre) ? 'menu-bebidas' : 'manual'
+      });
+      if (guardado) limpiarFormularioAgregarProducto();
     }
 
     async function actualizarStock(tipo) {
@@ -558,10 +705,11 @@
         productoHTML.style.alignItems = 'flex-start';
 
         const stockBajo = Number(item.cantidad || 0) < 40;
+        const vinculadoMenu = item.origen === 'menu-bebidas' || esBebidaMenu(item.nombre);
 
         productoHTML.innerHTML = `
   <div style="flex-grow: 1;">
-    <strong>${item.nombre}</strong>: ${Number(item.cantidad || 0).toFixed(2)} ${item.unidad}<br>
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><strong>${item.nombre}</strong>${vinculadoMenu ? '<span style="background:#dbeafe; color:#1d4ed8; font-size:12px; font-weight:700; padding:3px 8px; border-radius:999px;">Bebida del menú</span>' : ''}</div>${Number(item.cantidad || 0).toFixed(2)} ${item.unidad}<br>
     <small style="color: #888;">📅 ${item.fecha ? 'Última modificación: ' + item.fecha : 'Sin fecha registrada'}</small>
     ${stockBajo ? `
       <div style="
@@ -595,7 +743,7 @@
 
         const option = document.createElement('option');
         option.value = item.id;
-        option.text = item.nombre;
+        option.text = vinculadoMenu ? `${item.nombre} · Bebida` : item.nombre;
         selector.appendChild(option);
       });
 
@@ -628,6 +776,31 @@
       }
     }
 
+
+    async function sincronizarMetadatosInventarioExistente() {
+      if (migracionInventarioEjecutada || !firestoreDisponible || !firebaseAuth?.currentUser) return;
+      migracionInventarioEjecutada = true;
+      try {
+        for (const item of inventario) {
+          if (!item.id) continue;
+          const normalizado = normalizarItem(item, item.id);
+          const necesita = !item.nombreNormalizado || item.nombreNormalizado !== normalizado.nombreNormalizado || !item.categoria || !item.origen;
+          if (!necesita) continue;
+          await firestoreDb.collection('inventario').doc(item.id).set({
+            nombre: normalizado.nombre,
+            nombreNormalizado: normalizado.nombreNormalizado,
+            categoria: normalizado.categoria,
+            origen: normalizado.origen,
+            unidad: normalizado.unidad,
+            cantidad: normalizado.cantidad,
+            fecha: normalizado.fecha
+          }, { merge: true });
+        }
+      } catch (error) {
+        console.warn('No se pudieron completar los metadatos del inventario:', error);
+      }
+    }
+
     async function exportarInventarioPDF() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
@@ -637,7 +810,7 @@
         return;
       }
 
-      const columnas = ['Ingrediente', 'Cantidad', 'Unidad', 'Fecha', 'Estado'];
+      const columnas = ['Ingrediente', 'Cantidad', 'Unidad', 'Fecha', 'Tipo', 'Estado'];
       const filas = inventario.map(item => {
         const estado = Number(item.cantidad || 0) < 40 ? 'Bajo stock' : '—';
         return [
@@ -645,6 +818,7 @@
           Number(item.cantidad || 0).toFixed(2),
           item.unidad,
           item.fecha || '—',
+          (item.origen === 'menu-bebidas' || esBebidaMenu(item.nombre)) ? 'Bebida menú' : 'General',
           estado
         ];
       });
@@ -658,7 +832,7 @@
         startY: 30,
         styles: { fontSize: 12 },
         didParseCell: function (data) {
-          if (data.column.index === 4 && data.cell.text[0] === 'Bajo stock') {
+          if (data.column.index === 5 && data.cell.text[0] === 'Bajo stock') {
             data.cell.styles.textColor = [200, 0, 0];
             data.cell.styles.fontStyle = 'bold';
           }
@@ -693,7 +867,9 @@
       await persistirInventario({
         ...item,
         nombre: nuevoNombre,
-        fecha: nuevaFecha || item.fecha
+        fecha: nuevaFecha || item.fecha,
+        categoria: esBebidaMenu(nuevoNombre) ? 'bebida' : item.categoria,
+        origen: esBebidaMenu(nuevoNombre) ? 'menu-bebidas' : item.origen
       }, index);
     }
 
@@ -705,6 +881,9 @@
       } catch (error) {
         console.warn('No se pudo preparar Firebase antes de iniciar el inventario:', error);
       }
+      cargarOpcionesBebidasMenu();
+      const unidad = document.getElementById('unidadMedida');
+      if (unidad) unidad.value = 'unidades';
       inicializarFirebaseInventario();
     });
   </script>
