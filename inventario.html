@@ -4,9 +4,30 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Inventario Cocina</title>
-  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
+  <script>
+    window.firebaseReadyPromise = (async () => {
+      if (window.firebase && typeof window.firebase.initializeApp === 'function') {
+        return window.firebase;
+      }
+
+      const cargarScript = (src) => new Promise((resolve, reject) => {
+        if ([...document.scripts].some(s => s.src === src)) {
+          resolve();
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`No se pudo cargar ${src}`));
+        document.head.appendChild(script);
+      });
+
+      await cargarScript('https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js');
+      await cargarScript('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js');
+      await cargarScript('https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js');
+      return window.firebase || null;
+    })();
+  </script>
   <style>
   body {
     font-family: 'Segoe UI', sans-serif;
@@ -277,10 +298,20 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
 
-  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
 
+
+  <script>
+    if (location.protocol === 'file:') {
+      window.addEventListener('DOMContentLoaded', () => {
+        const sub = document.getElementById('firebaseStatusSubtext');
+        const meta = document.getElementById('firebaseStatusMeta');
+        if (sub && meta) {
+          sub.textContent = 'Abre este archivo desde Live Server, Hosting o GitHub Pages para evitar errores de seguridad del navegador.';
+          meta.textContent = 'Modo: archivo local';
+        }
+      });
+    }
+  </script>
   <script>
     let inventario = [];
     let firebaseApp = null;
@@ -412,7 +443,7 @@
           actualizarIndicadorDB('conectado');
           actualizarInventario();
         }, (error) => {
-          console.error('No se pudo sincronizar inventario desde Firebase:', error);
+          console.warn('No se pudo sincronizar inventario desde Firebase:', error);
           actualizarIndicadorDB('desconectado', 'Sin permisos o sin conexión. Se muestra el inventario local.');
           cargarInventarioLocal();
           actualizarInventario();
@@ -666,7 +697,14 @@
       }, index);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        if (window.firebaseReadyPromise) {
+          await window.firebaseReadyPromise;
+        }
+      } catch (error) {
+        console.warn('No se pudo preparar Firebase antes de iniciar el inventario:', error);
+      }
       inicializarFirebaseInventario();
     });
   </script>
