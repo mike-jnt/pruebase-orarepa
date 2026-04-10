@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inventario Cocina</title>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
+  <style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    background-color: #fffbea;
+    color: #444;
+  }
+
+  header {
+    background-color: #facc15;
+    color: #4b3205;
+    padding: 20px;
+    text-align: center;
+    font-size: 28px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .secciones-superiores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .seccion {
+    flex: 1;
+    min-width: 300px;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  }
+
+  section h2,
+  .seccion h2 {
+    color: #b45309;
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+
+  input, select, button {
+    padding: 10px;
+    margin: 6px 0;
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    font-size: 16px;
+    box-sizing: border-box;
+    font-family: inherit;
+    background-color: #fffdf5;
+  }
+
+  input:focus,
+  select:focus {
+    outline: 2px solid #facc15;
+    background-color: #fffbeb;
+  }
+
+  button {
+    background-color: #facc15;
+    color: #4b3205;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  button:hover {
+    background-color: #fbbf24;
+  }
+
+  .inventario {
+    margin: 20px;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  }
+
+  .inventario h2 {
+    color: #b45309;
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+
+  .inventario-lista {
+    margin-top: 15px;
+  }
+
+  .producto {
+    background: #fff9c4;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 16px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+
+  .btn-eliminar {
+    margin-left: 10px;
+    background: #f87171;
+    color: white;
+    border: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 22px;
+    text-align: center;
+    padding: 0;
+    font-weight: bold;
+    user-select: none;
+    transition: background-color 0.3s ease;
+  }
+
+  .btn-eliminar:hover {
+    background: #dc2626;
+  }
+
+  .boton-pdf {
+    margin: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 10px;
+    background-color: #16a34a;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+  }
+
+  .boton-pdf:hover {
+    background-color: #15803d;
+  }
+
+
+  .estado-db {
+    margin: 20px;
+    padding: 14px 18px;
+    background: #ffffff;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+
+  .estado-db-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .estado-db-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    background: #ef4444;
+    box-shadow: 0 0 0 4px rgba(239,68,68,0.12);
+  }
+
+  .estado-db-dot.conectado {
+    background: #22c55e;
+    box-shadow: 0 0 0 4px rgba(34,197,94,0.12);
+  }
+
+  .estado-db-dot.verificando {
+    background: #f59e0b;
+    box-shadow: 0 0 0 4px rgba(245,158,11,0.12);
+    animation: pulso-db 1.2s infinite;
+  }
+
+  .estado-db-texto strong {
+    display: block;
+    color: #444;
+  }
+
+  .estado-db-texto small {
+    color: #78716c;
+  }
+
+  .estado-db-meta {
+    font-size: 13px;
+    color: #78716c;
+    font-weight: 600;
+  }
+
+  @keyframes pulso-db {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.08); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+</style>
+
+</head>
+<body>
+<header>📦 Inventario Cocina - Restaurante Rápido</header>
+
+<div class="estado-db">
+  <div class="estado-db-info">
+    <span id="dbStatusDot" class="estado-db-dot verificando"></span>
+    <div class="estado-db-texto">
+      <strong id="dbStatusText">Verificando conexión...</strong>
+      <small id="dbStatusSubtext">Comprobando si el inventario está sincronizado con Firebase.</small>
+    </div>
+  </div>
+  <div id="dbStatusMeta" class="estado-db-meta">Modo: verificando</div>
+</div>
+
+  <div class="secciones-superiores">
+
+  <!-- Sección: Agregar Producto -->
+  <div class="seccion">
+    <h2>➕ Agregar Producto</h2>
+    <input type="text" id="nombreProducto" placeholder="Nombre del producto" />
+    <input type="number" id="cantidadInicial" placeholder="Cantidad inicial" />
+    <select id="unidadMedida">
+      <option value="kg">Kilogramos</option>
+      <option value="g">Gramos</option>
+      <option value="L">Litros</option>
+      <option value="ml">Mililitros</option>
+      <option value="unidades">Unidades</option>
+    </select>
+    <input type="date" id="fechaIngresoProducto" />
+    <button onclick="agregarProducto()">Agregar</button>
+  </div>
+
+  <!-- Sección: Actualizar Stock -->
+  <div class="seccion">
+    <h2>🔄 Actualizar Stock</h2>
+    <select id="productoSeleccionado"></select>
+    <input type="number" id="cantidadMovimiento" placeholder="Cantidad" />
+    <input type="date" id="fechaMovimientoStock" />
+    <div style="display: flex; gap: 10px;">
+      <button onclick="actualizarStock('salida')">Usar Producto</button>
+      <button onclick="actualizarStock('ingreso')">Ingresar Producto</button>
+    </div>
+  </div>
+
+</div>
+
+
+  <button onclick="exportarInventarioPDF()" class="boton-pdf">
+    📄 Exportar Inventario a PDF
+  </button>
+
+  <section class="inventario">
+    <div style="margin-bottom: 15px;">
+      <input type="text" id="buscadorInventario" oninput="filtrarInventario()" placeholder="🔍 Buscar producto..." />
+    </div>
+
+    <h2>📋 Inventario Actual</h2>
+    <div id="listaInventario" class="inventario-lista"></div>
+  </section>
+
+  <!-- Librerías jsPDF y autoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
+
+  <script>
+    let inventario = [];
+    let firebaseApp = null;
+    let firebaseAuth = null;
+    let firestoreDb = null;
+    let firestoreDisponible = false;
+    let authDisponible = false;
+    let inventarioUnsubscribe = null;
+    const INVENTARIO_STORAGE_KEY = "inventarioCocina";
+    const TIMEZONE_CO = 'America/Bogota';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDxrAJcH5AAxIAK2rRWD61aSQklaH--dT0",
+      authDomain: "prsenorarepa.firebaseapp.com",
+      projectId: "prsenorarepa",
+      storageBucket: "prsenorarepa.firebasestorage.app",
+      messagingSenderId: "55349021122",
+      appId: "1:55349021122:web:e4c65b2f2911bd2c4eee5b",
+      measurementId: "G-8JGY4PVMMV"
+    };
+
+    function obtenerFechaHoy() {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: TIMEZONE_CO,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+    }
+
+    function actualizarIndicadorDB(estado, detalle = '') {
+      const dot = document.getElementById('dbStatusDot');
+      const text = document.getElementById('dbStatusText');
+      const sub = document.getElementById('dbStatusSubtext');
+      const meta = document.getElementById('dbStatusMeta');
+      if (!dot || !text || !sub || !meta) return;
+
+      dot.className = 'estado-db-dot';
+
+      if (estado === 'conectado') {
+        dot.classList.add('conectado');
+        text.textContent = 'Conectado con Firebase';
+        sub.textContent = detalle || 'El inventario está sincronizado correctamente con la base de datos.';
+        meta.textContent = 'Modo: nube';
+        return;
+      }
+
+      if (estado === 'verificando') {
+        dot.classList.add('verificando');
+        text.textContent = 'Verificando conexión';
+        sub.textContent = detalle || 'Comprobando si el inventario está sincronizado con Firebase.';
+        meta.textContent = 'Modo: verificando';
+        return;
+      }
+
+      text.textContent = 'Sin conexión con Firebase';
+      sub.textContent = detalle || 'El inventario está funcionando con almacenamiento local.';
+      meta.textContent = 'Modo: local';
+    }
+
+    function guardarInventarioLocal() {
+      localStorage.setItem(INVENTARIO_STORAGE_KEY, JSON.stringify(inventario));
+    }
+
+    function cargarInventarioLocal() {
+      const guardado = localStorage.getItem(INVENTARIO_STORAGE_KEY);
+      inventario = guardado ? JSON.parse(guardado) : [];
+    }
+
+    function normalizarItem(item = {}, fallbackId = '') {
+      return {
+        id: item.id || fallbackId || `${String(item.nombre || 'producto').toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+        nombre: String(item.nombre || '').trim(),
+        cantidad: Number(item.cantidad || 0),
+        unidad: item.unidad || 'unidades',
+        fecha: item.fecha || obtenerFechaHoy()
+      };
+    }
+
+    async function inicializarFirebaseInventario() {
+      actualizarIndicadorDB('verificando');
+      cargarInventarioLocal();
+      actualizarInventario();
+
+      if (!window.firebase) {
+        actualizarIndicadorDB('desconectado', 'No se cargó el SDK de Firebase.');
+        return;
+      }
+
+      try {
+        firebaseApp = firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(firebaseConfig);
+        firebaseAuth = firebase.auth(firebaseApp);
+        firestoreDb = firebase.firestore(firebaseApp);
+        authDisponible = Boolean(firebaseAuth);
+        firestoreDisponible = Boolean(firestoreDb);
+
+        firebaseAuth.onAuthStateChanged((user) => {
+          if (user && firestoreDisponible) {
+            escucharInventarioFirestore();
+          } else {
+            if (typeof inventarioUnsubscribe === 'function') {
+              inventarioUnsubscribe();
+              inventarioUnsubscribe = null;
+            }
+            actualizarIndicadorDB('desconectado', user ? 'No fue posible conectar con la base de datos. Se usa almacenamiento local.' : 'No hay sesión iniciada en Firebase. Se usa almacenamiento local.');
+            cargarInventarioLocal();
+            actualizarInventario();
+          }
+        });
+      } catch (error) {
+        console.error('No se pudo iniciar Firebase en inventario:', error);
+        actualizarIndicadorDB('desconectado', 'Hubo un problema iniciando Firebase. Se usa almacenamiento local.');
+        cargarInventarioLocal();
+        actualizarInventario();
+      }
+    }
+
+    function escucharInventarioFirestore() {
+      if (!firestoreDisponible || !firestoreDb) {
+        actualizarIndicadorDB('desconectado');
+        return;
+      }
+      if (typeof inventarioUnsubscribe === 'function') inventarioUnsubscribe();
+
+      inventarioUnsubscribe = firestoreDb.collection('inventario').orderBy('nombre')
+        .onSnapshot((snapshot) => {
+          inventario = snapshot.docs.map(doc => normalizarItem({ id: doc.id, ...doc.data() }, doc.id));
+          guardarInventarioLocal();
+          actualizarIndicadorDB('conectado');
+          actualizarInventario();
+        }, (error) => {
+          console.error('No se pudo sincronizar inventario desde Firebase:', error);
+          actualizarIndicadorDB('desconectado', 'Sin permisos o sin conexión. Se muestra el inventario local.');
+          cargarInventarioLocal();
+          actualizarInventario();
+        });
+    }
+
+    async function guardarProductoEnFirebase(item) {
+      if (!firestoreDisponible || !firestoreDb) throw new Error('Firebase no disponible');
+      const producto = normalizarItem(item, item.id);
+      const payload = {
+        nombre: producto.nombre,
+        cantidad: producto.cantidad,
+        unidad: producto.unidad,
+        fecha: producto.fecha
+      };
+      if (producto.id) {
+        await firestoreDb.collection('inventario').doc(producto.id).set(payload, { merge: true });
+        return producto.id;
+      }
+      const ref = await firestoreDb.collection('inventario').add(payload);
+      return ref.id;
+    }
+
+    async function eliminarProductoEnFirebase(id) {
+      if (!firestoreDisponible || !firestoreDb) throw new Error('Firebase no disponible');
+      await firestoreDb.collection('inventario').doc(id).delete();
+    }
+
+    async function persistirInventario(item, indexLocal = null) {
+      const producto = normalizarItem(item, item.id);
+      try {
+        if (firestoreDisponible && firebaseAuth?.currentUser) {
+          producto.id = await guardarProductoEnFirebase(producto);
+        } else {
+          if (indexLocal !== null && indexLocal >= 0) inventario[indexLocal] = producto;
+          else inventario.push(producto);
+          guardarInventarioLocal();
+        }
+      } catch (error) {
+        console.error('No se pudo guardar en Firebase, se usará localStorage:', error);
+        actualizarIndicadorDB('desconectado', 'No se pudo guardar en Firebase. Se guardó localmente.');
+        if (indexLocal !== null && indexLocal >= 0) inventario[indexLocal] = producto;
+        else inventario.push(producto);
+        guardarInventarioLocal();
+      }
+      actualizarInventario();
+    }
+
+    async function agregarProducto() {
+      const nombre = document.getElementById('nombreProducto').value.trim();
+      const cantidad = parseFloat(document.getElementById('cantidadInicial').value);
+      const unidad = document.getElementById('unidadMedida').value;
+      const fechaInput = document.getElementById('fechaIngresoProducto').value;
+      const fecha = fechaInput || obtenerFechaHoy();
+
+      if (!nombre || isNaN(cantidad) || cantidad < 0) {
+        alert('Completa todos los campos correctamente.');
+        return;
+      }
+
+      await persistirInventario({ nombre, cantidad, unidad, fecha });
+
+      document.getElementById('nombreProducto').value = '';
+      document.getElementById('cantidadInicial').value = '';
+      document.getElementById('fechaIngresoProducto').value = '';
+    }
+
+    async function actualizarStock(tipo) {
+      const selector = document.getElementById('productoSeleccionado');
+      const id = selector.value;
+      const index = inventario.findIndex(item => item.id === id);
+      const cantidad = parseFloat(document.getElementById('cantidadMovimiento').value);
+      const fechaInput = document.getElementById('fechaMovimientoStock').value;
+      const fecha = fechaInput || obtenerFechaHoy();
+
+      if (!id || index === -1 || isNaN(cantidad) || cantidad <= 0) {
+        alert('Selecciona un producto y pon una cantidad válida.');
+        return;
+      }
+
+      const producto = { ...inventario[index] };
+      if (tipo === 'salida') {
+        producto.cantidad = Math.max(0, Number(producto.cantidad || 0) - cantidad);
+      } else {
+        producto.cantidad = Number(producto.cantidad || 0) + cantidad;
+      }
+      producto.fecha = fecha;
+
+      await persistirInventario(producto, index);
+      document.getElementById('cantidadMovimiento').value = '';
+      document.getElementById('fechaMovimientoStock').value = '';
+    }
+
+    function actualizarInventario() {
+      const lista = document.getElementById('listaInventario');
+      const selector = document.getElementById('productoSeleccionado');
+      const filtro = document.getElementById('buscadorInventario')?.value.toLowerCase() || '';
+
+      lista.innerHTML = '';
+      selector.innerHTML = '<option value="">Selecciona producto</option>';
+
+      let hayResultados = false;
+
+      inventario.forEach((item, index) => {
+        if (!String(item.nombre || '').toLowerCase().includes(filtro)) return;
+        hayResultados = true;
+
+        const productoHTML = document.createElement('div');
+        productoHTML.className = 'producto';
+        productoHTML.style.display = 'flex';
+        productoHTML.style.justifyContent = 'space-between';
+        productoHTML.style.alignItems = 'flex-start';
+
+        const stockBajo = Number(item.cantidad || 0) < 40;
+
+        productoHTML.innerHTML = `
+  <div style="flex-grow: 1;">
+    <strong>${item.nombre}</strong>: ${Number(item.cantidad || 0).toFixed(2)} ${item.unidad}<br>
+    <small style="color: #888;">📅 ${item.fecha ? 'Última modificación: ' + item.fecha : 'Sin fecha registrada'}</small>
+    ${stockBajo ? `
+      <div style="
+        display: inline-block;
+        margin-top: 6px;
+        padding: 6px 12px;
+        background-color: #fee2e2;
+        border: 2px solid #dc2626;
+        color: #991b1b;
+        font-weight: bold;
+        border-radius: 8px;
+        font-size: 14px;
+        box-shadow: 0 0 4px rgba(220, 38, 38, 0.3);
+      ">
+        ⚠️ Bajo stock
+      </div>` : ''}
+    <div id="editor-${index}" style="margin-top: 10px; display: none;">
+      <input type="text" id="editar-nombre-${index}" value="${item.nombre}" placeholder="Nuevo nombre" />
+      <input type="date" id="editar-fecha-${index}" value="${item.fecha || ''}" />
+      <button onclick="guardarEdicion(${index})" style="background:#16a34a; color:white; font-weight:bold; border:none; padding:5px 10px; border-radius:6px;">Guardar</button>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px; margin-left: 10px;">
+    <button onclick="mostrarEditorProducto(${index})" class="btn-eliminar" style="background:#38bdf8;" title="Editar">✏️</button>
+    <button onclick="eliminarProducto(${index})" class="btn-eliminar" title="Eliminar">×</button>
+  </div>
+`;
+
+        lista.appendChild(productoHTML);
+
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.text = item.nombre;
+        selector.appendChild(option);
+      });
+
+      if (!hayResultados) {
+        lista.innerHTML = `<div style="padding: 15px; color: #999; font-style: italic;">No se encontraron productos.</div>`;
+      }
+
+      guardarInventarioLocal();
+    }
+
+    async function eliminarProducto(index) {
+      const item = inventario[index];
+      if (!item) return;
+      if (!confirm(`¿Eliminar el producto "${item.nombre}"?`)) return;
+
+      try {
+        if (firestoreDisponible && firebaseAuth?.currentUser && item.id) {
+          await eliminarProductoEnFirebase(item.id);
+        } else {
+          inventario.splice(index, 1);
+          guardarInventarioLocal();
+          actualizarInventario();
+        }
+      } catch (error) {
+        console.error('No se pudo eliminar en Firebase, se eliminará localmente:', error);
+        actualizarIndicadorDB('desconectado', 'No se pudo eliminar en Firebase. Se eliminó localmente.');
+        inventario.splice(index, 1);
+        guardarInventarioLocal();
+        actualizarInventario();
+      }
+    }
+
+    async function exportarInventarioPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      if (inventario.length === 0) {
+        alert('No hay productos en el inventario.');
+        return;
+      }
+
+      const columnas = ['Ingrediente', 'Cantidad', 'Unidad', 'Fecha', 'Estado'];
+      const filas = inventario.map(item => {
+        const estado = Number(item.cantidad || 0) < 40 ? 'Bajo stock' : '—';
+        return [
+          item.nombre,
+          Number(item.cantidad || 0).toFixed(2),
+          item.unidad,
+          item.fecha || '—',
+          estado
+        ];
+      });
+
+      doc.setFontSize(18);
+      doc.text('Inventario de Cocina', 14, 20);
+
+      doc.autoTable({
+        head: [columnas],
+        body: filas,
+        startY: 30,
+        styles: { fontSize: 12 },
+        didParseCell: function (data) {
+          if (data.column.index === 4 && data.cell.text[0] === 'Bajo stock') {
+            data.cell.styles.textColor = [200, 0, 0];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      });
+
+      doc.save('inventario.pdf');
+    }
+
+    function filtrarInventario() {
+      actualizarInventario();
+    }
+
+    function mostrarEditorProducto(index) {
+      const editor = document.getElementById(`editor-${index}`);
+      if (editor) {
+        editor.style.display = editor.style.display === 'none' ? 'block' : 'none';
+      }
+    }
+
+    async function guardarEdicion(index) {
+      const item = inventario[index];
+      if (!item) return;
+      const nuevoNombre = document.getElementById(`editar-nombre-${index}`).value.trim();
+      const nuevaFecha = document.getElementById(`editar-fecha-${index}`).value;
+
+      if (!nuevoNombre) {
+        alert('El nombre no puede estar vacío.');
+        return;
+      }
+
+      await persistirInventario({
+        ...item,
+        nombre: nuevoNombre,
+        fecha: nuevaFecha || item.fecha
+      }, index);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      inicializarFirebaseInventario();
+    });
+  </script>
+</body>
+</html>
