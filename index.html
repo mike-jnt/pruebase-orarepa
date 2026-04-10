@@ -258,7 +258,7 @@
         </div>
         <div class="pt-4 space-y-1">
           <button type="button" onclick="guardarVenta(); cerrarMobileMenu();" class="menu-link-text">💾 Guardar venta</button>
-          <button type="button" onclick="cancelarPedidoActual(); cerrarMobileMenu();" class="menu-link-text">↩️ Quitar último agregado</button>
+          <button type="button" onclick="cancelarPedidoActual(); cerrarMobileMenu();" data-role="admin-only" class="menu-link-text admin">↩️ Quitar último agregado</button>
           <button type="button" onclick="imprimirUltimaCocinero(); cerrarMobileMenu();" class="menu-link-text">🖨️ Imprimir para cocina</button>
           <button type="button" onclick="imprimirUltimaCliente(); cerrarMobileMenu();" class="menu-link-text">🧾 Imprimir recibo cliente</button>
           <a href="finanzas1.html" data-role="admin-only" class="menu-link-text admin">📋 Finanzas</a>
@@ -284,7 +284,7 @@
   <div class="grid grid-cols-3 gap-2">
     <button type="button" onclick="imprimirUltimaCocinero()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl">🖨️ Cocina</button>
     <button type="button" onclick="imprimirUltimaCliente()" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 rounded-xl">🧾 Cliente</button>
-    <button type="button" onclick="cancelarPedidoActual()" class="bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-3 rounded-xl">↩️ Último</button>
+    <button type="button" onclick="cancelarPedidoActual()" data-role="admin-only" class="bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-3 rounded-xl">↩️ Último</button>
   </div>
 </div>
 
@@ -501,7 +501,7 @@
       <!-- Botones de acción -->
       <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:flex gap-2">
         <button type="button" onclick="anteriorPasoVenta()" class="md:hidden bg-gray-200 hover:bg-gray-300 text-gray-800 p-3 rounded-xl font-semibold">← Volver</button>
-        <button type="button" onclick="cancelarPedidoActual()" class="bg-red-100 hover:bg-red-200 text-red-700 p-3 rounded-xl font-semibold">↩️ Quitar último agregado</button>
+        <button type="button" onclick="cancelarPedidoActual()" data-role="admin-only" class="bg-red-100 hover:bg-red-200 text-red-700 p-3 rounded-xl font-semibold">↩️ Quitar último agregado</button>
         <button onclick="guardarVenta()" class="hidden md:inline-flex bg-green-500 hover:bg-green-600 text-white p-3 rounded-xl font-semibold">💾 Guardar Venta</button>
         <button onclick="imprimirUltimaCocinero()" class="hidden md:inline-flex bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-xl font-semibold">🖨️ Imprimir para Cocina</button>
         <button onclick="imprimirUltimaCliente()" class="hidden md:inline-flex bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">🧾 Imprimir Recibo Cliente</button>
@@ -1532,7 +1532,7 @@ function aplicarPermisosPorRol() {
 }
 
 function cancelarPedidoActual() {
-  if (!verificarAcceso(["admin", "cajero"])) return;
+  if (!verificarAcceso(["admin"])) return;
 
   if (pedido.length === 0) {
     alert("No hay productos agregados para cancelar.");
