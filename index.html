@@ -348,7 +348,7 @@
             <button onclick="agregarProducto('COMBO 1', 40000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 1 - $40.000</button>
             <button onclick="agregarProducto('COMBO 2', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 2 - $30.000</button>
             <button onclick="agregarProducto('COMBO 3', 30000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO 3 - $30.000</button>
-            <button onclick="agregarProducto('COMBO marzo', 50000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO MARZO - $50.000</button>
+            <button onclick="agregarProducto('COMBO DESVARE', 50000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">⚪ COMBO DESVARE - $50.000</button>
           </div>
         </div>
 
@@ -403,7 +403,8 @@
             <button onclick="agregarProducto('MILO CALIENTE', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🥛 MILO CALIENTE - $6.000</button>
             <button onclick="agregarProducto('CAFE CON LECHE', 5000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">☕🥛 CAFÉ CON LECHE - $5.000</button>
             <button onclick="agregarProducto('TINTO', 4000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">☕ TINTO - $4.000</button>
-            <button onclick="agregarProducto('CERVEZA', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🍺 CERVEZA - $6.000</button>
+            <button onclick="agregarProducto('CERVEZA POKER', 6000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🍺 CERVEZA POKER - $6.000</button>
+            <button onclick="agregarProducto('CERVEZA CORONA', 8000)" class="bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm">🍺 CERVEZA CORONA - $8.000</button>
           </div>
         </div>
       </div>
@@ -464,7 +465,7 @@
         <div id="grupoCostoDomicilio" class="hidden">
           <label for="costoDomicilio" class="block text-sm font-medium text-gray-700 mb-1">Costo del domicilio</label>
           <input type="number" id="costoDomicilio" min="0" step="500" inputmode="numeric" placeholder="Ej: 3000" class="w-full p-3 border border-yellow-300 rounded-xl text-base" />
-          <p class="mt-1 text-xs text-gray-500">Este valor se suma al total del pedido.</p>
+          <p class="mt-1 text-xs text-gray-500">Este valor lo asume el cliente y no se suma al total de la venta.</p>
         </div>
         <input type="text" id="observaciones" placeholder="Observaciones (Ej: Sin cebolla, agregar salsas, etc.)" class="w-full p-3 border border-yellow-300 rounded-xl text-base" />
       </div>
@@ -603,7 +604,8 @@
               <thead class="bg-yellow-100">
                 <tr>
                   <th class="p-2 border">Fecha</th>
-                  <th class="p-2 border">Ventas</th>
+                  <th class="p-2 border">Pedidos</th>
+                  <th class="p-2 border">Domicilios</th>
                   <th class="p-2 border">Total</th>
                 </tr>
               </thead>
@@ -619,7 +621,8 @@
               <thead class="bg-yellow-100">
                 <tr>
                   <th class="p-2 border">Semana</th>
-                  <th class="p-2 border">Ventas</th>
+                  <th class="p-2 border">Pedidos</th>
+                  <th class="p-2 border">Domicilios</th>
                   <th class="p-2 border">Total</th>
                 </tr>
               </thead>
@@ -635,7 +638,8 @@
               <thead class="bg-yellow-100">
                 <tr>
                   <th class="p-2 border">Mes</th>
-                  <th class="p-2 border">Ventas</th>
+                  <th class="p-2 border">Pedidos</th>
+                  <th class="p-2 border">Domicilios</th>
                   <th class="p-2 border">Total</th>
                 </tr>
               </thead>
@@ -728,6 +732,30 @@ function esVentaCancelada(venta = {}) {
 
 function filtrarVentasActivas(ventas = []) {
   return (Array.isArray(ventas) ? ventas : []).filter(venta => !esVentaCancelada(venta));
+}
+
+function esPedidoDomicilio(venta = {}) {
+  return String(venta?.tipoPedido || '').toLowerCase() === 'domicilio';
+}
+
+function obtenerNumeroDomicilio(venta = {}) {
+  const numero = Number(venta?.numeroDomicilio || 0);
+  return Number.isFinite(numero) && numero > 0 ? numero : 0;
+}
+
+function contarDomicilios(ventas = [], incluirCanceladas = false) {
+  const base = incluirCanceladas ? (Array.isArray(ventas) ? ventas : []) : filtrarVentasActivas(ventas);
+  return base.filter(venta => esPedidoDomicilio(venta)).length;
+}
+
+function obtenerSiguienteNumeroDomicilioDelDia(diaClave) {
+  const ventasDelDia = obtenerVentasStorage().filter(venta => {
+    const fechaBase = venta.fechaISO ? new Date(venta.fechaISO) : new Date(venta.fecha || Date.now());
+    const diaVenta = venta.diaClave || obtenerFechaLocalISO(fechaBase);
+    return diaVenta === diaClave && esPedidoDomicilio(venta);
+  });
+  const maximoRegistrado = ventasDelDia.reduce((max, venta) => Math.max(max, obtenerNumeroDomicilio(venta)), 0);
+  return Math.max(maximoRegistrado, ventasDelDia.length) + 1;
 }
 
 function obtenerBadgeEstadoVenta(venta = {}) {
@@ -909,6 +937,8 @@ function normalizarVenta(venta = {}) {
   const subtotalProductos = copia.pedido.reduce((acc, p) => acc + Number(p.precio || 0), 0);
   copia.subtotalProductos = Number(copia.subtotalProductos ?? subtotalProductos);
   copia.costoDomicilio = Number(copia.costoDomicilio || 0);
+  const numeroDomicilio = Number(copia.numeroDomicilio || 0);
+  copia.numeroDomicilio = Number.isFinite(numeroDomicilio) && numeroDomicilio > 0 ? numeroDomicilio : null;
   copia.total = Number(copia.subtotalProductos || 0);
   return copia;
 }
@@ -1571,11 +1601,17 @@ function cancelarPedidoActual() {
     const numeracionDia = comandaEnEdicion
       ? { comanda: comandaEnEdicion, recibo: reciboEnEdicion ?? comandaEnEdicion }
       : obtenerSiguienteNumeracionDelDia(diaClave);
+    const numeroDomicilio = tipoPedido === "Domicilio"
+      ? ((ventaOriginalEnEdicion?.tipoPedido === "Domicilio" && Number(ventaOriginalEnEdicion?.numeroDomicilio || 0) > 0)
+          ? Number(ventaOriginalEnEdicion.numeroDomicilio)
+          : obtenerSiguienteNumeroDomicilioDelDia(diaClave))
+      : null;
 
     const venta = {
       cliente,
       formaPago,
       tipoPedido,
+      numeroDomicilio,
       costoDomicilio,
       subtotalProductos,
       observaciones,
@@ -1665,9 +1701,13 @@ function cancelarPedidoActual() {
   function formatearTipoPedidoVisual(venta = {}) {
     const tipo = venta?.tipoPedido || '-';
     const costoDomicilio = Number(venta?.costoDomicilio || 0);
-    return tipo === 'Domicilio' && costoDomicilio > 0
-      ? `${tipo} · ${formatearCOP(costoDomicilio)}`
-      : tipo;
+    const numeroDomicilio = obtenerNumeroDomicilio(venta);
+    if (tipo === 'Domicilio') {
+      const partes = [numeroDomicilio > 0 ? `${tipo} #${numeroDomicilio}` : tipo];
+      if (costoDomicilio > 0) partes.push(formatearCOP(costoDomicilio));
+      return partes.join(' · ');
+    }
+    return tipo;
   }
 
   function actualizarResumenMovil() {
@@ -1868,7 +1908,7 @@ function cancelarPedidoActual() {
     const sheet = workbook.addWorksheet(nombreHoja);
 
     const headers = [
-      "#", "Fecha", "Cliente", "Forma de Pago", "Tipo de Pedido", "Costo domicilio (COP)", "Estado", "Producto", "Precio (COP)", "Total Venta (COP)"
+      "#", "Fecha", "Cliente", "Forma de Pago", "Tipo de Pedido", "N° domicilio", "Costo domicilio (COP)", "Estado", "Producto", "Precio (COP)", "Total Venta (COP)"
     ];
     sheet.addRow(headers);
 
@@ -1889,6 +1929,7 @@ function cancelarPedidoActual() {
           cliente,
           formaPago,
           tipoPedido,
+          obtenerNumeroDomicilio(venta) || '',
           parseFloat(costoDomicilio || 0),
           ventaCancelada ? "Cancelada" : "Activa",
           producto.nombre,
@@ -1932,13 +1973,13 @@ function cancelarPedidoActual() {
     }
 
     for (let i = 2; i <= sheet.rowCount; i++) {
-      sheet.getRow(i).getCell(8).numFmt = '"$"#,##0';
-      sheet.getRow(i).getCell(9).numFmt = '"$"#,##0';
+      sheet.getRow(i).getCell(10).numFmt = '"$"#,##0';
+      sheet.getRow(i).getCell(11).numFmt = '"$"#,##0';
     }
 
     sheet.addRow([]);
-    const totalRow = sheet.addRow(["", "", "", "", "", "", "TOTAL CONTABILIZADO:", "", totalGlobal]);
-    totalRow.getCell(9).numFmt = '"$"#,##0';
+    const totalRow = sheet.addRow(["", "", "", "", "", "", "", "TOTAL CONTABILIZADO:", "", "", totalGlobal]);
+    totalRow.getCell(11).numFmt = '"$"#,##0';
     totalRow.font = { bold: true };
 
     let productoMasVendido = "";
@@ -1949,7 +1990,7 @@ function cancelarPedidoActual() {
         productoMasVendido = prod;
       }
     }
-    const resumenRow = sheet.addRow(["", "", "", "", "", "", "Producto más vendido:", "", productoMasVendido ? `${productoMasVendido} (${maxCantidad})` : "-"]);
+    const resumenRow = sheet.addRow(["", "", "", "", "", "", "", "Producto más vendido:", "", productoMasVendido ? `${productoMasVendido} (${maxCantidad})` : "-"]);
     resumenRow.font = { italic: true };
 
     sheet.columns.forEach(col => {
@@ -2081,6 +2122,7 @@ function cancelarPedidoActual() {
         <p><strong>Hora:</strong> ${formatearHoraColombia(ultimaVenta.fechaISO || ultimaVenta.fecha)}</p>
         <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(ultimaVenta)}</p>
         <p><strong>Método de pago:</strong> ${ultimaVenta.formaPago || "-"}</p>
+        ${obtenerNumeroDomicilio(ultimaVenta) > 0 ? `<p><strong>N° Domicilio:</strong> ${obtenerNumeroDomicilio(ultimaVenta)}</p>` : ""}
         ${Number(ultimaVenta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(ultimaVenta.costoDomicilio)}</p>` : ""}
         ${ultimaVenta.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaVenta.observaciones}</p>` : ""}
       </div>
@@ -2221,7 +2263,8 @@ function imprimirUltimaCliente() {
           <p><strong>Fecha:</strong> ${formatearFechaHoraColombia(ultimaVenta.fechaISO || ultimaVenta.fecha)}</p>
           <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(ultimaVenta)}</p>
         <p><strong>Método de pago:</strong> ${ultimaVenta.formaPago || "-"}</p>
-          ${Number(ultimaVenta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(ultimaVenta.costoDomicilio)}</p>` : ""}
+          ${obtenerNumeroDomicilio(ultimaVenta) > 0 ? `<p><strong>N° Domicilio:</strong> ${obtenerNumeroDomicilio(ultimaVenta)}</p>` : ""}
+        ${Number(ultimaVenta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(ultimaVenta.costoDomicilio)}</p>` : ""}
           ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ""}
         </div>
         <div class="line"></div>
@@ -2346,6 +2389,7 @@ function imprimirVentaCliente(index) {
           <p><strong>Fecha:</strong> ${formatearFechaHoraColombia(venta.fechaISO || venta.fecha)}</p>
           <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(venta)}</p>
           <p><strong>Método de pago:</strong> ${venta.formaPago || "-"}</p>
+          ${obtenerNumeroDomicilio(venta) > 0 ? `<p><strong>N° Domicilio:</strong> ${obtenerNumeroDomicilio(venta)}</p>` : ""}
           ${Number(venta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(venta.costoDomicilio)}</p>` : ""}
           ${venta.observaciones ? `<p><strong>Observaciones:</strong> ${venta.observaciones}</p>` : ""}
         </div>
@@ -2450,6 +2494,7 @@ function imprimirVentaCocina(index) {
           <p><strong>Hora:</strong> ${formatearHoraColombia(venta.fechaISO || venta.fecha)}</p>
           <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(venta)}</p>
           <p><strong>Método de pago:</strong> ${venta.formaPago || "-"}</p>
+          ${obtenerNumeroDomicilio(venta) > 0 ? `<p><strong>N° Domicilio:</strong> ${obtenerNumeroDomicilio(venta)}</p>` : ""}
           ${Number(venta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(venta.costoDomicilio)}</p>` : ""}
           ${venta.observaciones ? `<p><strong>Observaciones:</strong> ${venta.observaciones}</p>` : ""}
         </div>
@@ -2684,6 +2729,7 @@ function volverAlPOS() {
       : [];
     const subtotalProductos = pedidoNormalizado.reduce((acc, p) => acc + Number(p.precio || 0), 0);
     const costoDomicilio = Number(v.costoDomicilio || 0);
+    const numeroDomicilio = Number(v.numeroDomicilio || 0);
     return {
       ...v,
       pedido: pedidoNormalizado,
@@ -2693,6 +2739,7 @@ function volverAlPOS() {
       comanda: v.comanda ?? v.recibo ?? (index + 1),
       recibo: v.recibo ?? v.comanda ?? (index + 1),
       subtotalProductos: Number(v.subtotalProductos ?? subtotalProductos),
+      numeroDomicilio: Number.isFinite(numeroDomicilio) && numeroDomicilio > 0 ? numeroDomicilio : null,
       costoDomicilio,
       total: Number(v.subtotalProductos ?? subtotalProductos)
     };
@@ -2708,14 +2755,17 @@ function volverAlPOS() {
     if (!body) return;
     body.innerHTML = "";
     if (!filas.length) {
-      body.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-gray-500">${etiquetaVacia}</td></tr>`;
+      body.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-gray-500">${etiquetaVacia}</td></tr>`;
       return;
     }
     filas.forEach(fila => {
+      const pedidosTexto = `${fila.ventas}${fila.canceladas ? ` activas / ${fila.canceladas} canceladas` : ''}`;
+      const domiciliosTexto = `${fila.domicilios}${fila.domiciliosCancelados ? ` activos / ${fila.domiciliosCancelados} cancelados` : ''}`;
       body.innerHTML += `
         <tr>
           <td class="p-2 border">${fila.label}</td>
-          <td class="p-2 border">${fila.ventas}${fila.canceladas ? ` activas / ${fila.canceladas} canceladas` : ''}</td>
+          <td class="p-2 border">${pedidosTexto}</td>
+          <td class="p-2 border">${domiciliosTexto}</td>
           <td class="p-2 border">${formatearDinero(fila.total)}</td>
         </tr>
       `;
@@ -2756,8 +2806,10 @@ function volverAlPOS() {
 
     const ventasActivas = filtrarVentasActivas(ventas);
     const canceladas = ventas.length - ventasActivas.length;
+    const domiciliosActivos = contarDomicilios(ventasActivas, true);
+    const domiciliosCancelados = ventas.filter(v => esVentaCancelada(v) && esPedidoDomicilio(v)).length;
     const totalDia = ventasActivas.reduce((acc, v) => acc + Number(v.total || 0), 0);
-    resumen.innerHTML = `<strong>Fecha consultada:</strong> ${fechaSeleccionada} &nbsp;|&nbsp; <strong>Ventas activas:</strong> ${ventasActivas.length} &nbsp;|&nbsp; <strong>Canceladas:</strong> ${canceladas} &nbsp;|&nbsp; <strong>Total contabilizado:</strong> ${formatearDinero(totalDia)}`;
+    resumen.innerHTML = `<strong>Fecha consultada:</strong> ${fechaSeleccionada} &nbsp;|&nbsp; <strong>Pedidos activos:</strong> ${ventasActivas.length} &nbsp;|&nbsp; <strong>Domicilios:</strong> ${domiciliosActivos}${domiciliosCancelados ? ` activos / ${domiciliosCancelados} cancelados` : ''} &nbsp;|&nbsp; <strong>Canceladas:</strong> ${canceladas} &nbsp;|&nbsp; <strong>Total contabilizado:</strong> ${formatearDinero(totalDia)}`;
 
     body.innerHTML = '';
     if (!ventas.length) {
@@ -2819,18 +2871,24 @@ function volverAlPOS() {
     const canceladasHoy = ventasHoy.length - ventasHoyActivas.length;
     const canceladasSemana = ventasSemana.length - ventasSemanaActivas.length;
     const canceladasMes = ventasMes.length - ventasMesActivas.length;
+    const domiciliosHoy = contarDomicilios(ventasHoyActivas, true);
+    const domiciliosSemana = contarDomicilios(ventasSemanaActivas, true);
+    const domiciliosMes = contarDomicilios(ventasMesActivas, true);
+    const domiciliosHoyCancelados = ventasHoy.filter(v => esVentaCancelada(v) && esPedidoDomicilio(v)).length;
+    const domiciliosSemanaCancelados = ventasSemana.filter(v => esVentaCancelada(v) && esPedidoDomicilio(v)).length;
+    const domiciliosMesCancelados = ventasMes.filter(v => esVentaCancelada(v) && esPedidoDomicilio(v)).length;
 
     const setText = (id, value) => {
       const el = document.getElementById(id);
       if (el) el.textContent = value;
     };
 
-    setText("histHoyVentas", `${ventasHoyActivas.length} venta(s) activas${canceladasHoy ? ` · ${canceladasHoy} cancelada(s)` : ""}`);
-    setText("histHoyTotal", formatearDinero(ventasHoyActivas.reduce((acc, v) => acc + Number(v.total || 0), 0)));
-    setText("histSemanaVentas", `${ventasSemanaActivas.length} venta(s) activas${canceladasSemana ? ` · ${canceladasSemana} cancelada(s)` : ""}`);
-    setText("histSemanaTotal", formatearDinero(ventasSemanaActivas.reduce((acc, v) => acc + Number(v.total || 0), 0)));
-    setText("histMesVentas", `${ventasMesActivas.length} venta(s) activas${canceladasMes ? ` · ${canceladasMes} cancelada(s)` : ""}`);
-    setText("histMesTotal", formatearDinero(ventasMesActivas.reduce((acc, v) => acc + Number(v.total || 0), 0)));
+    setText("histHoyVentas", `${ventasHoyActivas.length} pedido(s)${canceladasHoy ? ` · ${canceladasHoy} cancelado(s)` : ""}`);
+    setText("histHoyTotal", `${formatearDinero(ventasHoyActivas.reduce((acc, v) => acc + Number(v.total || 0), 0))} · ${domiciliosHoy} domicilio(s)${domiciliosHoyCancelados ? ` / ${domiciliosHoyCancelados} cancelado(s)` : ""}`);
+    setText("histSemanaVentas", `${ventasSemanaActivas.length} pedido(s)${canceladasSemana ? ` · ${canceladasSemana} cancelado(s)` : ""}`);
+    setText("histSemanaTotal", `${formatearDinero(ventasSemanaActivas.reduce((acc, v) => acc + Number(v.total || 0), 0))} · ${domiciliosSemana} domicilio(s)${domiciliosSemanaCancelados ? ` / ${domiciliosSemanaCancelados} cancelado(s)` : ""}`);
+    setText("histMesVentas", `${ventasMesActivas.length} pedido(s)${canceladasMes ? ` · ${canceladasMes} cancelado(s)` : ""}`);
+    setText("histMesTotal", `${formatearDinero(ventasMesActivas.reduce((acc, v) => acc + Number(v.total || 0), 0))} · ${domiciliosMes} domicilio(s)${domiciliosMesCancelados ? ` / ${domiciliosMesCancelados} cancelado(s)` : ""}`);
 
     const diario = {};
     const semanal = {};
@@ -2842,23 +2900,31 @@ function volverAlPOS() {
       const semana = obtenerClaveSemana(fecha);
       const mes = dia.slice(0, 7);
 
-      if (!diario[dia]) diario[dia] = { label: dia, ventas: 0, canceladas: 0, total: 0 };
-      if (!semanal[semana]) semanal[semana] = { label: semana, ventas: 0, canceladas: 0, total: 0 };
-      if (!mensual[mes]) mensual[mes] = { label: mes, ventas: 0, canceladas: 0, total: 0 };
+      if (!diario[dia]) diario[dia] = { label: dia, ventas: 0, canceladas: 0, domicilios: 0, domiciliosCancelados: 0, total: 0 };
+      if (!semanal[semana]) semanal[semana] = { label: semana, ventas: 0, canceladas: 0, domicilios: 0, domiciliosCancelados: 0, total: 0 };
+      if (!mensual[mes]) mensual[mes] = { label: mes, ventas: 0, canceladas: 0, domicilios: 0, domiciliosCancelados: 0, total: 0 };
 
       if (esVentaCancelada(v)) {
         diario[dia].canceladas += 1;
         semanal[semana].canceladas += 1;
         mensual[mes].canceladas += 1;
+        if (esPedidoDomicilio(v)) {
+          diario[dia].domiciliosCancelados += 1;
+          semanal[semana].domiciliosCancelados += 1;
+          mensual[mes].domiciliosCancelados += 1;
+        }
       } else {
         diario[dia].ventas += 1;
         diario[dia].total += Number(v.total || 0);
+        if (esPedidoDomicilio(v)) diario[dia].domicilios += 1;
 
         semanal[semana].ventas += 1;
         semanal[semana].total += Number(v.total || 0);
+        if (esPedidoDomicilio(v)) semanal[semana].domicilios += 1;
 
         mensual[mes].ventas += 1;
         mensual[mes].total += Number(v.total || 0);
+        if (esPedidoDomicilio(v)) mensual[mes].domicilios += 1;
       }
     });
 
