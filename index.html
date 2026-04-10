@@ -881,6 +881,121 @@ const CONTROL_CAJA_STORAGE_KEY = "controlCajaPorDia";
 let controlCajaCache = JSON.parse(localStorage.getItem(CONTROL_CAJA_STORAGE_KEY) || "{}");
 let controlCajaFirebasePermisosDisponibles = true;
 let controlCajaFirebasePermisosAvisados = false;
+const INVENTARIO_STORAGE_KEY = "inventarioCocina";
+const INVENTARIO_COLLECTION = "inventario";
+
+function normalizarClaveInventario(nombre = "") {
+  return String(nombre || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "")
+    .trim();
+}
+
+const PRODUCTOS_BEBIDA_INVENTARIO = new Set([
+  'QUATRO', 'COCA COLA 400 ml', 'COCA COLA 250 ml', 'JUGO HIT 500 ml', 'SPRITE', 'COCA COLA ZERO',
+  'BRISA LIMON', 'BRISA MANZANA', 'MISTER TEA', 'AGUA CON GAS', 'AGUA SABORISADA', 'POSTOBON 400 ml',
+  'POSTOBON 250 ml', 'POSTOBON 1.5', 'SODA BRETAÑA', 'GATORADE', 'PREMIO 400 ml', 'PREMIO 1.5l',
+  'QUATRO 1.5L', 'COCA COLA 1.5L', 'JUGO HIT 1.L', 'SPRITE 1.5L', 'COCA COLA ZERO 1.5L', 'AGUA',
+  'MILO CALIENTE', 'CAFE CON LECHE', 'TINTO', 'CERVEZA POKER', 'CERVEZA CORONA'
+].map(normalizarClaveInventario));
+
+function esProductoBebidaInventario(nombre = "") {
+  return PRODUCTOS_BEBIDA_INVENTARIO.has(normalizarClaveInventario(nombre));
+}
+
+function contarBebidasPedidoInventario(pedido = []) {
+  const conteo = {};
+  (Array.isArray(pedido) ? pedido : []).forEach(item => {
+    const nombre = String(item?.nombre || "").trim();
+    if (!esProductoBebidaInventario(nombre)) return;
+    const clave = normalizarClaveInventario(nombre);
+    if (!conteo[clave]) conteo[clave] = { nombre, cantidad: 0 };
+    conteo[clave].cantidad += 1;
+  });
+  return conteo;
+}
+
+function calcularAjustesInventarioBebidas(pedidoAnterior = [], pedidoNuevo = []) {
+  const anterior = contarBebidasPedidoInventario(pedidoAnterior);
+  const nuevo = contarBebidasPedidoInventario(pedidoNuevo);
+  const claves = new Set([...Object.keys(anterior), ...Object.keys(nuevo)]);
+  const ajustes = {};
+  claves.forEach(clave => {
+    const cantidadAnterior = Number(anterior[clave]?.cantidad || 0);
+    const cantidadNueva = Number(nuevo[clave]?.cantidad || 0);
+    const diferencia = cantidadAnterior - cantidadNueva;
+    if (diferencia !== 0) {
+      ajustes[clave] = {
+        nombre: nuevo[clave]?.nombre || anterior[clave]?.nombre || clave,
+        cantidad: diferencia
+      };
+    }
+  });
+  return ajustes;
+}
+
+function aplicarAjustesInventarioLocal(ajustes = {}) {
+  const entradas = Object.entries(ajustes || {});
+  if (!entradas.length) return;
+  try {
+    const inventarioLocal = JSON.parse(localStorage.getItem(INVENTARIO_STORAGE_KEY) || "[]");
+    let cambio = false;
+    entradas.forEach(([clave, ajuste]) => {
+      const index = inventarioLocal.findIndex(item => normalizarClaveInventario(item?.nombreNormalizado || item?.nombre || "") === clave);
+      if (index < 0) return;
+      const actual = Number(inventarioLocal[index].cantidad || 0);
+      inventarioLocal[index].cantidad = Math.max(0, actual + Number(ajuste.cantidad || 0));
+      inventarioLocal[index].fecha = obtenerFechaLocalISO(new Date());
+      inventarioLocal[index].nombreNormalizado = inventarioLocal[index].nombreNormalizado || clave;
+      cambio = true;
+    });
+    if (cambio) {
+      localStorage.setItem(INVENTARIO_STORAGE_KEY, JSON.stringify(inventarioLocal));
+    }
+  } catch (error) {
+    console.error("No se pudo actualizar el inventario local de bebidas:", error);
+  }
+}
+
+async function aplicarAjustesInventarioFirestore(ajustes = {}) {
+  const entradas = Object.entries(ajustes || {});
+  if (!entradas.length || !firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) return;
+  for (const [clave, ajuste] of entradas) {
+    try {
+      const snapshot = await firestoreDb.collection(INVENTARIO_COLLECTION)
+        .where('nombreNormalizado', '==', clave)
+        .limit(1)
+        .get();
+      if (snapshot.empty) {
+        console.warn(`No se encontró stock en Firebase para la bebida: ${ajuste.nombre}`);
+        continue;
+      }
+      const doc = snapshot.docs[0];
+      await firestoreDb.runTransaction(async (transaction) => {
+        const fresh = await transaction.get(doc.ref);
+        const actual = Number(fresh.data()?.cantidad || 0);
+        const nuevaCantidad = Math.max(0, actual + Number(ajuste.cantidad || 0));
+        transaction.update(doc.ref, {
+          cantidad: nuevaCantidad,
+          fecha: obtenerFechaLocalISO(new Date())
+        });
+      });
+    } catch (error) {
+      console.error(`No se pudo ajustar el inventario en Firebase para ${ajuste.nombre}:`, error);
+    }
+  }
+}
+
+async function sincronizarInventarioBebidasPorCambio(ventaNueva = null, ventaAnterior = null) {
+  const pedidoAnterior = ventaAnterior && !esVentaCancelada(ventaAnterior) ? (ventaAnterior.pedido || []) : [];
+  const pedidoNuevo = ventaNueva && !esVentaCancelada(ventaNueva) ? (ventaNueva.pedido || []) : [];
+  const ajustes = calcularAjustesInventarioBebidas(pedidoAnterior, pedidoNuevo);
+  if (!Object.keys(ajustes).length) return;
+  aplicarAjustesInventarioLocal(ajustes);
+  await aplicarAjustesInventarioFirestore(ajustes);
+}
 
 function obtenerEstadoVenta(venta = {}) {
   return String(venta?.estado || ESTADO_VENTA_ACTIVA).toLowerCase() === ESTADO_VENTA_CANCELADA
@@ -2205,6 +2320,7 @@ function cancelarPedidoActual() {
         guardarVentasEnCache(ordenarVentasDesc(ventas));
       }
 
+      await sincronizarInventarioBebidasPorCambio(venta, ventaOriginalEnEdicion);
       guardarReferenciaUltimaVenta(venta);
       limpiarContextoEdicionVenta();
       alert("Venta guardada exitosamente.");
@@ -3103,6 +3219,7 @@ async function marcarVentaComoCancelada(index) {
       guardarVentasEnCache(ordenarVentasDesc(ventas));
     }
 
+    await sincronizarInventarioBebidasPorCambio(ventaActualizada, venta);
     guardarReferenciaUltimaVenta(ventaActualizada);
     alert("Venta marcada como cancelada. Ya no suma dinero en los totales.");
     mostrarVentas();
