@@ -6,12 +6,29 @@
   <title>Gestión de Pagos Quincenales</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
+  <style>
+    .estado-db-badge{font-size:.9rem;font-weight:700;padding:.6rem .9rem;border-radius:9999px;display:inline-flex;align-items:center;gap:.55rem;box-shadow:0 6px 16px rgba(0,0,0,.12)}
+    .estado-db-badge.online{background:#dcfce7;color:#166534}
+    .estado-db-badge.offline{background:#fee2e2;color:#991b1b}
+    .estado-db-badge.pending{background:#fef3c7;color:#92400e}
+    .estado-db-dot{width:.7rem;height:.7rem;border-radius:9999px;display:inline-block;flex:none}
+    .estado-db-badge.online .estado-db-dot{background:#16a34a;box-shadow:0 0 0 4px rgba(34,197,94,.18)}
+    .estado-db-badge.offline .estado-db-dot{background:#dc2626;box-shadow:0 0 0 4px rgba(239,68,68,.16)}
+    .estado-db-badge.pending .estado-db-dot{background:#d97706;box-shadow:0 0 0 4px rgba(245,158,11,.16)}
+    .estado-db-texto{white-space:nowrap}
+  </style>
+
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen font-sans">
 
   <header class="bg-blue-900 text-white py-4 shadow-md">
-    <div class="container mx-auto px-4 flex justify-between items-center">
+    <div class="container mx-auto px-4 flex justify-between items-center gap-3 flex-wrap">
       <h1 class="text-2xl font-bold tracking-wide">📋 Gestión de Nómina Quincenal</h1>
+      <div id="estadoDB" class="estado-db-badge offline"><span class="estado-db-dot"></span><span class="estado-db-texto">Base de datos desconectada</span></div>
     </div>
   </header>
 
@@ -144,54 +161,372 @@
 
 
 
+  
   <script>
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyDxrAJcH5AAxIAK2rRWD61aSQklaH--dT0",
+      authDomain: "prsenorarepa.firebaseapp.com",
+      projectId: "prsenorarepa",
+      storageBucket: "prsenorarepa.firebasestorage.app",
+      messagingSenderId: "55349021122",
+      appId: "1:55349021122:web:e4c65b2f2911bd2c4eee5b",
+      measurementId: "G-8JGY4PVMMV"
+    };
+
+    const COLECCION_NOMINA = "nomina";
+    const EMPLEADOS_KEY = "empleados";
+    const HISTORIAL_KEY = "historialPagos";
+
     let empleadoActual = null;
-    let historial = JSON.parse(localStorage.getItem("historialPagos")) || [];
-    let empleados = JSON.parse(localStorage.getItem("empleados")) || [];
+    let historial = JSON.parse(localStorage.getItem(HISTORIAL_KEY)) || [];
+    let empleados = JSON.parse(localStorage.getItem(EMPLEADOS_KEY)) || [];
+
+    let firestoreDb = null;
+    let firebaseDisponible = false;
+    let usuarioAutenticado = null;
 
     const form = document.getElementById("form-empleado");
     const tabla = document.getElementById("tabla-empleados");
+    const estadoDB = document.getElementById("estadoDB");
 
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const nombre = document.getElementById("nombre").value.trim();
-  const cargo = document.getElementById("cargo").value.trim();
-  const valorDia = parseInt(limpiarNumeroCOP(document.getElementById("valorDia").value));
-  const valorHoraExtra = parseInt(limpiarNumeroCOP(document.getElementById("valorHoraExtra").value)) || 0;
+    function setEstadoDB(texto, estado = "offline") {
+      if (!estadoDB) return;
+      estadoDB.className = `estado-db-badge ${estado}`;
+      estadoDB.innerHTML = `<span class="estado-db-dot"></span><span class="estado-db-texto">${texto}</span>`;
+    }
 
+    function guardarLocal() {
+      localStorage.setItem(EMPLEADOS_KEY, JSON.stringify(empleados));
+      localStorage.setItem(HISTORIAL_KEY, JSON.stringify(historial));
+    }
 
+    function toNumber(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : 0;
+    }
 
-  if (!nombre || !cargo || isNaN(valorDia)) return alert("Complete todos los campos correctamente.");
+    function normalizarEmpleado(emp = {}) {
+      return {
+        id: emp.id || Date.now(),
+        nombre: (emp.nombre || "").trim(),
+        cargo: (emp.cargo || "").trim(),
+        valorDia: toNumber(emp.valorDia),
+        valorHoraExtra: toNumber(emp.valorHoraExtra),
+        diasTrabajados: toNumber(emp.diasTrabajados),
+        horasExtras: toNumber(emp.horasExtras),
+        bonificacion: toNumber(emp.bonificacion),
+        prestamo: toNumber(emp.prestamo),
+        estadoPago: emp.estadoPago || "Pendiente",
+        fechaPago: emp.fechaPago || null
+      };
+    }
 
-  // Verificar si ya existe un empleado con el mismo nombre y cargo
-  const yaExiste = empleados.some(emp =>
-    emp.nombre.toLowerCase() === nombre.toLowerCase() &&
-    emp.cargo.toLowerCase() === cargo.toLowerCase()
-  );
+    function normalizarPago(pago = {}) {
+      return {
+        uid: pago.uid || null,
+        nombre: (pago.nombre || "").trim(),
+        cargo: (pago.cargo || "").trim(),
+        valorDia: toNumber(pago.valorDia),
+        diasTrabajados: toNumber(pago.diasTrabajados),
+        horasExtras: toNumber(pago.horasExtras),
+        valorHoraExtra: toNumber(pago.valorHoraExtra),
+        bonificacion: toNumber(pago.bonificacion),
+        prestamo: toNumber(pago.prestamo),
+        totalPagado: toNumber(pago.totalPagado),
+        fechaPago: pago.fechaPago || pago.fecha || null,
+        quincena: pago.quincena || ""
+      };
+    }
 
-  if (yaExiste) {
-    alert("Ya existe un empleado registrado con ese nombre y cargo.");
-    return;
-  }
+    function simpleHash(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash).toString(36);
+    }
 
-empleados.push({
-  id: Date.now(),
-  nombre,
-  cargo,
-  valorDia,
-  valorHoraExtra,
-  diasTrabajados: 0,
-  horasExtras: 0,
-  bonificacion: 0,
-  estadoPago: "Pendiente"
-});
+    function empleadoDocId(empleado) {
+      return `empleado_${String(empleado.id)}`;
+    }
 
+    function pagoDocId(pago) {
+      if (pago.uid) return pago.uid;
+      const fingerprint = JSON.stringify({
+        nombre: pago.nombre,
+        cargo: pago.cargo,
+        fechaPago: pago.fechaPago,
+        diasTrabajados: pago.diasTrabajados,
+        valorDia: pago.valorDia,
+        horasExtras: pago.horasExtras,
+        valorHoraExtra: pago.valorHoraExtra,
+        bonificacion: pago.bonificacion,
+        prestamo: pago.prestamo,
+        totalPagado: pago.totalPagado
+      });
+      return `pago_${simpleHash(fingerprint)}`;
+    }
 
-  localStorage.setItem("empleados", JSON.stringify(empleados));
-  form.reset();
-  mostrarEmpleados();
-});
+    function puedeUsarFirestore() {
+      return !!(firebaseDisponible && firestoreDb && usuarioAutenticado);
+    }
 
+    function ordenarEmpleados(data) {
+      return [...data].sort((a, b) => a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }));
+    }
+
+    function ordenarHistorial(data) {
+      return [...data].sort((a, b) => new Date(b.fechaPago || 0) - new Date(a.fechaPago || 0));
+    }
+
+    function calcularTotalPagar(empleado) {
+      const totalBase = toNumber(empleado.valorDia) * toNumber(empleado.diasTrabajados);
+      const totalExtras = toNumber(empleado.horasExtras) * toNumber(empleado.valorHoraExtra);
+      const bonificacion = toNumber(empleado.bonificacion);
+      const prestamo = toNumber(empleado.prestamo);
+      return totalBase + totalExtras + bonificacion - prestamo;
+    }
+
+    function construirPagoDesdeEmpleado(empleado, fechaPago) {
+      const emp = normalizarEmpleado(empleado);
+      return normalizarPago({
+        uid: `pago_${emp.id}_${Date.now()}`,
+        nombre: emp.nombre,
+        cargo: emp.cargo,
+        valorDia: emp.valorDia,
+        diasTrabajados: emp.diasTrabajados,
+        horasExtras: emp.horasExtras,
+        valorHoraExtra: emp.valorHoraExtra,
+        bonificacion: emp.bonificacion,
+        prestamo: emp.prestamo,
+        totalPagado: calcularTotalPagar(emp),
+        fechaPago,
+        quincena: generarRangoQuincena(fechaPago)
+      });
+    }
+
+    async function iniciarFirebase() {
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(FIREBASE_CONFIG);
+        }
+        firestoreDb = firebase.firestore();
+        firebaseDisponible = true;
+        setEstadoDB("Conectando con la base de datos...", "pending");
+      } catch (error) {
+        console.error("Error iniciando Firebase:", error);
+        firebaseDisponible = false;
+        setEstadoDB("Base de datos desconectada", "offline");
+      }
+    }
+
+    async function guardarEmpleadoEnFirestore(empleado) {
+      if (!puedeUsarFirestore()) return;
+      const emp = normalizarEmpleado(empleado);
+      const payload = {
+        recordType: "empleado",
+        employeeId: String(emp.id),
+        nombre: emp.nombre,
+        cargo: emp.cargo,
+        valorDia: emp.valorDia,
+        valorHoraExtra: emp.valorHoraExtra,
+        diasTrabajados: emp.diasTrabajados,
+        horasExtras: emp.horasExtras,
+        bonificacion: emp.bonificacion,
+        prestamo: emp.prestamo,
+        estadoPago: emp.estadoPago,
+        fechaPago: emp.fechaPago || null,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await firestoreDb.collection(COLECCION_NOMINA).doc(empleadoDocId(emp)).set(payload, { merge: true });
+    }
+
+    async function guardarPagoEnFirestore(pago) {
+      if (!puedeUsarFirestore()) return;
+      const item = normalizarPago(pago);
+      const payload = {
+        recordType: "pago",
+        pagoId: pagoDocId(item),
+        nombre: item.nombre,
+        cargo: item.cargo,
+        valorDia: item.valorDia,
+        diasTrabajados: item.diasTrabajados,
+        horasExtras: item.horasExtras,
+        valorHoraExtra: item.valorHoraExtra,
+        bonificacion: item.bonificacion,
+        prestamo: item.prestamo,
+        totalPagado: item.totalPagado,
+        fechaPago: item.fechaPago,
+        quincena: item.quincena,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await firestoreDb.collection(COLECCION_NOMINA).doc(pagoDocId(item)).set(payload, { merge: true });
+    }
+
+    async function eliminarEmpleadoEnFirestore(id) {
+      if (!puedeUsarFirestore()) return;
+      await firestoreDb.collection(COLECCION_NOMINA).doc(`empleado_${String(id)}`).delete();
+    }
+
+    async function eliminarHistorialEnFirestore() {
+      if (!puedeUsarFirestore()) return;
+      const snapshot = await firestoreDb.collection(COLECCION_NOMINA).where("recordType", "==", "pago").get();
+      if (snapshot.empty) return;
+      let batch = firestoreDb.batch();
+      let count = 0;
+      for (const doc of snapshot.docs) {
+        batch.delete(doc.ref);
+        count += 1;
+        if (count === 400) {
+          await batch.commit();
+          batch = firestoreDb.batch();
+          count = 0;
+        }
+      }
+      if (count > 0) {
+        await batch.commit();
+      }
+    }
+
+    async function cargarDatosDesdeFirestore() {
+      if (!puedeUsarFirestore()) {
+        empleados = ordenarEmpleados((JSON.parse(localStorage.getItem(EMPLEADOS_KEY)) || []).map(normalizarEmpleado));
+        historial = ordenarHistorial((JSON.parse(localStorage.getItem(HISTORIAL_KEY)) || []).map(normalizarPago));
+        guardarLocal();
+        mostrarEmpleados();
+        mostrarHistorial();
+        return;
+      }
+
+      try {
+        setEstadoDB("Cargando nómina...", true);
+        const snapshot = await firestoreDb.collection(COLECCION_NOMINA).get();
+        const empleadosDb = [];
+        const historialDb = [];
+
+        snapshot.forEach((doc) => {
+          const data = doc.data() || {};
+          if (data.recordType === "empleado") {
+            empleadosDb.push(normalizarEmpleado({
+              id: data.employeeId || doc.id.replace("empleado_", ""),
+              ...data
+            }));
+          } else if (data.recordType === "pago") {
+            historialDb.push(normalizarPago({
+              uid: data.pagoId || doc.id,
+              ...data
+            }));
+          }
+        });
+
+        empleados = ordenarEmpleados(empleadosDb);
+        historial = ordenarHistorial(historialDb);
+        guardarLocal();
+        mostrarEmpleados();
+        mostrarHistorial();
+        setEstadoDB("Base de datos conectada", "online");
+      } catch (error) {
+        console.error("Error cargando nómina desde Firestore:", error);
+        setEstadoDB("Usando respaldo local", false);
+        empleados = ordenarEmpleados((JSON.parse(localStorage.getItem(EMPLEADOS_KEY)) || []).map(normalizarEmpleado));
+        historial = ordenarHistorial((JSON.parse(localStorage.getItem(HISTORIAL_KEY)) || []).map(normalizarPago));
+        guardarLocal();
+        mostrarEmpleados();
+        mostrarHistorial();
+      }
+    }
+
+    async function migrarLocalStorageAFirestore() {
+      if (!puedeUsarFirestore()) return;
+
+      const empleadosLocales = (JSON.parse(localStorage.getItem(EMPLEADOS_KEY)) || []).map(normalizarEmpleado);
+      const historialLocal = (JSON.parse(localStorage.getItem(HISTORIAL_KEY)) || []).map(normalizarPago);
+      if (!empleadosLocales.length && !historialLocal.length) return;
+
+      try {
+        setEstadoDB("Migrando datos locales...", "pending");
+        for (const empleado of empleadosLocales) {
+          await guardarEmpleadoEnFirestore(empleado);
+        }
+        for (const pago of historialLocal) {
+          await guardarPagoEnFirestore(pago);
+        }
+        setEstadoDB("Base de datos conectada", "online");
+      } catch (error) {
+        console.error("Error migrando nómina desde localStorage:", error);
+        setEstadoDB("Error migrando datos", false);
+      }
+    }
+
+    function formatearCOP(valor) {
+      return new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+        minimumFractionDigits: 0
+      }).format(toNumber(valor));
+    }
+
+    function limpiarNumeroCOP(valor) {
+      return String(valor || "").replace(/\D/g, "");
+    }
+
+    function formatearInputCOP(input) {
+      const valorLimpio = limpiarNumeroCOP(input.value);
+      const valorNumerico = parseInt(valorLimpio || "0", 10);
+      input.value = valorNumerico ? valorNumerico.toLocaleString("es-CO") : "";
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById("nombre").value.trim();
+      const cargo = document.getElementById("cargo").value.trim();
+      const valorDia = parseInt(limpiarNumeroCOP(document.getElementById("valorDia").value), 10);
+      const valorHoraExtra = parseInt(limpiarNumeroCOP(document.getElementById("valorHoraExtra").value), 10) || 0;
+
+      if (!nombre || !cargo || isNaN(valorDia)) {
+        alert("Complete todos los campos correctamente.");
+        return;
+      }
+
+      const yaExiste = empleados.some(emp =>
+        emp.nombre.toLowerCase() === nombre.toLowerCase() &&
+        emp.cargo.toLowerCase() === cargo.toLowerCase()
+      );
+
+      if (yaExiste) {
+        alert("Ya existe un empleado registrado con ese nombre y cargo.");
+        return;
+      }
+
+      const nuevoEmpleado = normalizarEmpleado({
+        id: Date.now(),
+        nombre,
+        cargo,
+        valorDia,
+        valorHoraExtra,
+        diasTrabajados: 0,
+        horasExtras: 0,
+        bonificacion: 0,
+        prestamo: 0,
+        estadoPago: "Pendiente",
+        fechaPago: null
+      });
+
+      empleados.push(nuevoEmpleado);
+      empleados = ordenarEmpleados(empleados);
+      guardarLocal();
+      mostrarEmpleados();
+      form.reset();
+
+      try {
+        await guardarEmpleadoEnFirestore(nuevoEmpleado);
+        if (puedeUsarFirestore()) setEstadoDB("Base de datos conectada", "online");
+      } catch (error) {
+        console.error("Error guardando empleado:", error);
+        setEstadoDB("Guardado solo en este dispositivo", false);
+      }
+    });
 
     function mostrarEmpleados() {
       tabla.innerHTML = "";
@@ -204,506 +539,456 @@ empleados.push({
         const btnDesactivado = emp.estadoPago === "Pagado" ? "opacity-50 cursor-not-allowed" : "";
         const extras = (emp.horasExtras || 0) * (emp.valorHoraExtra || 0);
         const bonificacion = emp.bonificacion || 0;
-        const totalFinal = totalTrabajado + extras + bonificacion;
         const prestamo = emp.prestamo || 0;
-        const totalPagarConDescuento = totalFinal - prestamo;
-
-
+        const totalPagarConDescuento = calcularTotalPagar(emp);
 
         tabla.innerHTML += `
           <tr class="hover:bg-gray-50 transition-all duration-200">
             <td class="p-3 border">${emp.nombre}</td>
             <td class="p-3 border">${emp.cargo}</td>
             <td class="p-3 border">${formatearCOP(emp.valorDia)}</td>
-
             <td class="p-3 border">${emp.diasTrabajados}</td>
             <td class="p-3 border">${diasFaltados}</td>
             <td class="p-3 border">${generarRangoQuincena(emp.fechaPago)}</td>
             <td class="p-3 border">
-            
-
-            <div>Total base: <strong>${formatearCOP(totalTrabajado)}</strong></div>
-             ${extras > 0 ? `
-
-            <div class="text-xs text-blue-500">Horas extra: +${formatearCOP(extras)}</div>` : ""}${bonificacion > 0 ? `
-
- 
-            <div class="text-xs text-blue-500">Bonificación: +${formatearCOP(bonificacion)}</div>` : ""}
-            <div class="text-sm text-green-700 font-bold">💵 Total a pagar: ${formatearCOP(totalPagarConDescuento)}</div>
-             ${prestamo > 0 ? `<div class="text-xs text-red-500">Prestado: -${formatearCOP(prestamo)}</div>` : ""}
-
-            <div>Total: <strong>${formatearCOP(totalTrabajado)}</strong></div>
-            <div class="text-xs text-gray-500">Completa: ${formatearCOP(totalQuincena)}</div>
-             ${diasFaltados > 0 ? `<div class="text-xs text-red-500">Faltó: -${formatearCOP(diferencia)}</div>` : ""}
-
-
-            
+              <div>Total base: <strong>${formatearCOP(totalTrabajado)}</strong></div>
+              ${extras > 0 ? `<div class="text-xs text-blue-500">Horas extra: +${formatearCOP(extras)}</div>` : ""}
+              ${bonificacion > 0 ? `<div class="text-xs text-blue-500">Bonificación: +${formatearCOP(bonificacion)}</div>` : ""}
+              ${prestamo > 0 ? `<div class="text-xs text-red-500">Prestado: -${formatearCOP(prestamo)}</div>` : ""}
+              <div class="text-sm text-green-700 font-bold">💵 Total a pagar: ${formatearCOP(totalPagarConDescuento)}</div>
+              <div>Total completa: <strong>${formatearCOP(totalQuincena)}</strong></div>
+              ${diasFaltados > 0 ? `<div class="text-xs text-red-500">Faltó: -${formatearCOP(diferencia)}</div>` : ""}
+            </td>
             <td class="p-3 border font-bold ${estadoColor}">${emp.estadoPago}</td>
             <td class="p-3 border space-y-1">
-
-
               <button onclick="registrarAsistencia(${emp.id})" class="bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded text-xs w-full ${btnDesactivado}" ${emp.estadoPago === "Pagado" ? "disabled" : ""}>Asistencia</button>
-
               ${emp.estadoPago === "Pendiente" ? `
-  <button onclick="marcarComoPagado(${emp.id})"
-    class="bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded text-xs w-full">
-    Marcar Pagado
-  </button>` : `
-  <button onclick="desmarcarPagado(${emp.id})"
-    class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-2 py-1 rounded text-xs w-full">
-    Desmarcar Pagado
-  </button>`}
-
-              
+                <button onclick="marcarComoPagado(${emp.id})" class="bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded text-xs w-full">Marcar Pagado</button>` : `
+                <button onclick="desmarcarPagado(${emp.id})" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-2 py-1 rounded text-xs w-full">Desmarcar Pagado</button>`}
               <button onclick="generarPDF(${emp.id})" class="bg-purple-100 hover:bg-purple-200 text-purple-800 px-2 py-1 rounded text-xs w-full">Generar PDF</button>
-
-
               <button onclick="eliminarEmpleado(${emp.id})" class="bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded text-xs w-full">Eliminar</button>
-
             </td>
           </tr>
         `;
       });
     }
 
+    async function eliminarEmpleado(id) {
+      if (!confirm("¿Estás seguro de eliminar este empleado?")) return;
+      empleados = empleados.filter(emp => emp.id !== id);
+      guardarLocal();
+      mostrarEmpleados();
 
-function eliminarEmpleado(id) {
-  if (confirm("¿Estás seguro de eliminar este empleado?")) {
-    empleados = empleados.filter(emp => emp.id !== id);
-    localStorage.setItem("empleados", JSON.stringify(empleados));
-    mostrarEmpleados();
-  }
-}
-
-
-function registrarAsistencia(id) {
-  empleadoActual = empleados.find(emp => emp.id === id);
-  document.getElementById("modal-nombre").textContent = empleadoActual.nombre;
-  document.getElementById("inputDias").value = empleadoActual.diasTrabajados;
-  document.getElementById("modalAsistencia").classList.remove("hidden");
-document.getElementById("inputHorasExtras").value = empleadoActual.horasExtras || 0;
-document.getElementById("inputBonificacion").value = empleadoActual.bonificacion ? formatearCOP(empleadoActual.bonificacion) : "";
-document.getElementById("inputPrestamo").value = empleadoActual.prestamo ? formatearCOP(empleadoActual.prestamo) : "";
-
-
-
-}
-
-
-
-function marcarComoPagado(id) {
-  const index = empleados.findIndex(emp => emp.id === id);
-  const empleado = empleados[index];
-  const totalBase = empleado.valorDia * empleado.diasTrabajados;
-const totalExtras = (empleado.horasExtras || 0) * (empleado.valorHoraExtra || 0);
-const totalFinal = totalBase + (empleado.bonificacion || 0) + totalExtras;
-
-  const fechaPago = new Date().toISOString();
-  empleados[index].estadoPago = "Pagado";
-  empleados[index].fechaPago = fechaPago;
-
-  // Agregar al historial
-historial.push({
-  nombre: empleado.nombre,
-  cargo: empleado.cargo,
-  valorDia: empleado.valorDia,
-  diasTrabajados: empleado.diasTrabajados,
-  horasExtras: empleado.horasExtras || 0,
-  valorHoraExtra: empleado.valorHoraExtra || 0,
-  bonificacion: empleado.bonificacion || 0,
-  totalPagado: totalFinal,
-  fechaPago: fechaPago,
-  quincena: generarRangoQuincena(fechaPago)
-});
-
-
-  localStorage.setItem("empleados", JSON.stringify(empleados));
-  localStorage.setItem("historialPagos", JSON.stringify(historial));
-  mostrarEmpleados();
-  mostrarHistorial();
-}
-
-
-
-async function generarPDF(id) {
-    const emp = empleados.find(e => e.id === id);
-    if (!emp) {
-      alert("Empleado no encontrado");
-      return;
+      try {
+        await eliminarEmpleadoEnFirestore(id);
+        if (puedeUsarFirestore()) setEstadoDB("Base de datos conectada", "online");
+      } catch (error) {
+        console.error("Error eliminando empleado:", error);
+        setEstadoDB("Eliminado solo en este dispositivo", false);
+      }
     }
 
-    const image = new Image();
-    image.src = "./logo.png";
+    function registrarAsistencia(id) {
+      empleadoActual = empleados.find(emp => emp.id === id);
+      if (!empleadoActual) return;
+      document.getElementById("modal-nombre").textContent = empleadoActual.nombre;
+      document.getElementById("inputDias").value = empleadoActual.diasTrabajados;
+      document.getElementById("modalAsistencia").classList.remove("hidden");
+      document.getElementById("inputHorasExtras").value = empleadoActual.horasExtras || 0;
+      document.getElementById("inputBonificacion").value = empleadoActual.bonificacion ? formatearCOP(empleadoActual.bonificacion) : "";
+      document.getElementById("inputPrestamo").value = empleadoActual.prestamo ? formatearCOP(empleadoActual.prestamo) : "";
+    }
 
-    image.onload = function () {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+    async function marcarComoPagado(id) {
+      const index = empleados.findIndex(emp => emp.id === id);
+      if (index === -1) return;
 
-      // 🎯 LOGO REDONDO
-      doc.setFillColor(255, 255, 255);
-      doc.circle(25, 25, 15, 'F'); // círculo blanco
-      doc.addImage(image, 'PNG', 10, 10, 30, 30); // logo encima
-
-      // 📌 TÍTULOS A LA DERECHA DEL LOGO
-      doc.setFont("Helvetica", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(25, 40, 90);
-      doc.text("SEÑOR AREPA", 50, 18);
-
-      doc.setFontSize(12);
-      doc.setFont("Helvetica", "normal");
-      doc.text("Pago quincenal", 50, 27);
-
-      // 📆 Fecha
-      const fecha = new Date().toLocaleDateString("es-CO", {
-        year: "numeric", month: "long", day: "numeric"
+      const fechaPago = new Date().toISOString();
+      empleados[index] = normalizarEmpleado({
+        ...empleados[index],
+        estadoPago: "Pagado",
+        fechaPago
       });
 
-      doc.setFontSize(10);
-      doc.setTextColor(80);
-      doc.text(`Fecha de emisión: ${fecha}`, 200, 35, { align: "right" });
+      const nuevoPago = construirPagoDesdeEmpleado(empleados[index], fechaPago);
+      historial.push(nuevoPago);
+      historial = ordenarHistorial(historial);
+      guardarLocal();
+      mostrarEmpleados();
+      mostrarHistorial();
 
-      // 📊 CÁLCULOS
-      const diasFaltados = 15 - emp.diasTrabajados;
-      const totalTrabajado = emp.valorDia * emp.diasTrabajados;
-      const totalQuincena = emp.valorDia * 15;
-      const diferencia = totalQuincena - totalTrabajado;
-      const extras = (emp.horasExtras || 0) * (emp.valorHoraExtra || 0);
-      const bonificacion = emp.bonificacion || 0;
-      const totalFinal = totalTrabajado + extras + bonificacion;
-      const prestamo = emp.prestamo || 0;
-      const totalPagarConDescuento = totalFinal - prestamo;
+      try {
+        await guardarEmpleadoEnFirestore(empleados[index]);
+        await guardarPagoEnFirestore(nuevoPago);
+        if (puedeUsarFirestore()) setEstadoDB("Base de datos conectada", "online");
+      } catch (error) {
+        console.error("Error guardando pago:", error);
+        setEstadoDB("Pago guardado solo en este dispositivo", false);
+      }
+    }
 
-      const f = n => `$ ${n.toLocaleString('es-CO')}`; // formateador COP
+    async function generarPDF(id) {
+      const emp = empleados.find(e => e.id === id);
+      if (!emp) {
+        alert("Empleado no encontrado");
+        return;
+      }
 
-      // 👤 Info empleado
-      doc.autoTable({
-        startY: 40,
-        head: [['Empleado', 'Cargo', 'Estado de Pago']],
-        body: [[emp.nombre, emp.cargo, emp.estadoPago]],
-        styles: { halign: 'center', fontSize: 10 },
-        headStyles: { fillColor: [25, 40, 90], textColor: 255 },
+      const image = new Image();
+      image.src = "./logo.png";
+
+      image.onload = function () {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFillColor(255, 255, 255);
+        doc.circle(25, 25, 15, 'F');
+        doc.addImage(image, 'PNG', 10, 10, 30, 30);
+
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(16);
+        doc.setTextColor(25, 40, 90);
+        doc.text("SEÑOR AREPA", 50, 18);
+
+        doc.setFontSize(12);
+        doc.setFont("Helvetica", "normal");
+        doc.text("Pago quincenal", 50, 27);
+
+        const fecha = new Date().toLocaleDateString("es-CO", {
+          year: "numeric", month: "long", day: "numeric"
+        });
+
+        doc.setFontSize(10);
+        doc.setTextColor(80);
+        doc.text(`Fecha de emisión: ${fecha}`, 200, 35, { align: "right" });
+
+        const diasFaltados = 15 - emp.diasTrabajados;
+        const totalTrabajado = emp.valorDia * emp.diasTrabajados;
+        const totalQuincena = emp.valorDia * 15;
+        const diferencia = totalQuincena - totalTrabajado;
+        const extras = (emp.horasExtras || 0) * (emp.valorHoraExtra || 0);
+        const bonificacion = emp.bonificacion || 0;
+        const prestamo = emp.prestamo || 0;
+        const totalPagarConDescuento = calcularTotalPagar(emp);
+        const f = n => `$ ${toNumber(n).toLocaleString('es-CO')}`;
+
+        doc.autoTable({
+          startY: 40,
+          head: [['Empleado', 'Cargo', 'Estado de Pago']],
+          body: [[emp.nombre, emp.cargo, emp.estadoPago]],
+          styles: { halign: 'center', fontSize: 10 },
+          headStyles: { fillColor: [25, 40, 90], textColor: 255 },
+        });
+
+        doc.autoTable({
+          startY: doc.lastAutoTable.finalY + 5,
+          head: [['Días Trabajados', 'Días Faltados', 'Valor Día', 'Total Base']],
+          body: [[emp.diasTrabajados, diasFaltados, f(emp.valorDia), f(totalTrabajado)]],
+          styles: { halign: 'center', fontSize: 10 },
+          headStyles: { fillColor: [60, 90, 160], textColor: 255 },
+        });
+
+        doc.autoTable({
+          startY: doc.lastAutoTable.finalY + 5,
+          head: [['Horas Extras', 'Valor Hora Extra', 'Total Extras', 'Bonificación']],
+          body: [[emp.horasExtras || 0, f(emp.valorHoraExtra || 0), f(extras), f(bonificacion)]],
+          styles: { halign: 'center', fontSize: 10 },
+          headStyles: { fillColor: [90, 120, 180], textColor: 255 },
+        });
+
+        doc.autoTable({
+          startY: doc.lastAutoTable.finalY + 8,
+          head: [['Quincena Completa', 'Descuento por Faltas', 'Extras y Bonos', 'Préstamo', 'TOTAL A PAGAR']],
+          body: [[f(totalQuincena), `-${f(diferencia)}`, `+${f(extras + bonificacion)}`, `-${f(prestamo)}`, f(totalPagarConDescuento)]],
+          styles: { halign: 'center', fontSize: 11 },
+          headStyles: { fillColor: [0, 150, 50], textColor: 255, fontStyle: 'bold' },
+          bodyStyles: { textColor: [0, 0, 0] },
+        });
+
+        const firmasY = doc.lastAutoTable.finalY + 30;
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text("Firma Recursos Humanos:", 20, firmasY);
+        doc.line(20, firmasY + 5, 90, firmasY + 5);
+        doc.text("Firma Recibe:", 120, firmasY);
+        doc.line(120, firmasY + 5, 190, firmasY + 5);
+
+        doc.save(`Recibo_${emp.nombre.replace(/\s+/g, "_")}.pdf`);
+      };
+
+      image.onerror = function () {
+        alert("❌ No se pudo cargar el logo. Asegúrate de que esté junto al index.html con el nombre 'logo.png'");
+      };
+    }
+
+    async function guardarAsistencia() {
+      const dias = parseInt(document.getElementById("inputDias").value, 10);
+      const horasExtras = parseInt(document.getElementById("inputHorasExtras").value, 10) || 0;
+      const bonificacion = parseInt(limpiarNumeroCOP(document.getElementById("inputBonificacion").value), 10) || 0;
+      const prestamo = parseInt(limpiarNumeroCOP(document.getElementById("inputPrestamo").value), 10) || 0;
+
+      if (isNaN(dias) || dias < 0 || dias > 15) {
+        alert("Ingrese un número válido entre 0 y 15.");
+        return;
+      }
+
+      const index = empleados.findIndex(emp => emp.id === empleadoActual.id);
+      if (index === -1) return;
+
+      empleados[index] = normalizarEmpleado({
+        ...empleados[index],
+        diasTrabajados: dias,
+        horasExtras,
+        bonificacion,
+        prestamo
       });
 
-      // 📅 Asistencia
-      doc.autoTable({
-        startY: doc.lastAutoTable.finalY + 5,
-        head: [['Días Trabajados', 'Días Faltados', 'Valor Día', 'Total Base']],
-        body: [[
-          emp.diasTrabajados,
+      guardarLocal();
+      cerrarModal();
+      mostrarEmpleados();
+
+      try {
+        await guardarEmpleadoEnFirestore(empleados[index]);
+        if (puedeUsarFirestore()) setEstadoDB("Base de datos conectada", "online");
+      } catch (error) {
+        console.error("Error guardando asistencia:", error);
+        setEstadoDB("Asistencia guardada solo en este dispositivo", false);
+      }
+    }
+
+    function cerrarModal() {
+      document.getElementById("modalAsistencia").classList.add("hidden");
+    }
+
+    function generarRangoQuincena(fechaPago) {
+      const base = fechaPago ? new Date(fechaPago) : new Date();
+      const mesActual = base.toLocaleString("es-ES", { month: "long" });
+      const añoActual = base.getFullYear();
+      const dia = base.getDate();
+      return dia <= 15
+        ? `01 al 15 de ${mesActual} ${añoActual}`
+        : `16 al 30 de ${mesActual} ${añoActual}`;
+    }
+
+    async function desmarcarPagado(id) {
+      const index = empleados.findIndex(emp => emp.id === id);
+      if (index === -1) return;
+      empleados[index] = normalizarEmpleado({
+        ...empleados[index],
+        estadoPago: "Pendiente",
+        fechaPago: null
+      });
+      guardarLocal();
+      mostrarEmpleados();
+
+      try {
+        await guardarEmpleadoEnFirestore(empleados[index]);
+        if (puedeUsarFirestore()) setEstadoDB("Base de datos conectada", "online");
+      } catch (error) {
+        console.error("Error actualizando estado de pago:", error);
+        setEstadoDB("Cambio guardado solo en este dispositivo", false);
+      }
+    }
+
+    function mostrarHistorial() {
+      const tbody = document.getElementById("tabla-historial");
+      if (!tbody) return;
+
+      tbody.innerHTML = "";
+
+      historial.forEach(entry => {
+        const fecha = entry.fechaPago ? new Date(entry.fechaPago).toLocaleDateString("es-CO") : "";
+        const totalFinal = toNumber(entry.totalPagado);
+
+        tbody.innerHTML += `
+          <tr>
+            <td class="p-2 border">${entry.nombre}</td>
+            <td class="p-2 border">${entry.cargo}</td>
+            <td class="p-2 border">${fecha}</td>
+            <td class="p-2 border">${entry.quincena || ""}</td>
+            <td class="p-2 border">${entry.diasTrabajados}</td>
+            <td class="p-2 border">${formatearCOP(entry.valorDia)}</td>
+            <td class="p-2 border">${entry.horasExtras || 0}</td>
+            <td class="p-2 border">${formatearCOP(entry.bonificacion || 0)}</td>
+            <td class="p-2 border font-semibold">${formatearCOP(totalFinal)}</td>
+          </tr>
+        `;
+      });
+    }
+
+    async function eliminarHistorial() {
+      const confirmar = confirm("¿Estás seguro de que deseas eliminar todo el historial de pagos?");
+      if (!confirmar) return;
+
+      historial = [];
+      guardarLocal();
+      mostrarHistorial();
+
+      try {
+        await eliminarHistorialEnFirestore();
+        if (puedeUsarFirestore()) setEstadoDB("Base de datos conectada", "online");
+        alert("✅ Historial de pagos eliminado correctamente.");
+      } catch (error) {
+        console.error("Error eliminando historial:", error);
+        setEstadoDB("Historial eliminado solo en este dispositivo", false);
+        alert("✅ Historial local eliminado. Revisa la conexión para borrar también en la base de datos.");
+      }
+    }
+
+    async function exportarHistorialAExcel() {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Historial de Pagos");
+
+      worksheet.columns = [
+        { header: "Empleado", key: "empleado", width: 25 },
+        { header: "Cargo", key: "cargo", width: 20 },
+        { header: "Fecha", key: "fecha", width: 20 },
+        { header: "Días Trabajados", key: "diasTrabajados", width: 15 },
+        { header: "Días Faltados", key: "diasFaltados", width: 15 },
+        { header: "Valor Día", key: "valorDia", width: 15 },
+        { header: "Total Base", key: "totalBase", width: 18 },
+        { header: "Horas Extras", key: "horasExtras", width: 15 },
+        { header: "Valor Hora Extra", key: "valorHoraExtra", width: 18 },
+        { header: "Total Extras", key: "totalExtras", width: 18 },
+        { header: "Bonificación", key: "bonificacion", width: 18 },
+        { header: "Préstamo", key: "prestamo", width: 18 },
+        { header: "Total a Pagar", key: "totalFinal", width: 20 }
+      ];
+
+      historial.forEach((pago) => {
+        const diasFaltados = 15 - pago.diasTrabajados;
+        const totalBase = pago.valorDia * pago.diasTrabajados;
+        const totalExtras = (pago.horasExtras || 0) * (pago.valorHoraExtra || 0);
+        const totalFinal = toNumber(pago.totalPagado);
+
+        worksheet.addRow({
+          empleado: pago.nombre,
+          cargo: pago.cargo,
+          fecha: pago.fechaPago || "",
+          diasTrabajados: pago.diasTrabajados,
           diasFaltados,
-          f(emp.valorDia),
-          f(totalTrabajado)
-        ]],
-        styles: { halign: 'center', fontSize: 10 },
-        headStyles: { fillColor: [60, 90, 160], textColor: 255 },
+          valorDia: pago.valorDia,
+          totalBase,
+          horasExtras: pago.horasExtras || 0,
+          valorHoraExtra: pago.valorHoraExtra || 0,
+          totalExtras,
+          bonificacion: pago.bonificacion || 0,
+          prestamo: pago.prestamo || 0,
+          totalFinal
+        });
       });
 
-      // ⏱️ Extras y Bonos
-      doc.autoTable({
-        startY: doc.lastAutoTable.finalY + 5,
-        head: [['Horas Extras', 'Valor Hora Extra', 'Total Extras', 'Bonificación']],
-        body: [[
-          emp.horasExtras || 0,
-          f(emp.valorHoraExtra || 0),
-          f(extras),
-          f(bonificacion)
-        ]],
-        styles: { halign: 'center', fontSize: 10 },
-        headStyles: { fillColor: [90, 120, 180], textColor: 255 },
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        [6, 7, 9, 10, 11, 12, 13].forEach((col) => {
+          const cell = row.getCell(col);
+          cell.numFmt = '"$"#,##0';
+        });
       });
 
-      // 💰 Totales
-      doc.autoTable({
-        startY: doc.lastAutoTable.finalY + 8,
-        head: [['Quincena Completa', 'Descuento por Faltas', 'Extras y Bonos', 'Préstamo', 'TOTAL A PAGAR']],
-        body: [[
-          f(totalQuincena),
-          `-${f(diferencia)}`,
-          `+${f(extras + bonificacion)}`,
-          `-${f(prestamo)}`,
-          f(totalPagarConDescuento)
-        ]],
-        styles: { halign: 'center', fontSize: 11 },
-        headStyles: { fillColor: [0, 150, 50], textColor: 255, fontStyle: 'bold' },
-        bodyStyles: { textColor: [0, 0, 0] },
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       });
 
-      // ✍️ Firmas
-      const firmasY = doc.lastAutoTable.finalY + 30;
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      doc.text("Firma Recursos Humanos:", 20, firmasY);
-      doc.line(20, firmasY + 5, 90, firmasY + 5);
+      const link = document.createElement("a");
+      const fecha = new Date().toISOString().slice(0, 10);
+      link.href = URL.createObjectURL(blob);
+      link.download = `Historial_Pagos_${fecha}.xlsx`;
+      link.click();
+    }
 
-      doc.text("Firma Recibe:", 120, firmasY);
-      doc.line(120, firmasY + 5, 190, firmasY + 5);
+    function mostrarHistorialPagos() {
+      const contenedor = document.getElementById("historialPagos");
+      if (!contenedor) return;
+      contenedor.innerHTML = "";
 
-      // Guardar PDF
-      doc.save(`Recibo_${emp.nombre.replace(/\s+/g, "_")}.pdf`);
-    };
+      if (historial.length === 0) {
+        contenedor.innerHTML = "<p class='text-center text-gray-600'>No hay historial disponible.</p>";
+        return;
+      }
 
-    image.onerror = function () {
-      alert("❌ No se pudo cargar el logo. Asegúrate de que esté junto al index.html con el nombre 'logo.png'");
-    };
-  }
+      historial.forEach((pago) => {
+        const diasFaltados = 15 - pago.diasTrabajados;
+        const totalBase = pago.valorDia * pago.diasTrabajados;
+        const totalExtras = (pago.horasExtras || 0) * (pago.valorHoraExtra || 0);
+        const totalFinal = toNumber(pago.totalPagado);
 
+        const card = document.createElement("div");
+        card.className = "bg-white shadow rounded p-4 mb-4 border border-gray-200";
+        card.innerHTML = `
+          <p><strong>Empleado:</strong> ${pago.nombre}</p>
+          <p><strong>Cargo:</strong> ${pago.cargo}</p>
+          <p><strong>Fecha de Pago:</strong> ${pago.fechaPago || ""}</p>
+          <p><strong>Días Trabajados:</strong> ${pago.diasTrabajados}</p>
+          <p><strong>Días Faltados:</strong> ${diasFaltados}</p>
+          <p><strong>Valor Día:</strong> $${pago.valorDia.toLocaleString("es-CO")}</p>
+          <p><strong>Total Base:</strong> $${totalBase.toLocaleString("es-CO")}</p>
+          <p><strong>Horas Extras:</strong> ${pago.horasExtras || 0}</p>
+          <p><strong>Valor Hora Extra:</strong> $${(pago.valorHoraExtra || 0).toLocaleString("es-CO")}</p>
+          <p><strong>Total Extras:</strong> $${totalExtras.toLocaleString("es-CO")}</p>
+          <p><strong>Bonificación:</strong> $${(pago.bonificacion || 0).toLocaleString("es-CO")}</p>
+          <p><strong>Préstamo:</strong> $${(pago.prestamo || 0).toLocaleString("es-CO")}</p>
+          <p><strong>Total a Pagar:</strong> $${totalFinal.toLocaleString("es-CO")}</p>
+        `;
+        contenedor.appendChild(card);
+      });
+    }
 
-function guardarAsistencia() {
-  const dias = parseInt(document.getElementById("inputDias").value);
-  const horasExtras = parseInt(document.getElementById("inputHorasExtras").value) || 0;
-  const bonificacion = parseInt(limpiarNumeroCOP(document.getElementById("inputBonificacion").value)) || 0;
-  const prestamo = parseInt(limpiarNumeroCOP(document.getElementById("inputPrestamo").value)) || 0;
+    window.registrarAsistencia = registrarAsistencia;
+    window.marcarComoPagado = marcarComoPagado;
+    window.generarPDF = generarPDF;
+    window.eliminarEmpleado = eliminarEmpleado;
+    window.guardarAsistencia = guardarAsistencia;
+    window.cerrarModal = cerrarModal;
+    window.desmarcarPagado = desmarcarPagado;
+    window.eliminarHistorial = eliminarHistorial;
+    window.exportarHistorialAExcel = exportarHistorialAExcel;
 
-
-  if (isNaN(dias) || dias < 0 || dias > 15) {
-    alert("Ingrese un número válido entre 0 y 15.");
-    return;
-  }
-
-  const index = empleados.findIndex(emp => emp.id === empleadoActual.id);
-  empleados[index].diasTrabajados = dias;
-  empleados[index].horasExtras = horasExtras;
-  empleados[index].bonificacion = bonificacion;
-  empleados[index].prestamo = prestamo;
-
-
-  localStorage.setItem("empleados", JSON.stringify(empleados));
-  cerrarModal();
-  mostrarEmpleados();
-}
-
-
-
-
-function cerrarModal() {
-  document.getElementById("modalAsistencia").classList.add("hidden");
-}
-
-function generarRangoQuincena(fechaPago) {
-  const ahora = new Date();
-  const mesActual = ahora.toLocaleString('es-ES', { month: 'long' });
-  const añoActual = ahora.getFullYear();
-
-  const dia = ahora.getDate();
-  const esPrimeraQuincena = dia <= 15;
-
-  // Si aún no ha sido pagado, se asigna la quincena actual
-  if (!fechaPago) {
-    return esPrimeraQuincena
-      ? `01 al 15 de ${mesActual} ${añoActual}`
-      : `16 al 30 de ${mesActual} ${añoActual}`;
-  }
-
-  // Si fue pagado, asignar la siguiente quincena
-  const fecha = new Date(fechaPago);
-  const siguiente = new Date(fecha);
-  siguiente.setDate(siguiente.getDate() + 15);
-
-  const mesSiguiente = siguiente.toLocaleString('es-ES', { month: 'long' });
-  const añoSiguiente = siguiente.getFullYear();
-  const diaSiguiente = siguiente.getDate();
-
-  return diaSiguiente <= 15
-    ? `01 al 15 de ${mesSiguiente} ${añoSiguiente}`
-    : `16 al 30 de ${mesSiguiente} ${añoSiguiente}`;
-}
-
-
-function formatearCOP(valor) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    minimumFractionDigits: 0
-  }).format(valor);
-}
-
-function limpiarNumeroCOP(valor) {
-  return valor.replace(/\D/g, "");
-}
-
-function formatearInputCOP(input) {
-  const valorLimpio = limpiarNumeroCOP(input.value);
-  const valorNumerico = parseInt(valorLimpio || "0");
-  input.value = valorNumerico.toLocaleString("es-CO");
-}
-
-
-function desmarcarPagado(id) {
-  const index = empleados.findIndex(emp => emp.id === id);
-  empleados[index].estadoPago = "Pendiente";
-  empleados[index].fechaPago = null;
-  localStorage.setItem("empleados", JSON.stringify(empleados));
-  mostrarEmpleados();
-}
-
-
-function mostrarHistorial() {
-  const tbody = document.getElementById("tabla-historial");
-  if (!tbody) return;
-
-  tbody.innerHTML = "";
-
-  historial.forEach(entry => {
-    const fecha = new Date(entry.fechaPago).toLocaleDateString("es-CO");
-    const diasFaltados = 15 - entry.diasTrabajados;
-    const totalBase = entry.valorDia * entry.diasTrabajados;
-    const totalExtras = (entry.horasExtras || 0) * (entry.valorHoraExtra || 0);
-    const totalFinal = totalBase + (entry.bonificacion || 0) + totalExtras;
-
-    tbody.innerHTML += `
-      <tr>
-        <td class="p-2 border">${entry.nombre}</td>
-        <td class="p-2 border">${entry.cargo}</td>
-        <td class="p-2 border">${fecha}</td>
-        <td class="p-2 border">${entry.quincena || ""}</td>
-        <td class="p-2 border">${entry.diasTrabajados}</td>
-        <td class="p-2 border">${formatearCOP(entry.valorDia)}</td>
-        <td class="p-2 border">${entry.horasExtras || 0}</td>
-        <td class="p-2 border">${formatearCOP(entry.bonificacion || 0)}</td>
-        <td class="p-2 border font-semibold">${formatearCOP(totalFinal)}</td>
-      </tr>
-    `;
-  });
-}
-
-
-
-function eliminarHistorial() {
-  const confirmar = confirm("¿Estás seguro de que deseas eliminar todo el historial de pagos?");
-  if (!confirmar) return;
-
-  historial = [];
-  localStorage.removeItem("historialPagos");
-  mostrarHistorial();
-  alert("✅ Historial de pagos eliminado correctamente.");
-}
-
-
-async function exportarHistorialAExcel() {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet("Historial de Pagos");
-
-  worksheet.columns = [
-    { header: "Empleado", key: "empleado", width: 25 },
-    { header: "Cargo", key: "cargo", width: 20 },
-    { header: "Fecha", key: "fecha", width: 20 },
-    { header: "Días Trabajados", key: "diasTrabajados", width: 15 },
-    { header: "Días Faltados", key: "diasFaltados", width: 15 },
-    { header: "Valor Día", key: "valorDia", width: 15 },
-    { header: "Total Base", key: "totalBase", width: 18 },
-    { header: "Horas Extras", key: "horasExtras", width: 15 },
-    { header: "Valor Hora Extra", key: "valorHoraExtra", width: 18 },
-    { header: "Total Extras", key: "totalExtras", width: 18 },
-    { header: "Bonificación", key: "bonificacion", width: 18 },
-    { header: "Total a Pagar", key: "totalFinal", width: 20 }
-  ];
-
-  const historial = JSON.parse(localStorage.getItem("historialPagos")) || [];
-
-  historial.forEach((pago) => {
-    const diasFaltados = 15 - pago.diasTrabajados;
-    const totalBase = pago.valorDia * pago.diasTrabajados;
-    const totalExtras = (pago.horasExtras || 0) * (pago.valorHoraExtra || 0);
-    const totalFinal = totalBase + (pago.bonificacion || 0) + totalExtras;
-
-    worksheet.addRow({
-      empleado: pago.nombre,
-      cargo: pago.cargo,
-      fecha: pago.fechaPago || pago.fecha,
-      diasTrabajados: pago.diasTrabajados,
-      diasFaltados: diasFaltados,
-      valorDia: pago.valorDia,
-      totalBase: totalBase,
-      horasExtras: pago.horasExtras || 0,
-      valorHoraExtra: pago.valorHoraExtra || 0,
-      totalExtras: totalExtras,
-      bonificacion: pago.bonificacion || 0,
-      totalFinal: totalFinal
-    });
-  });
-
-  // Formato COP con separadores de miles
-  worksheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return; // saltar cabecera
-
-    [6, 7, 9, 10, 11, 12].forEach((col) => {
-      const cell = row.getCell(col);
-      cell.numFmt = '"$"#,##0';
-    });
-  });
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type:
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  });
-
-  const link = document.createElement("a");
-  const fecha = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
-  link.href = URL.createObjectURL(blob);
-  link.download = `Historial_Pagos_${fecha}.xlsx`;
-  link.click();
-}
-
-// Mostrar historial de pagos en pantalla con horas extras y bonificación
-function mostrarHistorialPagos() {
-  const historial = JSON.parse(localStorage.getItem("historialPagos")) || [];
-  const contenedor = document.getElementById("historialPagos");
-  contenedor.innerHTML = "";
-
-  if (historial.length === 0) {
-    contenedor.innerHTML = "<p class='text-center text-gray-600'>No hay historial disponible.</p>";
-    return;
-  }
-
-  historial.forEach((pago) => {
-    const diasFaltados = 15 - pago.diasTrabajados;
-    const totalBase = pago.valorDia * pago.diasTrabajados;
-    const totalExtras = (pago.horasExtras || 0) * (pago.valorHoraExtra || 0);
-    const totalFinal = totalBase + (pago.bonificacion || 0) + totalExtras;
-
-    const card = document.createElement("div");
-    card.className = "bg-white shadow rounded p-4 mb-4 border border-gray-200";
-    card.innerHTML = `
-      <p><strong>Empleado:</strong> ${pago.nombre}</p>
-      <p><strong>Cargo:</strong> ${pago.cargo}</p>
-      <p><strong>Fecha de Pago:</strong> ${pago.fechaPago || pago.fecha}</p>
-      <p><strong>Días Trabajados:</strong> ${pago.diasTrabajados}</p>
-      <p><strong>Días Faltados:</strong> ${diasFaltados}</p>
-      <p><strong>Valor Día:</strong> $${pago.valorDia.toLocaleString('es-CO')}</p>
-      <p><strong>Total Base:</strong> $${totalBase.toLocaleString('es-CO')}</p>
-      <p><strong>Horas Extras:</strong> ${pago.horasExtras || 0}</p>
-      <p><strong>Valor Hora Extra:</strong> $${(pago.valorHoraExtra || 0).toLocaleString('es-CO')}</p>
-      <p><strong>Total Extras:</strong> $${totalExtras.toLocaleString('es-CO')}</p>
-      <p><strong>Bonificación:</strong> $${(pago.bonificacion || 0).toLocaleString('es-CO')}</p>
-      <p><strong>Total a Pagar:</strong> $${totalFinal.toLocaleString('es-CO')}</p>
-    `;
-    contenedor.appendChild(card);
-  });
-}
-
-
-
-
-    window.onload = mostrarEmpleados;
-    mostrarEmpleados();
-    mostrarHistorial();
     document.getElementById("inputBonificacion").addEventListener("input", function () {
-  formatearInputCOP(this);
-});
+      formatearInputCOP(this);
+    });
 
     document.getElementById("valorDia").addEventListener("input", function () {
-  formatearInputCOP(this);
-});
+      formatearInputCOP(this);
+    });
 
-document.getElementById("inputPrestamo").addEventListener("input", function () {
-  formatearInputCOP(this);
-});
+    document.getElementById("valorHoraExtra").addEventListener("input", function () {
+      formatearInputCOP(this);
+    });
 
+    document.getElementById("inputPrestamo").addEventListener("input", function () {
+      formatearInputCOP(this);
+    });
 
+    (async function init() {
+      empleados = ordenarEmpleados((JSON.parse(localStorage.getItem(EMPLEADOS_KEY)) || []).map(normalizarEmpleado));
+      historial = ordenarHistorial((JSON.parse(localStorage.getItem(HISTORIAL_KEY)) || []).map(normalizarPago));
+      guardarLocal();
+      mostrarEmpleados();
+      mostrarHistorial();
 
+      await iniciarFirebase();
+
+      if (firebaseDisponible && firebase.auth) {
+        firebase.auth().onAuthStateChanged(async (user) => {
+          usuarioAutenticado = user || null;
+          if (usuarioAutenticado) {
+            setEstadoDB("Base de datos conectada", "online");
+            await migrarLocalStorageAFirestore();
+            await cargarDatosDesdeFirestore();
+          } else {
+            setEstadoDB("Sin sesión - usando localStorage", "offline");
+            empleados = ordenarEmpleados((JSON.parse(localStorage.getItem(EMPLEADOS_KEY)) || []).map(normalizarEmpleado));
+            historial = ordenarHistorial((JSON.parse(localStorage.getItem(HISTORIAL_KEY)) || []).map(normalizarPago));
+            mostrarEmpleados();
+            mostrarHistorial();
+          }
+        });
+      }
+    })();
   </script>
+
 </body>
 </html>
 
