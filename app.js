@@ -2209,7 +2209,7 @@ function generarPlantillaReciboCliente(venta = {}, referencia = 1) {
     <head>
       <meta charset="UTF-8">
       <title>Recibo Cliente</title>
-            <style>
+      <style>
         @page { margin: 8mm 6mm; }
         body {
           font-family: monospace;
@@ -2308,7 +2308,7 @@ function generarPlantillaComanda(venta = {}, referencia = 1) {
     <head>
       <meta charset="UTF-8">
       <title>Pedido Cocina</title>
-            <style>
+      <style>
         @page { margin: 8mm 6mm; }
         body {
           font-family: monospace;
