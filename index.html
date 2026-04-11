@@ -1414,17 +1414,23 @@ function obtenerVentasActivasDelDia(diaClave) {
 
 function calcularResumenCajaDia(diaClave) {
   const ventasActivas = obtenerVentasActivasDelDia(diaClave);
-  const totalVentas = ventasActivas.reduce((acc, venta) => acc + Number(venta.total || 0), 0);
+  const totalVentas = ventasActivas.reduce((acc, venta) => acc + obtenerIngresoRealVenta(venta), 0);
   const totalEfectivo = ventasActivas
     .filter(venta => String(venta.formaPago || "").toLowerCase() === "efectivo")
-    .reduce((acc, venta) => acc + Number(venta.total || 0), 0);
+    .reduce((acc, venta) => acc + obtenerIngresoRealVenta(venta), 0);
   const domicilios = ventasActivas.filter(venta => esPedidoDomicilio(venta)).length;
+  const ajusteDomiciliosTransferencia = ventasActivas
+    .filter(venta => esPedidoDomicilio(venta) && esPagoTransferencia(venta))
+    .reduce((acc, venta) => acc + obtenerValorDomicilio(venta), 0);
+  const efectivoNetoSistema = totalEfectivo - ajusteDomiciliosTransferencia;
   return {
     cantidadVentas: ventasActivas.length,
     totalVentas,
     totalEfectivo,
     domicilios,
-    montoEsperado: 0
+    ajusteDomiciliosTransferencia,
+    efectivoNetoSistema,
+    montoEsperado: efectivoNetoSistema
   };
 }
 
@@ -1464,7 +1470,7 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
   const diaClave = obtenerFechaLocalISO(new Date());
   const control = await obtenerControlCajaDia(diaClave, forzarRemoto);
   const resumen = calcularResumenCajaDia(diaClave);
-  const esperado = Number(control.aperturaMonto || 0) + Number(resumen.totalEfectivo || 0);
+  const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
   const diferencia = control.cierreHora ? Number(control.cierreMonto || 0) - esperado : 0;
 
   const aperturaEstadoTexto = document.getElementById('aperturaCajaEstadoTexto');
@@ -1490,7 +1496,7 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
       : 'Haz clic para registrar cierre';
   }
   if (dineroEsperadoResumenTexto) {
-    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperado)} · ${control.cierreHora ? `diferencia ${formatearCOP(diferencia)}` : 'ver detalle completo'}`;
+    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperado)} · ajuste domicilios transferencia -${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)} · ${control.cierreHora ? `diferencia ${formatearCOP(diferencia)}` : 'ver detalle completo'}`;
   }
 
   if (aperturaInfoModal) aperturaInfoModal.textContent = control.aperturaHora
@@ -1553,10 +1559,10 @@ async function abrirModalDineroEsperado() {
 function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
   const contenedor = document.getElementById('contenidoModalDineroEsperado');
   if (!contenedor) return;
-  const esperado = Number(control.aperturaMonto || 0) + Number(resumen.totalEfectivo || 0);
+  const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
   const diferencia = control.cierreHora ? Number(control.cierreMonto || 0) - esperado : 0;
   contenedor.innerHTML = `
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Apertura</p>
         <p class="text-xl font-extrabold text-gray-800 mt-1">${control.aperturaHora ? formatearCOP(control.aperturaMonto) : 'Sin registro'}</p>
@@ -1565,12 +1571,17 @@ function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo del sistema</p>
         <p class="text-xl font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivo)}</p>
-        <p class="text-xs text-gray-500 mt-1">Ventas activas pagadas en efectivo</p>
+        <p class="text-xs text-gray-500 mt-1">Ventas activas pagadas en efectivo, sin domicilios</p>
+      </div>
+      <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Ajuste domicilios transferencia</p>
+        <p class="text-xl font-extrabold text-amber-700 mt-1">-${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">Se descuenta del efectivo esperado porque ese valor queda en transferencias</p>
       </div>
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Dinero esperado</p>
         <p class="text-xl font-extrabold text-blue-700 mt-1">${formatearCOP(esperado)}</p>
-        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo del sistema</p>
+        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo del sistema - domicilios por transferencia</p>
       </div>
       <div class="rounded-xl border ${control.cierreHora ? (diferencia === 0 ? 'border-green-100 bg-green-50' : 'border-red-100 bg-red-50') : 'border-gray-200 bg-gray-50'} p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Diferencia al cierre</p>
@@ -1581,7 +1592,8 @@ function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
     <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
       <p><strong>Ventas activas del día:</strong> ${resumen.cantidadVentas || 0}</p>
       <p><strong>Domicilios del día:</strong> ${resumen.domicilios || 0}</p>
-      <p><strong>Total vendido activo:</strong> ${formatearCOP(resumen.totalVentas || 0)}</p>
+      <p><strong>Total vendido activo:</strong> ${formatearCOP(resumen.totalVentas || 0)} <span class="text-xs text-gray-500">(sin domicilios)</span></p>
+      <p><strong>Ajuste por domicilios pagados por transferencia:</strong> -${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)}</p>
       ${control.cierreObservaciones ? `<p class="mt-2"><strong>Observaciones del cierre:</strong> ${control.cierreObservaciones}</p>` : ''}
     </div>
   `;
@@ -1618,7 +1630,7 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
   }
   body.innerHTML = cierres.map(control => {
     const resumen = calcularResumenCajaDia(control.diaClave);
-    const esperado = Number(control.aperturaMonto || 0) + Number(resumen.totalEfectivo || 0);
+    const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
     const diferencia = Number(control.cierreMonto || 0) - esperado;
     const claseDiferencia = diferencia === 0 ? 'text-green-700' : 'text-red-700';
     const acciones = esAdmin()
@@ -1630,7 +1642,7 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
         <td class="p-2 border">${formatearCOP(control.aperturaMonto)}</td>
         <td class="p-2 border">${formatearCOP(control.cierreMonto)}</td>
         <td class="p-2 border">${formatearCOP(resumen.totalEfectivo)}</td>
-        <td class="p-2 border">${formatearCOP(esperado)}</td>
+        <td class="p-2 border">${formatearCOP(esperado)}<div class="text-[11px] text-gray-500 mt-1">- ${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)} domicilios transferencia</div></td>
         <td class="p-2 border font-semibold ${claseDiferencia}">${formatearCOP(diferencia)}</td>
         <td class="p-2 border">${control.aperturaUsuario || '-'}</td>
         <td class="p-2 border">${control.cierreUsuario || '-'}</td>
@@ -1730,7 +1742,7 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
   if (!contenedor) return;
   const control = await obtenerControlCajaDia(diaClave, forzarRemoto);
   const resumen = calcularResumenCajaDia(diaClave);
-  const esperado = Number(control.aperturaMonto || 0) + Number(resumen.totalEfectivo || 0);
+  const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
   const diferencia = control.cierreHora ? Number(control.cierreMonto || 0) - esperado : 0;
   contenedor.innerHTML = `
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
@@ -1742,7 +1754,7 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
         ${control.cierreHora ? `<strong>Diferencia:</strong> ${formatearCOP(diferencia)}` : 'Cierre pendiente'}
       </div>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
         <p class="text-xs uppercase tracking-wide text-gray-500">Apertura</p>
         <p class="text-lg font-extrabold text-gray-800 mt-1">${control.aperturaHora ? formatearCOP(control.aperturaMonto) : 'Sin registro'}</p>
@@ -1756,12 +1768,17 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
         <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo del sistema</p>
         <p class="text-lg font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivo)}</p>
-        <p class="text-xs text-gray-500 mt-1">${resumen.cantidadVentas} venta(s) activas</p>
+        <p class="text-xs text-gray-500 mt-1">${resumen.cantidadVentas} venta(s) activas, sin domicilios</p>
+      </div>
+      <div class="rounded-xl border border-amber-100 bg-amber-50 p-3">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Ajuste domicilios transferencia</p>
+        <p class="text-lg font-extrabold text-amber-700 mt-1">-${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">Se descuenta del efectivo esperado porque ese valor queda en transferencias</p>
       </div>
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
         <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo esperado</p>
         <p class="text-lg font-extrabold text-gray-800 mt-1">${formatearCOP(esperado)}</p>
-        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo del sistema</p>
+        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo del sistema - domicilios transferencia</p>
       </div>
     </div>
     ${control.cierreObservaciones ? `<p class="mt-3 text-sm text-gray-600"><strong>Observaciones:</strong> ${control.cierreObservaciones}</p>` : ''}
@@ -1895,14 +1912,17 @@ function normalizarVenta(venta = {}) {
   copia.pedido = Array.isArray(copia.pedido)
     ? copia.pedido.map(p => ({ nombre: p.nombre, precio: Number(p.precio || 0) }))
     : [];
-  const subtotalProductos = copia.pedido.reduce((acc, p) => acc + Number(p.precio || 0), 0);
-  copia.subtotalProductos = Number(copia.subtotalProductos ?? subtotalProductos);
+  const subtotalCalculado = copia.pedido.reduce((acc, p) => acc + Number(p.precio || 0), 0);
+  const subtotalBase = subtotalCalculado > 0
+    ? subtotalCalculado
+    : Number(copia.subtotalProductos ?? copia.total ?? 0);
+  copia.subtotalProductos = Number.isFinite(subtotalBase) && subtotalBase >= 0 ? subtotalBase : 0;
   copia.costoDomicilio = Number(copia.costoDomicilio || 0);
   const numeroDomicilio = Number(copia.numeroDomicilio || 0);
   copia.numeroDomicilio = Number.isFinite(numeroDomicilio) && numeroDomicilio > 0 ? numeroDomicilio : null;
   copia._localId = String(copia._localId || copia._docId || '').trim() || null;
   copia._syncEstado = copia._syncEstado === 'pendiente' ? 'pendiente' : 'sincronizado';
-  copia.total = Number(copia.subtotalProductos || 0);
+  copia.total = copia.subtotalProductos;
   return copia;
 }
 
@@ -2869,7 +2889,7 @@ function cancelarPedidoActual() {
             <h4 class="font-bold text-gray-800">${v.cliente || 'Sin cliente'}</h4>
           </div>
           <div class="text-right">
-            <p class="text-sm font-bold ${ventaCancelada ? 'text-red-600' : 'text-gray-800'}">${formatearCOP(v.total)}</p>
+            <p class="text-sm font-bold ${ventaCancelada ? 'text-red-600' : 'text-gray-800'}">${formatearCOP(obtenerIngresoRealVenta(v))}</p>
             <div class="mt-1">${obtenerBadgeEstadoVenta(v)}</div>
           </div>
         </div>
@@ -3011,7 +3031,7 @@ function cancelarPedidoActual() {
     const sheet = workbook.addWorksheet(nombreHoja);
 
     const headers = [
-      "#", "Fecha", "Cliente", "Forma de Pago", "Tipo de Pedido", "N° domicilio", "Costo domicilio (COP)", "Estado", "Producto", "Precio (COP)", "Total Venta (COP)"
+      "#", "Fecha", "Cliente", "Forma de Pago", "Tipo de Pedido", "N° domicilio", "Costo domicilio (COP)", "Estado", "Producto", "Precio (COP)", "Total Pedido (COP)"
     ];
     sheet.addRow(headers);
 
@@ -3019,7 +3039,8 @@ function cancelarPedidoActual() {
     const conteoProductos = {};
 
     ventasNormalizadas.forEach((venta, i) => {
-      const { fecha, cliente, formaPago, tipoPedido, total, pedido, costoDomicilio } = venta;
+      const { fecha, cliente, formaPago, tipoPedido, pedido, costoDomicilio } = venta;
+      const total = obtenerIngresoRealVenta(venta);
       const ventaCancelada = esVentaCancelada(venta);
       if (!ventaCancelada) {
         totalGlobal += parseFloat(total) || 0;
@@ -3678,7 +3699,11 @@ function volverAlPOS() {
     const pedidoNormalizado = Array.isArray(v.pedido)
       ? v.pedido.map(p => ({ nombre: p.nombre, precio: Number(p.precio || 0) }))
       : [];
-    const subtotalProductos = pedidoNormalizado.reduce((acc, p) => acc + Number(p.precio || 0), 0);
+    const subtotalCalculado = pedidoNormalizado.reduce((acc, p) => acc + Number(p.precio || 0), 0);
+    const subtotalBase = subtotalCalculado > 0
+      ? subtotalCalculado
+      : Number(v.subtotalProductos ?? v.total ?? 0);
+    const subtotalProductos = Number.isFinite(subtotalBase) && subtotalBase >= 0 ? subtotalBase : 0;
     const costoDomicilio = Number(v.costoDomicilio || 0);
     const numeroDomicilio = Number(v.numeroDomicilio || 0);
     return {
@@ -3689,10 +3714,10 @@ function volverAlPOS() {
       diaClave,
       comanda: v.comanda ?? v.recibo ?? (index + 1),
       recibo: v.recibo ?? v.comanda ?? (index + 1),
-      subtotalProductos: Number(v.subtotalProductos ?? subtotalProductos),
+      subtotalProductos,
       numeroDomicilio: Number.isFinite(numeroDomicilio) && numeroDomicilio > 0 ? numeroDomicilio : null,
       costoDomicilio,
-      total: Number(v.subtotalProductos ?? subtotalProductos)
+      total: subtotalProductos
     };
   }
 
@@ -3716,6 +3741,14 @@ function volverAlPOS() {
   function obtenerValorDomicilio(venta = {}) {
     const valor = Number(venta?.costoDomicilio || 0);
     return Number.isFinite(valor) && valor > 0 ? valor : 0;
+  }
+
+  function obtenerIngresoRealVenta(venta = {}) {
+    const pedido = Array.isArray(venta?.pedido) ? venta.pedido : [];
+    const subtotalCalculado = pedido.reduce((acc, p) => acc + Number(p?.precio || 0), 0);
+    if (subtotalCalculado > 0) return subtotalCalculado;
+    const subtotalGuardado = Number(venta?.subtotalProductos ?? venta?.total ?? 0);
+    return Number.isFinite(subtotalGuardado) && subtotalGuardado > 0 ? subtotalGuardado : 0;
   }
 
   function refrescarVistasAnaliticasSiEstanAbiertas() {
@@ -3787,8 +3820,8 @@ function volverAlPOS() {
     const canceladas = ventas.length - ventasActivas.length;
     const domiciliosActivos = contarDomicilios(ventasActivas, true);
     const domiciliosCancelados = ventas.filter(v => esVentaCancelada(v) && esPedidoDomicilio(v)).length;
-    const totalDia = ventasActivas.reduce((acc, v) => acc + Number(v.total || 0), 0);
-    resumen.innerHTML = `<strong>Fecha consultada:</strong> ${fechaSeleccionada} &nbsp;|&nbsp; <strong>Pedidos activos:</strong> ${ventasActivas.length} &nbsp;|&nbsp; <strong>Domicilios:</strong> ${domiciliosActivos}${domiciliosCancelados ? ` activos / ${domiciliosCancelados} cancelados` : ''} &nbsp;|&nbsp; <strong>Canceladas:</strong> ${canceladas} &nbsp;|&nbsp; <strong>Total contabilizado:</strong> ${formatearDinero(totalDia)}`;
+    const totalDia = ventasActivas.reduce((acc, v) => acc + obtenerIngresoRealVenta(v), 0);
+    resumen.innerHTML = `<strong>Fecha consultada:</strong> ${fechaSeleccionada} &nbsp;|&nbsp; <strong>Pedidos activos:</strong> ${ventasActivas.length} &nbsp;|&nbsp; <strong>Domicilios:</strong> ${domiciliosActivos}${domiciliosCancelados ? ` activos / ${domiciliosCancelados} cancelados` : ''} &nbsp;|&nbsp; <strong>Canceladas:</strong> ${canceladas} &nbsp;|&nbsp; <strong>Total contabilizado:</strong> ${formatearDinero(totalDia)} <span class="text-xs text-gray-500">(sin domicilios)</span>`;
 
     body.innerHTML = '';
     if (!ventas.length) {
@@ -3809,7 +3842,7 @@ function volverAlPOS() {
           <td class="p-2 border">${obtenerBadgeEstadoVenta(v)}</td>
           <td class="p-2 border">${v.observaciones || '-'}</td>
           <td class="p-2 border">${resumirProductosPedido(v.pedido || [])}</td>
-          <td class="p-2 border font-semibold ${ventaCancelada ? 'text-red-600' : ''}">${formatearDinero(v.total)}</td>
+          <td class="p-2 border font-semibold ${ventaCancelada ? 'text-red-600' : ''}">${formatearDinero(obtenerIngresoRealVenta(v))}</td>
         </tr>
       `;
     });
@@ -3863,11 +3896,11 @@ function volverAlPOS() {
     };
 
     setText("histHoyVentas", `${ventasHoyActivas.length} pedido(s)${canceladasHoy ? ` · ${canceladasHoy} cancelado(s)` : ""}`);
-    setText("histHoyTotal", `${formatearDinero(ventasHoyActivas.reduce((acc, v) => acc + Number(v.total || 0), 0))} · ${domiciliosHoy} domicilio(s)${domiciliosHoyCancelados ? ` / ${domiciliosHoyCancelados} cancelado(s)` : ""}`);
+    setText("histHoyTotal", `${formatearDinero(ventasHoyActivas.reduce((acc, v) => acc + obtenerIngresoRealVenta(v), 0))} · ${domiciliosHoy} domicilio(s)${domiciliosHoyCancelados ? ` / ${domiciliosHoyCancelados} cancelado(s)` : ""} · sin domicilios`);
     setText("histSemanaVentas", `${ventasSemanaActivas.length} pedido(s)${canceladasSemana ? ` · ${canceladasSemana} cancelado(s)` : ""}`);
-    setText("histSemanaTotal", `${formatearDinero(ventasSemanaActivas.reduce((acc, v) => acc + Number(v.total || 0), 0))} · ${domiciliosSemana} domicilio(s)${domiciliosSemanaCancelados ? ` / ${domiciliosSemanaCancelados} cancelado(s)` : ""}`);
+    setText("histSemanaTotal", `${formatearDinero(ventasSemanaActivas.reduce((acc, v) => acc + obtenerIngresoRealVenta(v), 0))} · ${domiciliosSemana} domicilio(s)${domiciliosSemanaCancelados ? ` / ${domiciliosSemanaCancelados} cancelado(s)` : ""} · sin domicilios`);
     setText("histMesVentas", `${ventasMesActivas.length} pedido(s)${canceladasMes ? ` · ${canceladasMes} cancelado(s)` : ""}`);
-    setText("histMesTotal", `${formatearDinero(ventasMesActivas.reduce((acc, v) => acc + Number(v.total || 0), 0))} · ${domiciliosMes} domicilio(s)${domiciliosMesCancelados ? ` / ${domiciliosMesCancelados} cancelado(s)` : ""}`);
+    setText("histMesTotal", `${formatearDinero(ventasMesActivas.reduce((acc, v) => acc + obtenerIngresoRealVenta(v), 0))} · ${domiciliosMes} domicilio(s)${domiciliosMesCancelados ? ` / ${domiciliosMesCancelados} cancelado(s)` : ""} · sin domicilios`);
 
     const diario = {};
     const semanal = {};
@@ -3894,15 +3927,15 @@ function volverAlPOS() {
         }
       } else {
         diario[dia].ventas += 1;
-        diario[dia].total += Number(v.total || 0);
+        diario[dia].total += obtenerIngresoRealVenta(v);
         if (esPedidoDomicilio(v)) diario[dia].domicilios += 1;
 
         semanal[semana].ventas += 1;
-        semanal[semana].total += Number(v.total || 0);
+        semanal[semana].total += obtenerIngresoRealVenta(v);
         if (esPedidoDomicilio(v)) semanal[semana].domicilios += 1;
 
         mensual[mes].ventas += 1;
-        mensual[mes].total += Number(v.total || 0);
+        mensual[mes].total += obtenerIngresoRealVenta(v);
         if (esPedidoDomicilio(v)) mensual[mes].domicilios += 1;
       }
     });
@@ -4052,7 +4085,7 @@ function volverAlPOS() {
           <td class="p-2 border">${v.formaPago || '-'}</td>
           <td class="p-2 border">${obtenerEtiquetaPagoDomicilio(v)}</td>
           <td class="p-2 border font-semibold">${formatearDinero(obtenerValorDomicilio(v))}</td>
-          <td class="p-2 border">${formatearDinero(v.total || 0)}</td>
+          <td class="p-2 border">${formatearDinero(obtenerIngresoRealVenta(v))}</td>
           <td class="p-2 border">${obtenerBadgeEstadoVenta(v)}</td>
           <td class="p-2 border">${resumirProductosPedido(v.pedido || [])}</td>
           <td class="p-2 border text-center">${ventaCancelada ? '<span class="text-xs text-red-600 font-semibold">Sin recibo</span>' : `<button onclick="imprimirVentaCliente(${v._index})" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-xs font-semibold">Abrir recibo</button>`}</td>
