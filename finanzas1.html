@@ -1601,7 +1601,7 @@ body.dark-mode .pago-nomina-card .value {
               <td class="text-center">${item.pagos}</td>
               <td>${Number(item.total).toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}</td>
               <td>${formatearFechaSolo(item.ultimoPago) || '-'}</td>
-              <td><button class="btn btn-outline-primary btn-sm" onclick="seleccionarEmpleadoNomina(${JSON.stringify(item.nombre)})">Ver pagos</button></td>
+              <td><button class="btn btn-outline-primary btn-sm btn-ver-pagos-nomina" data-empleado="${encodeURIComponent(item.nombre)}">Ver pagos</button></td>
             </tr>
           `).join('')
           : '<tr><td colspan="6" class="text-center text-muted py-3">No hay pagos de nómina sincronizados todavía.</td></tr>';
@@ -1637,7 +1637,18 @@ body.dark-mode .pago-nomina-card .value {
       empleadoNominaSeleccionado = String(nombre || '');
       if (filtroEmpleadoNomina) filtroEmpleadoNomina.value = empleadoNominaSeleccionado;
       actualizarVistaNomina();
+      const detalle = document.getElementById('tablaDetalleNomina');
+      if (detalle) {
+        detalle.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
+
+    document.addEventListener('click', function(event) {
+      const btn = event.target.closest('.btn-ver-pagos-nomina');
+      if (!btn) return;
+      const nombre = decodeURIComponent(btn.getAttribute('data-empleado') || '');
+      seleccionarEmpleadoNomina(nombre);
+    });
 
     if (filtroEmpleadoNomina) {
       filtroEmpleadoNomina.addEventListener('change', function() {
