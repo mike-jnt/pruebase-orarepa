@@ -538,7 +538,9 @@ body.dark-mode .pago-nomina-card .value {
 
 
       </div>
-
+      <div class="small text-muted mb-2">
+        Desde esta tabla puedes eliminar movimientos manuales y también los automáticos. Cuando eliminas un automático, se borra de finanzas y queda marcado para que no se vuelva a crear en la siguiente sincronización.
+      </div>
 
       <div class="tabla-container">
         <table class="table table-bordered table-hover">
@@ -587,6 +589,7 @@ body.dark-mode .pago-nomina-card .value {
     const CACHE_RESPALDO_MIGRACION_KEY = 'movimientos_finanzas_respaldo_local_v1';
     const PREFIJO_MOVIMIENTO_CIERRE = 'cierre_caja_';
     const PREFIJO_MOVIMIENTO_NOMINA = 'nomina_pago_';
+    const PREFIJO_EXCLUSION_FINANZAS = 'exclusion_finanzas_';
 
     let indiceEdicion = null;
     let movimientos = JSON.parse(localStorage.getItem(CACHE_KEY)) || [];
@@ -599,6 +602,7 @@ body.dark-mode .pago-nomina-card .value {
     let authDisponible = false;
     let usuarioAutenticado = null;
     let sincronizandoCierres = false;
+    let exclusionesAutomaticas = new Set();
     let resumenUltimaMigracion = null;
     let empleadoNominaSeleccionado = '';
 
@@ -646,6 +650,8 @@ body.dark-mode .pago-nomina-card .value {
         detalleControlCaja: item.detalleControlCaja || null,
         detalleNomina: item.detalleNomina || null,
         migracionHuella: item.migracionHuella || null,
+        exclusionActiva: Boolean(item.exclusionActiva),
+        exclusionSourceKey: item.exclusionSourceKey || null,
         createdAt: item.createdAt || null,
         updatedAt: item.updatedAt || null
       };
@@ -757,6 +763,40 @@ body.dark-mode .pago-nomina-card .value {
 
     function obtenerIdMovimientoNomina(pagoId) {
       return `${PREFIJO_MOVIMIENTO_NOMINA}${String(pagoId || '').trim()}`;
+    }
+
+    function obtenerIdExclusionFinanzas(sourceKey) {
+      return `${PREFIJO_EXCLUSION_FINANZAS}${String(sourceKey || '').trim()}`;
+    }
+
+    function esDocumentoExclusion(item) {
+      return Boolean(item && (item.exclusionActiva || String(item.id || '').startsWith(PREFIJO_EXCLUSION_FINANZAS)));
+    }
+
+    async function cargarExclusionesAutomaticas() {
+      if (!firebaseDisponible || !firestoreDb || !usuarioAutenticado) {
+        exclusionesAutomaticas = new Set();
+        return exclusionesAutomaticas;
+      }
+
+      try {
+        const snapshot = await firestoreDb.collection(COLECCION_MOVIMIENTOS)
+          .where('exclusionActiva', '==', true)
+          .get();
+        exclusionesAutomaticas = new Set(
+          snapshot.docs
+            .map(doc => String(doc.data()?.sourceKey || doc.data()?.exclusionSourceKey || '').trim())
+            .filter(Boolean)
+        );
+      } catch (error) {
+        console.warn('No se pudieron cargar las exclusiones automáticas de finanzas:', error);
+        exclusionesAutomaticas = exclusionesAutomaticas || new Set();
+      }
+      return exclusionesAutomaticas;
+    }
+
+    function estaExcluidoMovimientoAutomatico(sourceKey) {
+      return Boolean(sourceKey && exclusionesAutomaticas && exclusionesAutomaticas.has(String(sourceKey).trim()));
     }
 
     function formatearFechaHoraLocal(valor) {
@@ -989,7 +1029,7 @@ body.dark-mode .pago-nomina-card .value {
           const control = { diaClave: doc.id, ...doc.data() };
           if (!control.cierreHora) continue;
           const movimiento = construirMovimientoDesdeControlCaja(control);
-          if (!movimiento) continue;
+          if (!movimiento || estaExcluidoMovimientoAutomatico(movimiento.sourceKey)) continue;
 
           const docRef = firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(movimiento.id);
           const existente = await docRef.get();
@@ -1047,7 +1087,7 @@ body.dark-mode .pago-nomina-card .value {
         for (const doc of snapshot.docs) {
           const pago = { pagoId: doc.id, ...doc.data() };
           const movimiento = construirMovimientoDesdePagoNomina(doc.id, pago);
-          if (!movimiento) continue;
+          if (!movimiento || estaExcluidoMovimientoAutomatico(movimiento.sourceKey)) continue;
 
           const docRef = firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(movimiento.id);
           const existente = await docRef.get();
@@ -1103,6 +1143,7 @@ body.dark-mode .pago-nomina-card .value {
 
       if (!usuarioAutenticado) {
         setEstadoFirebase('Inicia sesión en Señor Arepa para sincronizar', false);
+        exclusionesAutomaticas = new Set();
         movimientos = JSON.parse(localStorage.getItem(CACHE_KEY)) || JSON.parse(localStorage.getItem(CACHE_ANTERIOR_KEY)) || [];
         movimientos = ordenarMovimientos(movimientos.map(normalizarMovimiento));
         actualizarTodo();
@@ -1113,10 +1154,13 @@ body.dark-mode .pago-nomina-card .value {
 
       try {
         setEstadoFirebase('Cargando movimientos...', true);
+        await cargarExclusionesAutomaticas();
         await sincronizarCierresCajaEnFinanzas(false);
         await sincronizarPagosNominaEnFinanzas(false);
         const snapshot = await firestoreDb.collection(COLECCION_MOVIMIENTOS).get();
-        movimientos = snapshot.docs.map(doc => normalizarMovimiento({ id: doc.id, ...doc.data() }));
+        movimientos = snapshot.docs
+          .map(doc => normalizarMovimiento({ id: doc.id, ...doc.data() }))
+          .filter(item => !esDocumentoExclusion(item));
         movimientos = ordenarMovimientos(movimientos);
         guardarCache();
         actualizarTodo();
@@ -1389,10 +1433,23 @@ body.dark-mode .pago-nomina-card .value {
           ? `${m.categoria || ''}<div><span class="badge text-bg-warning mt-1">Automático</span></div>`
           : (m.categoria || '');
         const acciones = esAutomatico
-          ? `<span class="text-muted small">${esAutoNomina ? 'Bloqueado por nómina' : 'Bloqueado por cierre de caja'}</span>`
+          ? `
+            <div class="d-flex flex-column gap-1">
+              <span class="text-muted small">${esAutoNomina ? 'Automático desde nómina' : 'Automático desde cierre de caja'}</span>
+              <button class="btn btn-outline-danger btn-sm" onclick="eliminarMovimiento(${indexReal})" title="Eliminar este automático de finanzas y evitar que se vuelva a sincronizar">
+                <i class="bi bi-trash"></i> Eliminar
+              </button>
+            </div>
+          `
           : `
-            <button class="btn btn-warning btn-sm me-1" onclick="editarMovimiento(${indexReal})"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-danger btn-sm" onclick="eliminarMovimiento(${indexReal})"><i class="bi bi-trash"></i></button>
+            <div class="d-flex flex-wrap gap-1">
+              <button class="btn btn-warning btn-sm" onclick="editarMovimiento(${indexReal})" title="Editar movimiento">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="eliminarMovimiento(${indexReal})" title="Eliminar movimiento de finanzas y de la base de datos">
+                <i class="bi bi-trash"></i> Eliminar
+              </button>
+            </div>
           `;
         const fila = document.createElement('tr');
         fila.innerHTML = `
@@ -1411,16 +1468,55 @@ body.dark-mode .pago-nomina-card .value {
     async function eliminarMovimiento(index) {
       const movimiento = movimientos[index];
       if (!movimiento) return;
-      if (esMovimientoAutomatico(movimiento)) {
-        alert(esMovimientoAutomaticoNomina(movimiento)
-          ? 'Este movimiento viene de la nómina y se actualiza automáticamente desde la colección nomina.'
-          : 'Este movimiento viene del cierre de caja y se actualiza automáticamente desde Señor Arepa.');
-        return;
-      }
+
+      const esAutomatico = esMovimientoAutomatico(movimiento);
+      const etiqueta = `${(movimiento.tipo || 'movimiento').toUpperCase()} · ${movimiento.categoria || 'Sin categoría'} · $${Number(movimiento.monto || 0).toLocaleString('es-CO')}`;
+      const mensajeAutomatico = esMovimientoAutomaticoNomina(movimiento)
+        ? 'Este movimiento automático viene de Nómina. Se eliminará de Finanzas y quedará bloqueado para que no se vuelva a sincronizar.'
+        : esMovimientoAutomaticoCierre(movimiento)
+          ? 'Este movimiento automático viene del cierre de caja. Se eliminará de Finanzas y quedará bloqueado para que no se vuelva a sincronizar.'
+          : 'Este movimiento automático se eliminará de Finanzas y quedará bloqueado para que no se vuelva a sincronizar.';
+      const confirmado = confirm(`¿Deseas eliminar este registro del historial?
+
+${etiqueta}
+${movimiento.fecha || ''}
+
+${esAutomatico ? mensajeAutomatico : 'Esta acción también lo borrará de la base de datos.'}`);
+      if (!confirmado) return;
 
       try {
         if (!firebaseDisponible || !usuarioAutenticado || !movimiento.id) {
           throw new Error('Movimiento sin sesión o sin id de Firestore');
+        }
+
+        if (esAutomatico) {
+          const sourceKey = String(movimiento.sourceKey || movimiento.id || '').trim();
+          if (!sourceKey) {
+            throw new Error('Movimiento automático sin sourceKey');
+          }
+
+          const exclusionId = obtenerIdExclusionFinanzas(sourceKey);
+          await firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(exclusionId).set({
+            exclusionActiva: true,
+            exclusionSourceKey: sourceKey,
+            sourceKey,
+            origen: movimiento.origen || 'automatico',
+            origenColeccion: movimiento.origenColeccion || null,
+            descripcion: movimiento.descripcion || '',
+            categoria: movimiento.categoria || '',
+            fecha: movimiento.fecha || '',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+
+          await firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(movimiento.id).delete();
+          exclusionesAutomaticas.add(sourceKey);
+          movimientos.splice(index, 1);
+          movimientos = ordenarMovimientos(movimientos);
+          guardarCache();
+          actualizarTodo();
+          alert('Movimiento automático eliminado de Finanzas. También quedó marcado para no recrearse en la siguiente sincronización.');
+          return;
         }
 
         await firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(movimiento.id).delete();
@@ -1428,6 +1524,7 @@ body.dark-mode .pago-nomina-card .value {
         movimientos = ordenarMovimientos(movimientos);
         guardarCache();
         actualizarTodo();
+        alert('Movimiento eliminado correctamente del historial y de la base de datos.');
       } catch (error) {
         console.error('Error eliminando movimiento:', error);
         alert('No se pudo eliminar en Firebase.');
