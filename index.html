@@ -17,7 +17,7 @@
   html { scroll-behavior: smooth; }
   @media (max-width: 767px) {
     body { padding-bottom: 120px; }
-    #appMain, #historicosVista { padding: 1rem; }
+    #appMain, #historicosVista, #domiciliosVista { padding: 1rem; }
     #productos > div { border-radius: 1rem; }
     #productos button {
       min-height: 72px;
@@ -34,7 +34,9 @@
       white-space: nowrap;
     }
     #historicosVista table th,
-    #historicosVista table td {
+    #historicosVista table td,
+    #domiciliosVista table th,
+    #domiciliosVista table td {
       white-space: nowrap;
     }
   }
@@ -259,6 +261,9 @@
         <button type="button" onclick="abrirHistoricos()" data-role="admin-only" class="bg-white text-yellow-700 font-semibold px-3 py-2 rounded-lg shadow hover:bg-yellow-100 transition text-center">
           📈 Históricos
         </button>
+        <button type="button" onclick="abrirDomiciliosVista()" data-role="admin-only" class="bg-white text-yellow-700 font-semibold px-3 py-2 rounded-lg shadow hover:bg-yellow-100 transition text-center">
+          🛵 Domicilios
+        </button>
         <button type="button" onclick="abrirCajaVista()" class="bg-white text-yellow-700 font-semibold px-3 py-2 rounded-lg shadow hover:bg-yellow-100 transition text-center">
           💵 Cierre del día
         </button>
@@ -299,6 +304,7 @@
           <button type="button" onclick="abrirCajaVista(); cerrarMobileMenu();" class="menu-link-text">💵 Cierre del día</button>
           <a href="finanzas1.html" data-role="admin-only" class="menu-link-text admin">📋 Finanzas</a>
           <button type="button" onclick="abrirHistoricos(); cerrarMobileMenu();" data-role="admin-only" class="menu-link-text admin">📈 Históricos</button>
+          <button type="button" onclick="abrirDomiciliosVista(); cerrarMobileMenu();" data-role="admin-only" class="menu-link-text admin">🛵 Domicilios</button>
           <a href="inventario.html" data-role="admin-only" class="menu-link-text admin">📆 Inventario</a>
           <button type="button" onclick="exportarVentasExcelConEstilo(); cerrarMobileMenu();" id="btnExportarExcelMobile" data-role="admin-only" class="menu-link-text admin">📊 Exportar ventas a Excel</button>
           <button type="button" onclick="borrarVentas(); cerrarMobileMenu();" data-role="admin-only" class="menu-link-text admin">🗑️ Borrar ventas</button>
@@ -884,6 +890,106 @@
 
     </div>
   </main>
+  <main id="domiciliosVista" data-role="admin-only" class="p-4 md:p-6 hidden">
+    <div class="max-w-7xl mx-auto">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <div>
+          <p class="text-sm uppercase tracking-wide text-yellow-600 font-semibold">Control de domicilios</p>
+          <h2 class="text-2xl md:text-3xl font-black text-gray-800">Domicilios por día</h2>
+          <p class="text-sm text-gray-500">Revisa cuántos domicilios hubo por fecha, cuánto se cobró por efectivo o transferencia y abre el recibo para ver el pedido completo.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="volverAlPOS()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg">← Volver al POS</button>
+          <button onclick="actualizarDomiciliosVista()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">Actualizar domicilios</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <p class="text-sm text-gray-500">Hoy</p>
+          <p id="domHoyCantidad" class="text-2xl font-bold text-gray-800">0 domicilios</p>
+          <p id="domHoyValor" class="text-sm text-gray-700">$0</p>
+        </div>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <p class="text-sm text-gray-500">Domicilios por transferencia</p>
+          <p id="domTransferenciaCantidad" class="text-2xl font-bold text-gray-800">0 domicilios</p>
+          <p id="domTransferenciaValor" class="text-sm text-gray-700">$0</p>
+        </div>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <p class="text-sm text-gray-500">Domicilios en efectivo</p>
+          <p id="domEfectivoCantidad" class="text-2xl font-bold text-gray-800">0 domicilios</p>
+          <p id="domEfectivoValor" class="text-sm text-gray-700">$0</p>
+        </div>
+      </div>
+
+      <div class="border border-yellow-200 rounded-xl p-4 bg-yellow-50 mb-8">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
+          <div>
+            <h4 class="font-semibold text-lg text-gray-800">Resumen de domicilios por día</h4>
+            <p class="text-sm text-gray-600">Cada fila muestra la cantidad de domicilios del día y el valor cobrado solo por domicilio según el método de pago.</p>
+          </div>
+        </div>
+
+        <div class="overflow-auto border rounded-lg bg-white">
+          <table class="min-w-full text-sm">
+            <thead class="bg-yellow-100">
+              <tr>
+                <th class="p-2 border">Fecha</th>
+                <th class="p-2 border">Domicilios</th>
+                <th class="p-2 border">Cancelados</th>
+                <th class="p-2 border">Transferencia</th>
+                <th class="p-2 border">Efectivo</th>
+                <th class="p-2 border">Valor transferencia</th>
+                <th class="p-2 border">Valor efectivo</th>
+                <th class="p-2 border">Valor total domicilio</th>
+              </tr>
+            </thead>
+            <tbody id="domiciliosDiaBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="border border-yellow-200 rounded-xl p-4 bg-yellow-50">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
+          <div>
+            <h4 class="font-semibold text-lg text-gray-800">Domicilios detallados por día</h4>
+            <p class="text-sm text-gray-600">Consulta cada domicilio de una fecha, el valor del pedido, el costo del domicilio y abre el recibo del cliente.</p>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <div>
+              <label for="filtroDomiciliosFecha" class="block text-sm text-gray-600 mb-1">Fecha a consultar</label>
+              <input type="date" id="filtroDomiciliosFecha" class="p-2 border border-yellow-300 rounded-lg" />
+            </div>
+            <button onclick="verDomiciliosDetalladosPorFecha()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">Ver domicilios del día</button>
+          </div>
+        </div>
+
+        <div id="resumenDomiciliosDiaSeleccionado" class="mb-4 text-sm text-gray-700"></div>
+
+        <div class="overflow-auto border rounded-lg bg-white">
+          <table class="min-w-full text-sm">
+            <thead class="bg-yellow-100">
+              <tr>
+                <th class="p-2 border">Recibo</th>
+                <th class="p-2 border">Comanda</th>
+                <th class="p-2 border">Hora</th>
+                <th class="p-2 border">Cliente</th>
+                <th class="p-2 border">Pago</th>
+                <th class="p-2 border">Clasificación</th>
+                <th class="p-2 border">Valor domicilio</th>
+                <th class="p-2 border">Valor pedido</th>
+                <th class="p-2 border">Estado</th>
+                <th class="p-2 border">Productos</th>
+                <th class="p-2 border">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="domiciliosDetalleBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
   <script>
       let pedido = [];
   let total = 0;
@@ -2001,10 +2107,7 @@ function escucharVentasFirestore() {
       primeraCarga = false;
 
       mostrarVentas();
-      if (document.getElementById("historicosVista") && !document.getElementById("historicosVista").classList.contains("hidden")) {
-        actualizarHistoricos();
-        verVentasDetalladasPorFecha();
-      }
+      refrescarVistasAnaliticasSiEstanAbiertas();
     }, (error) => {
       console.error("Error al escuchar ventas de Firebase:", error);
       actualizarIndicadorFirebase("desconectado", "Error al sincronizar con Firebase");
@@ -2213,6 +2316,8 @@ function aplicarPermisosPorRol() {
   actualizarResumenPasosVenta();
   const historicosVista = document.getElementById("historicosVista");
   if (historicosVista) historicosVista.classList.add("hidden");
+  const domiciliosVista = document.getElementById("domiciliosVista");
+  if (domiciliosVista) domiciliosVista.classList.add("hidden");
 
   if (!sesionActiva || !tieneRolValido()) {
     const campoClave = document.getElementById("loginClave");
@@ -2646,6 +2751,7 @@ function cancelarPedidoActual() {
 
       limpiarPedido();
       mostrarVentas();
+      refrescarVistasAnaliticasSiEstanAbiertas();
       document.getElementById("resumenProductos").classList.add("hidden");
     } catch (error) {
       console.error("Error al guardar la venta:", error);
@@ -3353,10 +3459,7 @@ async function marcarVentaComoCancelada(index) {
     if (resumen && !resumen.classList.contains("hidden")) {
       generarResumenProductos();
     }
-    const historicosVista = document.getElementById("historicosVista");
-    if (historicosVista && !historicosVista.classList.contains("hidden")) {
-      actualizarHistoricos();
-    }
+    refrescarVistasAnaliticasSiEstanAbiertas();
   } catch (error) {
     console.error("Error al cancelar la venta:", error);
     alert("No se pudo cancelar la venta.");
@@ -3406,8 +3509,10 @@ async function abrirHistoricos() {
   const appMain = document.getElementById("appMain");
   const historicosVista = document.getElementById("historicosVista");
   const cajaVista = document.getElementById("cajaVista");
+  const domiciliosVista = document.getElementById("domiciliosVista");
   if (appMain) appMain.classList.add("hidden");
   if (cajaVista) cajaVista.classList.add("hidden");
+  if (domiciliosVista) domiciliosVista.classList.add("hidden");
   if (historicosVista) historicosVista.classList.remove("hidden");
   actualizarHistoricos();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -3418,8 +3523,10 @@ async function abrirCajaVista() {
   const appMain = document.getElementById("appMain");
   const historicosVista = document.getElementById("historicosVista");
   const cajaVista = document.getElementById("cajaVista");
+  const domiciliosVista = document.getElementById("domiciliosVista");
   if (appMain) appMain.classList.add("hidden");
   if (historicosVista) historicosVista.classList.add("hidden");
+  if (domiciliosVista) domiciliosVista.classList.add("hidden");
   if (cajaVista) cajaVista.classList.remove("hidden");
   await renderControlCajaDiaActual(true);
   await renderTablaCierresCaja(true);
@@ -3430,8 +3537,10 @@ function volverAlPOS() {
   const appMain = document.getElementById("appMain");
   const historicosVista = document.getElementById("historicosVista");
   const cajaVista = document.getElementById("cajaVista");
+  const domiciliosVista = document.getElementById("domiciliosVista");
   if (historicosVista) historicosVista.classList.add("hidden");
   if (cajaVista) cajaVista.classList.add("hidden");
+  if (domiciliosVista) domiciliosVista.classList.add("hidden");
   if (appMain) appMain.classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -3590,6 +3699,34 @@ function volverAlPOS() {
   function obtenerVentasNormalizadas() {
     const ventas = obtenerVentasStorage();
     return ventas.map((v, i) => normalizarVenta(v, i));
+  }
+
+  function esPagoEfectivo(venta = {}) {
+    return String(venta?.formaPago || '').trim().toLowerCase() === 'efectivo';
+  }
+
+  function esPagoTransferencia(venta = {}) {
+    return !esPagoEfectivo(venta);
+  }
+
+  function obtenerEtiquetaPagoDomicilio(venta = {}) {
+    return esPagoEfectivo(venta) ? 'Efectivo' : 'Transferencia';
+  }
+
+  function obtenerValorDomicilio(venta = {}) {
+    const valor = Number(venta?.costoDomicilio || 0);
+    return Number.isFinite(valor) && valor > 0 ? valor : 0;
+  }
+
+  function refrescarVistasAnaliticasSiEstanAbiertas() {
+    const historicosVista = document.getElementById('historicosVista');
+    const domiciliosVista = document.getElementById('domiciliosVista');
+    if (historicosVista && !historicosVista.classList.contains('hidden')) {
+      actualizarHistoricos();
+    }
+    if (domiciliosVista && !domiciliosVista.classList.contains('hidden')) {
+      actualizarDomiciliosVista();
+    }
   }
 
   function renderHistorico(bodyId, filas, etiquetaVacia) {
@@ -3785,6 +3922,160 @@ function volverAlPOS() {
   }
 
   
+  function actualizarDomiciliosVista() {
+    const ventas = obtenerVentasNormalizadas().map((v, index) => ({ ...v, _index: index }));
+    const domicilios = ventas.filter(v => esPedidoDomicilio(v));
+    const domiciliosActivos = filtrarVentasActivas(domicilios);
+    const hoy = obtenerFechaLocalISO(new Date());
+
+    const setText = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+
+    const domiciliosHoy = domiciliosActivos.filter(v => v.diaClave === hoy);
+    const domiciliosTransferencia = domiciliosActivos.filter(v => esPagoTransferencia(v));
+    const domiciliosEfectivo = domiciliosActivos.filter(v => esPagoEfectivo(v));
+
+    setText('domHoyCantidad', `${domiciliosHoy.length} domicilio(s)`);
+    setText('domHoyValor', formatearDinero(domiciliosHoy.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0)));
+    setText('domTransferenciaCantidad', `${domiciliosTransferencia.length} domicilio(s)`);
+    setText('domTransferenciaValor', formatearDinero(domiciliosTransferencia.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0)));
+    setText('domEfectivoCantidad', `${domiciliosEfectivo.length} domicilio(s)`);
+    setText('domEfectivoValor', formatearDinero(domiciliosEfectivo.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0)));
+
+    const resumenPorDia = {};
+    domicilios.forEach(v => {
+      const dia = v.diaClave || obtenerFechaLocalISO(new Date(v.fechaISO || v.fecha || Date.now()));
+      if (!resumenPorDia[dia]) {
+        resumenPorDia[dia] = {
+          fecha: dia,
+          cantidad: 0,
+          cancelados: 0,
+          transferenciaCantidad: 0,
+          efectivoCantidad: 0,
+          transferenciaValor: 0,
+          efectivoValor: 0,
+          totalValor: 0
+        };
+      }
+      const fila = resumenPorDia[dia];
+      if (esVentaCancelada(v)) {
+        fila.cancelados += 1;
+        return;
+      }
+      const valorDomicilio = obtenerValorDomicilio(v);
+      fila.cantidad += 1;
+      fila.totalValor += valorDomicilio;
+      if (esPagoEfectivo(v)) {
+        fila.efectivoCantidad += 1;
+        fila.efectivoValor += valorDomicilio;
+      } else {
+        fila.transferenciaCantidad += 1;
+        fila.transferenciaValor += valorDomicilio;
+      }
+    });
+
+    const body = document.getElementById('domiciliosDiaBody');
+    if (body) {
+      const filas = Object.values(resumenPorDia).sort((a, b) => b.fecha.localeCompare(a.fecha));
+      body.innerHTML = '';
+      if (!filas.length) {
+        body.innerHTML = '<tr><td colspan="8" class="p-3 text-center text-gray-500">No hay domicilios registrados.</td></tr>';
+      } else {
+        filas.forEach(fila => {
+          body.innerHTML += `
+            <tr>
+              <td class="p-2 border">${fila.fecha}</td>
+              <td class="p-2 border">${fila.cantidad}</td>
+              <td class="p-2 border">${fila.cancelados}</td>
+              <td class="p-2 border">${fila.transferenciaCantidad}</td>
+              <td class="p-2 border">${fila.efectivoCantidad}</td>
+              <td class="p-2 border">${formatearDinero(fila.transferenciaValor)}</td>
+              <td class="p-2 border">${formatearDinero(fila.efectivoValor)}</td>
+              <td class="p-2 border font-semibold">${formatearDinero(fila.totalValor)}</td>
+            </tr>
+          `;
+        });
+      }
+    }
+
+    const filtroFecha = document.getElementById('filtroDomiciliosFecha');
+    if (filtroFecha && !filtroFecha.value) {
+      filtroFecha.value = hoy;
+    }
+    verDomiciliosDetalladosPorFecha();
+  }
+
+  function verDomiciliosDetalladosPorFecha() {
+    const input = document.getElementById('filtroDomiciliosFecha');
+    const body = document.getElementById('domiciliosDetalleBody');
+    const resumen = document.getElementById('resumenDomiciliosDiaSeleccionado');
+    if (!input || !body || !resumen) return;
+
+    const fechaSeleccionada = input.value || obtenerFechaLocalISO(new Date());
+    input.value = fechaSeleccionada;
+
+    const domicilios = obtenerVentasNormalizadas()
+      .map((v, index) => ({ ...v, _index: index }))
+      .filter(v => esPedidoDomicilio(v) && v.diaClave === fechaSeleccionada)
+      .sort((a, b) => {
+        const aTime = new Date(a.fechaISO || a.fecha).getTime() || 0;
+        const bTime = new Date(b.fechaISO || b.fecha).getTime() || 0;
+        return bTime - aTime;
+      });
+
+    const activos = filtrarVentasActivas(domicilios);
+    const cancelados = domicilios.length - activos.length;
+    const transferencia = activos.filter(v => esPagoTransferencia(v));
+    const efectivo = activos.filter(v => esPagoEfectivo(v));
+    const valorTransferencia = transferencia.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0);
+    const valorEfectivo = efectivo.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0);
+    const valorTotalDomicilios = activos.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0);
+
+    resumen.innerHTML = `<strong>Fecha consultada:</strong> ${fechaSeleccionada} &nbsp;|&nbsp; <strong>Domicilios activos:</strong> ${activos.length} &nbsp;|&nbsp; <strong>Transferencia:</strong> ${transferencia.length} (${formatearDinero(valorTransferencia)}) &nbsp;|&nbsp; <strong>Efectivo:</strong> ${efectivo.length} (${formatearDinero(valorEfectivo)}) &nbsp;|&nbsp; <strong>Cancelados:</strong> ${cancelados} &nbsp;|&nbsp; <strong>Total domicilio:</strong> ${formatearDinero(valorTotalDomicilios)}`;
+
+    body.innerHTML = '';
+    if (!domicilios.length) {
+      body.innerHTML = '<tr><td colspan="11" class="p-3 text-center text-gray-500">No hay domicilios registrados para esta fecha.</td></tr>';
+      return;
+    }
+
+    domicilios.forEach(v => {
+      const ventaCancelada = esVentaCancelada(v);
+      body.innerHTML += `
+        <tr class="${ventaCancelada ? 'bg-red-50 text-gray-500' : ''}">
+          <td class="p-2 border">${v.recibo ?? '-'}</td>
+          <td class="p-2 border">${v.comanda ?? '-'}</td>
+          <td class="p-2 border">${formatearHoraColombia(v.fechaISO || v.fecha)}</td>
+          <td class="p-2 border">${v.cliente || 'N/A'}</td>
+          <td class="p-2 border">${v.formaPago || '-'}</td>
+          <td class="p-2 border">${obtenerEtiquetaPagoDomicilio(v)}</td>
+          <td class="p-2 border font-semibold">${formatearDinero(obtenerValorDomicilio(v))}</td>
+          <td class="p-2 border">${formatearDinero(v.total || 0)}</td>
+          <td class="p-2 border">${obtenerBadgeEstadoVenta(v)}</td>
+          <td class="p-2 border">${resumirProductosPedido(v.pedido || [])}</td>
+          <td class="p-2 border text-center">${ventaCancelada ? '<span class="text-xs text-red-600 font-semibold">Sin recibo</span>' : `<button onclick="imprimirVentaCliente(${v._index})" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-xs font-semibold">Abrir recibo</button>`}</td>
+        </tr>
+      `;
+    });
+  }
+
+  async function abrirDomiciliosVista() {
+    if (!esAdmin()) return alert('No tienes permiso para acceder a domicilios.');
+    const appMain = document.getElementById('appMain');
+    const historicosVista = document.getElementById('historicosVista');
+    const cajaVista = document.getElementById('cajaVista');
+    const domiciliosVista = document.getElementById('domiciliosVista');
+    if (appMain) appMain.classList.add('hidden');
+    if (historicosVista) historicosVista.classList.add('hidden');
+    if (cajaVista) cajaVista.classList.add('hidden');
+    if (domiciliosVista) domiciliosVista.classList.remove('hidden');
+    actualizarDomiciliosVista();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+
 window.addEventListener('DOMContentLoaded', () => {
   const appContent = document.getElementById('appContent');
   const loginScreen = document.getElementById('loginScreen');
