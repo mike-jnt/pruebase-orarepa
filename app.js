@@ -4,6 +4,7 @@ let comandaEnEdicion = null; // conserva la comanda al editar
 let reciboEnEdicion = null; // conserva el recibo al editar
 const usuariosSistema = {
   admin: { email: "admin@local.io", rol: "admin", nombre: "Administrador" },
+  administrador: { email: "administrador@local.io", rol: "admin", nombre: "Administrador" },
   cajero: { email: "cajero@local.io", rol: "cajero", nombre: "Cajero 1" }
 };
 const usuariosPorEmail = Object.fromEntries(Object.entries(usuariosSistema).map(([usuario, info]) => [String(info.email || '').toLowerCase(), { ...info, usuario }]));
@@ -1236,6 +1237,37 @@ function esAdmin() {
   return rolActual === "admin";
 }
 
+function obtenerEmailSesionActual() {
+  return String(
+    firebaseAuth?.currentUser?.email ||
+    localStorage.getItem("usuarioEmailActual") ||
+    ""
+  ).trim().toLowerCase();
+}
+
+function esAdminSinFinanzas() {
+  return esAdmin() && obtenerEmailSesionActual() === "administrador@local.io";
+}
+
+function puedeVerFinanzas() {
+  return esAdmin() && !esAdminSinFinanzas();
+}
+
+function actualizarAccesoFinanzas() {
+  const visible = puedeVerFinanzas();
+  document.querySelectorAll('a[href="finanzas1.html"], a[href*="finanzas1.html"], [data-role="finanzas-only"]').forEach(el => {
+    el.classList.toggle('hidden', !visible);
+    el.style.display = visible ? '' : 'none';
+    if (!visible) {
+      el.setAttribute('aria-hidden', 'true');
+      el.setAttribute('tabindex', '-1');
+    } else {
+      el.removeAttribute('aria-hidden');
+      el.removeAttribute('tabindex');
+    }
+  });
+}
+
 function esCajero() {
   return rolActual === "cajero";
 }
@@ -1314,6 +1346,8 @@ function aplicarPermisosPorRol() {
     el.classList.toggle('hidden', !esAdmin());
     el.style.display = esAdmin() ? '' : 'none';
   });
+
+  actualizarAccesoFinanzas();
 
   const btnExportarExcel = document.getElementById('btnExportarExcel');
   if (btnExportarExcel) {
@@ -3120,4 +3154,13 @@ window.addEventListener('DOMContentLoaded', () => {
   if (appContent) appContent.classList.add('hidden');
   if (loginScreen) loginScreen.classList.remove('hidden');
   aplicarPermisosPorRol();
+
+  document.addEventListener('click', (event) => {
+    const enlaceFinanzas = event.target.closest('a[href="finanzas1.html"], a[href*="finanzas1.html"]');
+    if (!enlaceFinanzas) return;
+    if (puedeVerFinanzas()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    alert('No tienes permiso para acceder a la sección de Finanzas.');
+  });
 });
