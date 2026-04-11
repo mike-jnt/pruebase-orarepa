@@ -473,6 +473,7 @@ body.dark-mode .estado-firebase.offline {
     const CACHE_KEY = 'movimientos_finanzas_cache_v2';
     const CACHE_ANTERIOR_KEY = 'movimientos';
     const MIGRATION_KEY = 'movimientos_finanzas_migrados_v1';
+    const CACHE_RESPALDO_MIGRACION_KEY = 'movimientos_finanzas_respaldo_local_v1';
     const PREFIJO_MOVIMIENTO_CIERRE = 'cierre_caja_';
 
     let indiceEdicion = null;
@@ -486,6 +487,7 @@ body.dark-mode .estado-firebase.offline {
     let authDisponible = false;
     let usuarioAutenticado = null;
     let sincronizandoCierres = false;
+    let resumenUltimaMigracion = null;
 
     const formulario = document.getElementById('formulario');
     const fotoInput = document.getElementById('foto');
@@ -504,11 +506,13 @@ body.dark-mode .estado-firebase.offline {
     function actualizarEstadoBotonMigracion(remotos = movimientos) {
       if (!btnMigrarLocalStorage) return;
       const pendientes = obtenerPendientesMigracion(remotos);
-      btnMigrarLocalStorage.disabled = !usuarioAutenticado || !firebaseDisponible || !pendientes.length;
+      btnMigrarLocalStorage.disabled = !usuarioAutenticado || !firebaseDisponible;
       btnMigrarLocalStorage.innerHTML = `<i class="bi bi-cloud-upload me-1"></i> Subir localStorage${pendientes.length ? ` (${pendientes.length})` : ''}`;
-      btnMigrarLocalStorage.title = pendientes.length
-        ? `Hay ${pendientes.length} movimiento${pendientes.length === 1 ? '' : 's'} pendiente${pendientes.length === 1 ? '' : 's'} por subir desde localStorage`
-        : 'No hay informes pendientes por subir desde localStorage';
+      btnMigrarLocalStorage.title = !usuarioAutenticado
+        ? 'Inicia sesión en Señor Arepa para subir los informes guardados localmente'
+        : pendientes.length
+          ? `Hay ${pendientes.length} movimiento${pendientes.length === 1 ? '' : 's'} pendiente${pendientes.length === 1 ? '' : 's'} por subir desde localStorage`
+          : 'No hay informes pendientes por subir desde localStorage';
     }
 
     function normalizarMovimiento(item) {
@@ -550,10 +554,49 @@ body.dark-mode .estado-firebase.offline {
       return [tipo, monto, categoria, fecha, descripcion, origen, origenDia].join('|');
     }
 
+    function leerLocalStorageSeguro(key) {
+      try {
+        const valor = JSON.parse(localStorage.getItem(key));
+        return Array.isArray(valor) ? valor : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function guardarRespaldoLocalParaMigracion() {
+      const fuentes = [
+        ...leerLocalStorageSeguro(CACHE_KEY),
+        ...leerLocalStorageSeguro(CACHE_ANTERIOR_KEY),
+        ...leerLocalStorageSeguro(CACHE_RESPALDO_MIGRACION_KEY)
+      ].map(normalizarMovimiento);
+
+      if (!fuentes.length) return;
+
+      const mapa = new Map();
+      fuentes.forEach((item) => {
+        const huella = generarHuellaMovimiento(item);
+        if (!huella) return;
+        if (!mapa.has(huella)) {
+          mapa.set(huella, { ...item, migracionHuella: huella });
+          return;
+        }
+        const existente = mapa.get(huella);
+        if (!existente?.imagen && item?.imagen) {
+          mapa.set(huella, { ...existente, ...item, migracionHuella: huella });
+        }
+      });
+
+      const respaldo = Array.from(mapa.values());
+      if (respaldo.length) {
+        localStorage.setItem(CACHE_RESPALDO_MIGRACION_KEY, JSON.stringify(respaldo));
+      }
+    }
+
     function obtenerMovimientosLocalesUnificados() {
-      const actual = JSON.parse(localStorage.getItem(CACHE_KEY)) || [];
-      const anterior = JSON.parse(localStorage.getItem(CACHE_ANTERIOR_KEY)) || [];
-      const combinados = [...actual, ...anterior].map(normalizarMovimiento);
+      const actual = leerLocalStorageSeguro(CACHE_KEY);
+      const anterior = leerLocalStorageSeguro(CACHE_ANTERIOR_KEY);
+      const respaldo = leerLocalStorageSeguro(CACHE_RESPALDO_MIGRACION_KEY);
+      const combinados = [...actual, ...anterior, ...respaldo].map(normalizarMovimiento);
       const mapa = new Map();
 
       combinados.forEach((item) => {
@@ -821,6 +864,7 @@ body.dark-mode .estado-firebase.offline {
     }
 
     async function cargarMovimientosDesdeFirestore() {
+      guardarRespaldoLocalParaMigracion();
       if (!firebaseDisponible || !firestoreDb) {
         actualizarTodo();
         return;
@@ -873,8 +917,9 @@ body.dark-mode .estado-firebase.offline {
         const pendientes = obtenerPendientesMigracion(movimientosRemotos);
         if (!pendientes.length) {
           localStorage.setItem(MIGRATION_KEY, JSON.stringify({ ultimaRevision: new Date().toISOString(), pendientes: 0 }));
+          resumenUltimaMigracion = { subidos: 0, existentes: obtenerMovimientosLocalesUnificados().length };
           actualizarEstadoBotonMigracion(movimientosRemotos);
-          return;
+          return resumenUltimaMigracion;
         }
 
         setEstadoFirebase(`Migrando ${pendientes.length} movimientos locales...`, true);
@@ -921,10 +966,16 @@ body.dark-mode .estado-firebase.offline {
           ultimaMigracion: new Date().toISOString(),
           migrados: pendientes.length
         }));
+        resumenUltimaMigracion = {
+          subidos: pendientes.length,
+          existentes: Math.max(obtenerMovimientosLocalesUnificados().length - pendientes.length, 0)
+        };
         await cargarMovimientosDesdeFirestore();
+        return resumenUltimaMigracion;
       } catch (error) {
         console.error('Error migrando localStorage a Firestore:', error);
         setEstadoFirebase('Error al migrar datos locales', false);
+        return null;
       }
     }
 
@@ -952,10 +1003,15 @@ body.dark-mode .estado-firebase.offline {
           actualizarTodo();
           actualizarEstadoBotonMigracion(movimientos);
           setEstadoFirebase('No hay informes pendientes en localStorage', true);
+          alert('No hay informes pendientes por subir.');
           return;
         }
 
-        await migrarLocalStorageSiAplica(remotos);
+        const resultado = await migrarLocalStorageSiAplica(remotos);
+        if (resultado) {
+          setEstadoFirebase(`Subidos ${resultado.subidos} informe${resultado.subidos === 1 ? '' : 's'} desde localStorage`, true);
+          alert(`Subidos: ${resultado.subidos}\nYa existentes: ${resultado.existentes}`);
+        }
       } catch (error) {
         console.error('Error al subir localStorage a Firestore:', error);
         setEstadoFirebase('Error subiendo localStorage', false);
@@ -1451,7 +1507,8 @@ body.dark-mode .estado-firebase.offline {
       if (localStorage.getItem('darkMode') === 'true') {
         document.body.classList.add('dark-mode');
       }
-      movimientos = ordenarMovimientos((JSON.parse(localStorage.getItem(CACHE_KEY)) || []).map(normalizarMovimiento));
+      guardarRespaldoLocalParaMigracion();
+      movimientos = ordenarMovimientos(obtenerMovimientosLocalesUnificados().map(normalizarMovimiento));
       actualizarTodo();
       setFormularioHabilitado(false);
       actualizarEstadoBotonMigracion(movimientos);
