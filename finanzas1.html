@@ -297,6 +297,7 @@ body.dark-mode .estado-firebase.offline {
                   <option value="Publicidad">Publicidad</option>
                   <option value="Transporte">Transporte</option>
                   <option value="Impuestos">Impuestos</option>
+                  <option value="Empleados">Empleados</option>
                 </select>
                 <label class="form-label mt-2">Fecha</label>
                 <input type="date" class="form-control" id="fecha" required>
@@ -407,15 +408,23 @@ body.dark-mode .estado-firebase.offline {
     <div class="seccion-tabla">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h5 class="titulo-seccion"><i class="bi bi-journal-text"></i> Historial de Movimientos</h5>
-        <button class="btn btn-success btn-sm" onclick="exportarExcel()">
-          <i class="bi bi-file-earmark-excel-fill me-1"></i> Exportar a Excel
-        </button>
-        <button onclick="exportarExcelYZip()" class="btn btn-success">
-          Exportar Excel + Imágenes
-       </button>
-       <button onclick="exportarExcelConImagenes()" class="btn btn-success">
-  <i class="bi bi-image-fill me-1"></i> Exportar Excel con Imágenes
-</button>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-outline-primary btn-sm" onclick="sincronizarCierresCajaEnFinanzas(true)">
+            <i class="bi bi-arrow-repeat me-1"></i> Sincronizar cierres
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" id="btnMigrarLocalStorage" onclick="migrarLocalStorageManual()">
+            <i class="bi bi-cloud-upload me-1"></i> Subir localStorage
+          </button>
+          <button class="btn btn-success btn-sm" onclick="exportarExcel()">
+            <i class="bi bi-file-earmark-excel-fill me-1"></i> Exportar a Excel
+          </button>
+          <button onclick="exportarExcelYZip()" class="btn btn-success btn-sm">
+            Exportar Excel + Imágenes
+         </button>
+         <button onclick="exportarExcelConImagenes()" class="btn btn-success btn-sm">
+    <i class="bi bi-image-fill me-1"></i> Exportar Excel con Imágenes
+  </button>
+        </div>
 
 
       </div>
@@ -460,9 +469,11 @@ body.dark-mode .estado-firebase.offline {
     };
 
     const COLECCION_MOVIMIENTOS = 'finanzas_movimientos';
+    const COLECCION_CONTROL_CAJA = 'controlCaja';
     const CACHE_KEY = 'movimientos_finanzas_cache_v2';
     const CACHE_ANTERIOR_KEY = 'movimientos';
     const MIGRATION_KEY = 'movimientos_finanzas_migrados_v1';
+    const PREFIJO_MOVIMIENTO_CIERRE = 'cierre_caja_';
 
     let indiceEdicion = null;
     let movimientos = JSON.parse(localStorage.getItem(CACHE_KEY)) || [];
@@ -474,18 +485,30 @@ body.dark-mode .estado-firebase.offline {
     let firebaseDisponible = false;
     let authDisponible = false;
     let usuarioAutenticado = null;
+    let sincronizandoCierres = false;
 
     const formulario = document.getElementById('formulario');
     const fotoInput = document.getElementById('foto');
     const vistaFoto = document.getElementById('vistaFoto');
     const botonGuardar = formulario.querySelector('button[type="submit"]');
     const estadoFirebase = document.getElementById('estadoFirebase');
+    const btnMigrarLocalStorage = document.getElementById('btnMigrarLocalStorage');
 
     function setEstadoFirebase(texto, online = false) {
       if (!estadoFirebase) return;
       estadoFirebase.textContent = texto;
       estadoFirebase.classList.remove('online', 'offline');
       estadoFirebase.classList.add(online ? 'online' : 'offline');
+    }
+
+    function actualizarEstadoBotonMigracion(remotos = movimientos) {
+      if (!btnMigrarLocalStorage) return;
+      const pendientes = obtenerPendientesMigracion(remotos);
+      btnMigrarLocalStorage.disabled = !usuarioAutenticado || !firebaseDisponible || !pendientes.length;
+      btnMigrarLocalStorage.innerHTML = `<i class="bi bi-cloud-upload me-1"></i> Subir localStorage${pendientes.length ? ` (${pendientes.length})` : ''}`;
+      btnMigrarLocalStorage.title = pendientes.length
+        ? `Hay ${pendientes.length} movimiento${pendientes.length === 1 ? '' : 's'} pendiente${pendientes.length === 1 ? '' : 's'} por subir desde localStorage`
+        : 'No hay informes pendientes por subir desde localStorage';
     }
 
     function normalizarMovimiento(item) {
@@ -497,8 +520,112 @@ body.dark-mode .estado-firebase.offline {
         fecha: item.fecha || '',
         descripcion: item.descripcion || '',
         imagen: item.imagen || item.imageUrl || null,
+        origen: item.origen || 'manual',
+        origenColeccion: item.origenColeccion || null,
+        origenDiaClave: item.origenDiaClave || null,
+        sourceKey: item.sourceKey || null,
+        bloqueoEdicion: Boolean(item.bloqueoEdicion),
+        detalleControlCaja: item.detalleControlCaja || null,
+        migracionHuella: item.migracionHuella || null,
         createdAt: item.createdAt || null,
         updatedAt: item.updatedAt || null
+      };
+    }
+
+    function limpiarTextoMigracion(valor) {
+      return String(valor || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function generarHuellaMovimiento(movimiento) {
+      if (!movimiento) return '';
+      if (movimiento.sourceKey) return `source:${movimiento.sourceKey}`;
+      if (movimiento.migracionHuella) return movimiento.migracionHuella;
+      const tipo = limpiarTextoMigracion(movimiento.tipo || 'gasto');
+      const monto = Number(movimiento.monto || 0);
+      const categoria = limpiarTextoMigracion(movimiento.categoria || '');
+      const fecha = limpiarTextoMigracion(movimiento.fecha || '');
+      const descripcion = limpiarTextoMigracion(movimiento.descripcion || '');
+      const origen = limpiarTextoMigracion(movimiento.origen || 'manual');
+      const origenDia = limpiarTextoMigracion(movimiento.origenDiaClave || '');
+      return [tipo, monto, categoria, fecha, descripcion, origen, origenDia].join('|');
+    }
+
+    function obtenerMovimientosLocalesUnificados() {
+      const actual = JSON.parse(localStorage.getItem(CACHE_KEY)) || [];
+      const anterior = JSON.parse(localStorage.getItem(CACHE_ANTERIOR_KEY)) || [];
+      const combinados = [...actual, ...anterior].map(normalizarMovimiento);
+      const mapa = new Map();
+
+      combinados.forEach((item) => {
+        const huella = generarHuellaMovimiento(item);
+        if (!huella) return;
+        if (!mapa.has(huella)) {
+          mapa.set(huella, { ...item, migracionHuella: huella });
+          return;
+        }
+
+        const existente = mapa.get(huella);
+        const existenteTieneImagen = Boolean(existente?.imagen);
+        const actualTieneImagen = Boolean(item?.imagen);
+        if (!existenteTieneImagen && actualTieneImagen) {
+          mapa.set(huella, { ...existente, ...item, migracionHuella: huella });
+        }
+      });
+
+      return Array.from(mapa.values());
+    }
+
+    function obtenerPendientesMigracion(remotos = movimientos) {
+      const locales = obtenerMovimientosLocalesUnificados();
+      const huellasRemotas = new Set((remotos || []).map(generarHuellaMovimiento).filter(Boolean));
+      return locales.filter(item => !huellasRemotas.has(item.migracionHuella || generarHuellaMovimiento(item)));
+    }
+
+    function esMovimientoAutomaticoCierre(movimiento) {
+      return Boolean(movimiento && (movimiento.origen === 'cierre_caja' || movimiento.bloqueoEdicion || String(movimiento.sourceKey || '').startsWith(PREFIJO_MOVIMIENTO_CIERRE)));
+    }
+
+    function obtenerIdMovimientoCierre(diaClave) {
+      return `${PREFIJO_MOVIMIENTO_CIERRE}${diaClave}`;
+    }
+
+    function formatearFechaHoraLocal(valor) {
+      if (!valor) return '';
+      const fecha = new Date(valor);
+      if (Number.isNaN(fecha.getTime())) return '';
+      return fecha.toLocaleString('es-CO', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+    }
+
+    function construirMovimientoDesdeControlCaja(control = {}) {
+      const diaClave = String(control.diaClave || '').trim();
+      if (!diaClave || !control.cierreHora) return null;
+      const aperturaMonto = Number(control.aperturaMonto || 0);
+      const cierreMonto = Number(control.cierreMonto || 0);
+      const montoContable = Math.max(cierreMonto - aperturaMonto, 0);
+      const fechaRegistro = formatearFechaHoraLocal(control.cierreHora);
+      return {
+        id: obtenerIdMovimientoCierre(diaClave),
+        tipo: 'ingreso',
+        monto: montoContable,
+        categoria: 'Ventas',
+        fecha: diaClave,
+        descripcion: `Ventas del día · cierre de caja ${diaClave}${fechaRegistro ? ` · registrado ${fechaRegistro}` : ''}`,
+        imagen: null,
+        origen: 'cierre_caja',
+        origenColeccion: COLECCION_CONTROL_CAJA,
+        origenDiaClave: diaClave,
+        sourceKey: obtenerIdMovimientoCierre(diaClave),
+        bloqueoEdicion: true,
+        detalleControlCaja: {
+          aperturaMonto,
+          cierreMonto,
+          cierreHora: control.cierreHora || null,
+          cierreUsuario: control.cierreUsuario || '',
+          cierreObservaciones: control.cierreObservaciones || ''
+        }
       };
     }
 
@@ -632,6 +759,67 @@ body.dark-mode .estado-firebase.offline {
       });
     }
 
+    async function sincronizarCierresCajaEnFinanzas(forzarRecarga = false) {
+      if (sincronizandoCierres) return 0;
+      if (!firebaseDisponible || !firestoreDb || !usuarioAutenticado) return 0;
+      sincronizandoCierres = true;
+      try {
+        setEstadoFirebase('Sincronizando cierres de caja...', true);
+        const snapshot = await firestoreDb.collection(COLECCION_CONTROL_CAJA).get();
+        let sincronizados = 0;
+
+        for (const doc of snapshot.docs) {
+          const control = { diaClave: doc.id, ...doc.data() };
+          if (!control.cierreHora) continue;
+          const movimiento = construirMovimientoDesdeControlCaja(control);
+          if (!movimiento) continue;
+
+          const docRef = firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(movimiento.id);
+          const existente = await docRef.get();
+          const payload = {
+            tipo: movimiento.tipo,
+            monto: movimiento.monto,
+            categoria: movimiento.categoria,
+            fecha: movimiento.fecha,
+            descripcion: movimiento.descripcion,
+            imagen: null,
+            origen: movimiento.origen,
+            origenColeccion: movimiento.origenColeccion,
+            origenDiaClave: movimiento.origenDiaClave,
+            sourceKey: movimiento.sourceKey,
+            bloqueoEdicion: true,
+            detalleControlCaja: movimiento.detalleControlCaja,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
+
+          if (!existente.exists) {
+            payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+          }
+
+          await docRef.set(payload, { merge: true });
+          sincronizados += 1;
+        }
+
+        if (forzarRecarga) {
+          await cargarMovimientosDesdeFirestore();
+          return sincronizados;
+        }
+
+        setEstadoFirebase(`Cierres sincronizados: ${sincronizados}`, true);
+        return sincronizados;
+      } catch (error) {
+        console.error('Error sincronizando cierres de caja en finanzas:', error);
+        if (esErrorPermisoFirestore(error)) {
+          setEstadoFirebase('Sin permisos para leer controlCaja o escribir finanzas', false);
+        } else {
+          setEstadoFirebase('Error sincronizando cierres de caja', false);
+        }
+        return 0;
+      } finally {
+        sincronizandoCierres = false;
+      }
+    }
+
     async function cargarMovimientosDesdeFirestore() {
       if (!firebaseDisponible || !firestoreDb) {
         actualizarTodo();
@@ -644,21 +832,23 @@ body.dark-mode .estado-firebase.offline {
         movimientos = ordenarMovimientos(movimientos.map(normalizarMovimiento));
         actualizarTodo();
         setFormularioHabilitado(false);
+        actualizarEstadoBotonMigracion(movimientos);
         return;
       }
 
       try {
         setEstadoFirebase('Cargando movimientos...', true);
+        await sincronizarCierresCajaEnFinanzas(false);
         const snapshot = await firestoreDb.collection(COLECCION_MOVIMIENTOS).get();
         movimientos = snapshot.docs.map(doc => normalizarMovimiento({ id: doc.id, ...doc.data() }));
         movimientos = ordenarMovimientos(movimientos);
         guardarCache();
         actualizarTodo();
         setFormularioHabilitado(true);
+        actualizarEstadoBotonMigracion(movimientos);
         setEstadoFirebase(`Base de datos conectada · ${usuarioAutenticado.email || 'sesión activa'}`, true);
 
-        if (!snapshot.empty) return;
-        await migrarLocalStorageSiAplica();
+        await migrarLocalStorageSiAplica(movimientos);
       } catch (error) {
         console.error('Error cargando movimientos desde Firestore:', error);
         if (esErrorPermisoFirestore(error)) {
@@ -669,19 +859,28 @@ body.dark-mode .estado-firebase.offline {
         movimientos = JSON.parse(localStorage.getItem(CACHE_KEY)) || JSON.parse(localStorage.getItem(CACHE_ANTERIOR_KEY)) || [];
         movimientos = ordenarMovimientos(movimientos.map(normalizarMovimiento));
         actualizarTodo();
+        actualizarEstadoBotonMigracion(movimientos);
       }
     }
 
-    async function migrarLocalStorageSiAplica() {
-      const yaMigrado = localStorage.getItem(MIGRATION_KEY) === 'true';
-      const legacy = JSON.parse(localStorage.getItem(CACHE_ANTERIOR_KEY)) || [];
-      if (yaMigrado || !legacy.length || !firebaseDisponible || !usuarioAutenticado) return;
+    async function migrarLocalStorageSiAplica(movimientosRemotos = movimientos) {
+      if (!firebaseDisponible || !usuarioAutenticado) return;
+
+      const locales = obtenerMovimientosLocalesUnificados();
+      if (!locales.length) return;
 
       try {
-        setEstadoFirebase('Migrando datos locales...', true);
-        for (const item of legacy) {
+        const pendientes = obtenerPendientesMigracion(movimientosRemotos);
+        if (!pendientes.length) {
+          localStorage.setItem(MIGRATION_KEY, JSON.stringify({ ultimaRevision: new Date().toISOString(), pendientes: 0 }));
+          actualizarEstadoBotonMigracion(movimientosRemotos);
+          return;
+        }
+
+        setEstadoFirebase(`Migrando ${pendientes.length} movimientos locales...`, true);
+        for (const item of pendientes) {
           const base = normalizarMovimiento(item);
-          const docRef = firestoreDb.collection(COLECCION_MOVIMIENTOS).doc();
+          const huella = base.migracionHuella || generarHuellaMovimiento(base);
           let imagen = null;
 
           if (base.imagen) {
@@ -692,6 +891,13 @@ body.dark-mode .estado-firebase.offline {
             }
           }
 
+          const docIdSeguro = (base.sourceKey && /^[a-zA-Z0-9_-]+$/.test(base.sourceKey))
+            ? base.sourceKey
+            : null;
+          const docRef = docIdSeguro
+            ? firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(docIdSeguro)
+            : firestoreDb.collection(COLECCION_MOVIMIENTOS).doc();
+
           await docRef.set({
             tipo: base.tipo,
             monto: Number(base.monto || 0),
@@ -699,16 +905,62 @@ body.dark-mode .estado-firebase.offline {
             fecha: base.fecha,
             descripcion: base.descripcion,
             imagen,
+            origen: base.origen || 'manual',
+            origenColeccion: base.origenColeccion || null,
+            origenDiaClave: base.origenDiaClave || null,
+            sourceKey: base.sourceKey || null,
+            bloqueoEdicion: Boolean(base.bloqueoEdicion),
+            detalleControlCaja: base.detalleControlCaja || null,
+            migracionHuella: huella,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
+          }, { merge: true });
         }
 
-        localStorage.setItem(MIGRATION_KEY, 'true');
+        localStorage.setItem(MIGRATION_KEY, JSON.stringify({
+          ultimaMigracion: new Date().toISOString(),
+          migrados: pendientes.length
+        }));
         await cargarMovimientosDesdeFirestore();
       } catch (error) {
         console.error('Error migrando localStorage a Firestore:', error);
         setEstadoFirebase('Error al migrar datos locales', false);
+      }
+    }
+
+    async function migrarLocalStorageManual() {
+      if (!firebaseDisponible || !firestoreDb) {
+        setEstadoFirebase('Firebase no está disponible para subir localStorage', false);
+        return;
+      }
+
+      if (!usuarioAutenticado) {
+        setEstadoFirebase('Inicia sesión en Señor Arepa para subir localStorage', false);
+        return;
+      }
+
+      try {
+        if (btnMigrarLocalStorage) btnMigrarLocalStorage.disabled = true;
+        setEstadoFirebase('Revisando informes guardados en localStorage...', true);
+        const snapshot = await firestoreDb.collection(COLECCION_MOVIMIENTOS).get();
+        const remotos = snapshot.docs.map(doc => normalizarMovimiento({ id: doc.id, ...doc.data() }));
+        const pendientes = obtenerPendientesMigracion(remotos);
+
+        if (!pendientes.length) {
+          movimientos = ordenarMovimientos(remotos);
+          guardarCache();
+          actualizarTodo();
+          actualizarEstadoBotonMigracion(movimientos);
+          setEstadoFirebase('No hay informes pendientes en localStorage', true);
+          return;
+        }
+
+        await migrarLocalStorageSiAplica(remotos);
+      } catch (error) {
+        console.error('Error al subir localStorage a Firestore:', error);
+        setEstadoFirebase('Error subiendo localStorage', false);
+      } finally {
+        actualizarEstadoBotonMigracion(movimientos);
       }
     }
 
@@ -732,8 +984,15 @@ body.dark-mode .estado-firebase.offline {
         fecha,
         descripcion,
         imagen,
+        origen: anterior?.origen || 'manual',
+        origenColeccion: anterior?.origenColeccion || null,
+        origenDiaClave: anterior?.origenDiaClave || null,
+        sourceKey: anterior?.sourceKey || null,
+        bloqueoEdicion: Boolean(anterior?.bloqueoEdicion),
+        detalleControlCaja: anterior?.detalleControlCaja || null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
+      payload.migracionHuella = generarHuellaMovimiento({ ...payload, migracionHuella: null });
 
       if (!estaEditando) {
         payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -826,18 +1085,29 @@ body.dark-mode .estado-firebase.offline {
 
       data.forEach((m) => {
         const indexReal = movimientos.findIndex(item => item.id === m.id);
+        const esAutomatico = esMovimientoAutomaticoCierre(m);
+        const detalleCierre = esAutomatico && m.detalleControlCaja
+          ? `<div class="small text-muted mt-1">Apertura: $${Number(m.detalleControlCaja.aperturaMonto || 0).toLocaleString('es-CO')} · Cierre: $${Number(m.detalleControlCaja.cierreMonto || 0).toLocaleString('es-CO')}</div><div class="small text-muted">Hora cierre: ${formatearFechaHoraLocal(m.detalleControlCaja.cierreHora || '') || '-'}</div>`
+          : '';
+        const descripcionHtml = `${m.descripcion || ''}${detalleCierre}`;
+        const categoriaHtml = esAutomatico
+          ? `${m.categoria || ''}<div><span class="badge text-bg-warning mt-1">Automático</span></div>`
+          : (m.categoria || '');
+        const acciones = esAutomatico
+          ? '<span class="text-muted small">Bloqueado por cierre de caja</span>'
+          : `
+            <button class="btn btn-warning btn-sm me-1" onclick="editarMovimiento(${indexReal})"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="eliminarMovimiento(${indexReal})"><i class="bi bi-trash"></i></button>
+          `;
         const fila = document.createElement('tr');
         fila.innerHTML = `
           <td>${m.tipo}</td>
           <td>$${Number(m.monto || 0).toLocaleString('es-CO')}</td>
-          <td>${m.categoria || ''}</td>
+          <td>${categoriaHtml}</td>
           <td>${m.fecha || ''}</td>
-          <td>${m.descripcion || ''}</td>
-          <td>${m.imagen ? `<a href="${m.imagen}" target="_blank" class="btn btn-sm btn-outline-primary">Ver</a>` : 'Sin imagen'}</td>
-          <td>
-            <button class="btn btn-warning btn-sm me-1" onclick="editarMovimiento(${indexReal})"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-danger btn-sm" onclick="eliminarMovimiento(${indexReal})"><i class="bi bi-trash"></i></button>
-          </td>
+          <td>${descripcionHtml}</td>
+          <td>${m.imagen ? `<a href="${m.imagen}" target="_blank" class="btn btn-sm btn-outline-primary">Ver</a>` : (esAutomatico ? '<span class="text-muted small">Sin foto</span>' : 'Sin imagen')}</td>
+          <td>${acciones}</td>
         `;
         tabla.appendChild(fila);
       });
@@ -846,6 +1116,10 @@ body.dark-mode .estado-firebase.offline {
     async function eliminarMovimiento(index) {
       const movimiento = movimientos[index];
       if (!movimiento) return;
+      if (esMovimientoAutomaticoCierre(movimiento)) {
+        alert('Este movimiento viene del cierre de caja y se actualiza automáticamente desde Señor Arepa.');
+        return;
+      }
 
       try {
         if (!firebaseDisponible || !usuarioAutenticado || !movimiento.id) {
@@ -922,6 +1196,10 @@ body.dark-mode .estado-firebase.offline {
     function editarMovimiento(index) {
       const m = movimientos[index];
       if (!m) return;
+      if (esMovimientoAutomaticoCierre(m)) {
+        alert('Este movimiento viene del cierre de caja y no se edita desde finanzas.');
+        return;
+      }
       indiceEdicion = index;
 
       document.getElementById('tipo').value = m.tipo;
@@ -1164,6 +1442,8 @@ body.dark-mode .estado-firebase.offline {
     window.exportarExcel = exportarExcel;
     window.exportarExcelYZip = exportarExcelYZip;
     window.exportarExcelConImagenes = exportarExcelConImagenes;
+    window.sincronizarCierresCajaEnFinanzas = sincronizarCierresCajaEnFinanzas;
+    window.migrarLocalStorageManual = migrarLocalStorageManual;
     window.formatearComoCOP = formatearComoCOP;
     window.toggleDarkMode = toggleDarkMode;
 
@@ -1174,6 +1454,7 @@ body.dark-mode .estado-firebase.offline {
       movimientos = ordenarMovimientos((JSON.parse(localStorage.getItem(CACHE_KEY)) || []).map(normalizarMovimiento));
       actualizarTodo();
       setFormularioHabilitado(false);
+      actualizarEstadoBotonMigracion(movimientos);
       await iniciarFirebase();
 
       if (authDisponible && firebaseAuth) {
@@ -1185,6 +1466,7 @@ body.dark-mode .estado-firebase.offline {
           } else {
             setFormularioHabilitado(false);
           }
+          actualizarEstadoBotonMigracion(movimientos);
           await cargarMovimientosDesdeFirestore();
         });
       } else {
