@@ -257,6 +257,46 @@ body.dark-mode .estado-firebase.offline {
   color: #fee2e2;
 }
 
+
+.pagos-nomina-resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.pago-nomina-card {
+  background: #fef3c7;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.pago-nomina-card .label {
+  display: block;
+  font-size: 0.78rem;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.pago-nomina-card .value {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #4b3205;
+}
+
+body.dark-mode .pago-nomina-card {
+  background: #3a3a3a;
+}
+
+body.dark-mode .pago-nomina-card .label {
+  color: #fcd34d;
+}
+
+body.dark-mode .pago-nomina-card .value {
+  color: #f3f4f6;
+}
+
 </style>
 
 </head>
@@ -405,7 +445,77 @@ body.dark-mode .estado-firebase.offline {
 
 
 
-    <div class="seccion-tabla">
+    
+<div class="seccion-tabla mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h5 class="titulo-seccion"><i class="bi bi-people-fill"></i> Pagos de Nómina</h5>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <select id="filtroEmpleadoNomina" class="form-select form-select-sm" style="min-width: 240px;">
+        <option value="">Todos los empleados</option>
+      </select>
+      <button class="btn btn-outline-primary btn-sm" onclick="sincronizarPagosNominaEnFinanzas(true)">
+        <i class="bi bi-arrow-repeat me-1"></i> Sincronizar nómina
+      </button>
+    </div>
+  </div>
+
+  <div class="pagos-nomina-resumen">
+    <div class="pago-nomina-card">
+      <span class="label">Empleados con pagos</span>
+      <span class="value" id="resumenNominaEmpleados">0</span>
+    </div>
+    <div class="pago-nomina-card">
+      <span class="label">Pagos registrados</span>
+      <span class="value" id="resumenNominaPagos">0</span>
+    </div>
+    <div class="pago-nomina-card">
+      <span class="label">Total pagado histórico</span>
+      <span class="value" id="resumenNominaTotal">$0</span>
+    </div>
+    <div class="pago-nomina-card">
+      <span class="label">Empleado seleccionado</span>
+      <span class="value" id="resumenNominaEmpleadoActivo">Todos</span>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="tabla-container">
+        <table class="table table-bordered table-hover table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Empleado</th>
+              <th>Cargo</th>
+              <th>Pagos</th>
+              <th>Total pagado</th>
+              <th>Último pago</th>
+              <th>Ver</th>
+            </tr>
+          </thead>
+          <tbody id="tablaResumenNomina"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="tabla-container">
+        <table class="table table-bordered table-hover table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Fecha pago</th>
+              <th>Empleado</th>
+              <th>Quincena</th>
+              <th>Cargo</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="tablaDetalleNomina"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="seccion-tabla">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h5 class="titulo-seccion"><i class="bi bi-journal-text"></i> Historial de Movimientos</h5>
         <div class="d-flex flex-wrap gap-2">
@@ -470,11 +580,13 @@ body.dark-mode .estado-firebase.offline {
 
     const COLECCION_MOVIMIENTOS = 'finanzas_movimientos';
     const COLECCION_CONTROL_CAJA = 'controlCaja';
+    const COLECCION_NOMINA = 'nomina';
     const CACHE_KEY = 'movimientos_finanzas_cache_v2';
     const CACHE_ANTERIOR_KEY = 'movimientos';
     const MIGRATION_KEY = 'movimientos_finanzas_migrados_v1';
     const CACHE_RESPALDO_MIGRACION_KEY = 'movimientos_finanzas_respaldo_local_v1';
     const PREFIJO_MOVIMIENTO_CIERRE = 'cierre_caja_';
+    const PREFIJO_MOVIMIENTO_NOMINA = 'nomina_pago_';
 
     let indiceEdicion = null;
     let movimientos = JSON.parse(localStorage.getItem(CACHE_KEY)) || [];
@@ -488,6 +600,7 @@ body.dark-mode .estado-firebase.offline {
     let usuarioAutenticado = null;
     let sincronizandoCierres = false;
     let resumenUltimaMigracion = null;
+    let empleadoNominaSeleccionado = '';
 
     const formulario = document.getElementById('formulario');
     const fotoInput = document.getElementById('foto');
@@ -495,6 +608,7 @@ body.dark-mode .estado-firebase.offline {
     const botonGuardar = formulario.querySelector('button[type="submit"]');
     const estadoFirebase = document.getElementById('estadoFirebase');
     const btnMigrarLocalStorage = document.getElementById('btnMigrarLocalStorage');
+    const filtroEmpleadoNomina = document.getElementById('filtroEmpleadoNomina');
 
     function setEstadoFirebase(texto, online = false) {
       if (!estadoFirebase) return;
@@ -530,6 +644,7 @@ body.dark-mode .estado-firebase.offline {
         sourceKey: item.sourceKey || null,
         bloqueoEdicion: Boolean(item.bloqueoEdicion),
         detalleControlCaja: item.detalleControlCaja || null,
+        detalleNomina: item.detalleNomina || null,
         migracionHuella: item.migracionHuella || null,
         createdAt: item.createdAt || null,
         updatedAt: item.updatedAt || null
@@ -625,11 +740,23 @@ body.dark-mode .estado-firebase.offline {
     }
 
     function esMovimientoAutomaticoCierre(movimiento) {
-      return Boolean(movimiento && (movimiento.origen === 'cierre_caja' || movimiento.bloqueoEdicion || String(movimiento.sourceKey || '').startsWith(PREFIJO_MOVIMIENTO_CIERRE)));
+      return Boolean(movimiento && (movimiento.origen === 'cierre_caja' || String(movimiento.sourceKey || '').startsWith(PREFIJO_MOVIMIENTO_CIERRE)));
+    }
+
+    function esMovimientoAutomaticoNomina(movimiento) {
+      return Boolean(movimiento && (movimiento.origen === 'nomina' || String(movimiento.sourceKey || '').startsWith(PREFIJO_MOVIMIENTO_NOMINA)));
+    }
+
+    function esMovimientoAutomatico(movimiento) {
+      return Boolean(movimiento && (movimiento.bloqueoEdicion || esMovimientoAutomaticoCierre(movimiento) || esMovimientoAutomaticoNomina(movimiento)));
     }
 
     function obtenerIdMovimientoCierre(diaClave) {
       return `${PREFIJO_MOVIMIENTO_CIERRE}${diaClave}`;
+    }
+
+    function obtenerIdMovimientoNomina(pagoId) {
+      return `${PREFIJO_MOVIMIENTO_NOMINA}${String(pagoId || '').trim()}`;
     }
 
     function formatearFechaHoraLocal(valor) {
@@ -668,6 +795,53 @@ body.dark-mode .estado-firebase.offline {
           cierreHora: control.cierreHora || null,
           cierreUsuario: control.cierreUsuario || '',
           cierreObservaciones: control.cierreObservaciones || ''
+        }
+      };
+    }
+
+    function obtenerFechaISODesdeValor(valor) {
+      if (!valor) return '';
+      const str = String(valor);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      const fecha = new Date(str);
+      if (Number.isNaN(fecha.getTime())) return '';
+      const yyyy = fecha.getFullYear();
+      const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+      const dd = String(fecha.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function construirMovimientoDesdePagoNomina(pagoId, pago = {}) {
+      const idPago = String(pago.pagoId || pago.uid || pagoId || '').trim();
+      if (!idPago) return null;
+      const monto = Number(pago.totalPagado || 0);
+      if (!(monto > 0)) return null;
+      const fechaISO = obtenerFechaISODesdeValor(pago.fechaPago || pago.fecha || '');
+      const fechaRegistro = formatearFechaHoraLocal(pago.fechaPago || pago.fecha || '');
+      const nombre = String(pago.nombre || 'Empleado').trim();
+      const cargo = String(pago.cargo || '').trim();
+      const quincena = String(pago.quincena || '').trim();
+      return {
+        id: obtenerIdMovimientoNomina(idPago),
+        tipo: 'gasto',
+        monto,
+        categoria: 'Empleados',
+        fecha: fechaISO,
+        descripcion: `Pago de nómina · ${nombre}${quincena ? ` · ${quincena}` : ''}${fechaRegistro ? ` · registrado ${fechaRegistro}` : ''}`,
+        imagen: null,
+        origen: 'nomina',
+        origenColeccion: COLECCION_NOMINA,
+        origenDiaClave: fechaISO,
+        sourceKey: obtenerIdMovimientoNomina(idPago),
+        bloqueoEdicion: true,
+        detalleControlCaja: null,
+        detalleNomina: {
+          pagoId: idPago,
+          nombre,
+          cargo,
+          quincena,
+          fechaPago: pago.fechaPago || pago.fecha || null,
+          totalPagado: monto
         }
       };
     }
@@ -863,6 +1037,63 @@ body.dark-mode .estado-firebase.offline {
       }
     }
 
+    async function sincronizarPagosNominaEnFinanzas(forzarRecarga = false) {
+      if (!firebaseDisponible || !firestoreDb || !usuarioAutenticado) return 0;
+      try {
+        setEstadoFirebase('Sincronizando pagos de nómina...', true);
+        const snapshot = await firestoreDb.collection(COLECCION_NOMINA).where('recordType', '==', 'pago').get();
+        let sincronizados = 0;
+
+        for (const doc of snapshot.docs) {
+          const pago = { pagoId: doc.id, ...doc.data() };
+          const movimiento = construirMovimientoDesdePagoNomina(doc.id, pago);
+          if (!movimiento) continue;
+
+          const docRef = firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(movimiento.id);
+          const existente = await docRef.get();
+          const payload = {
+            tipo: movimiento.tipo,
+            monto: movimiento.monto,
+            categoria: movimiento.categoria,
+            fecha: movimiento.fecha,
+            descripcion: movimiento.descripcion,
+            imagen: null,
+            origen: movimiento.origen,
+            origenColeccion: movimiento.origenColeccion,
+            origenDiaClave: movimiento.origenDiaClave,
+            sourceKey: movimiento.sourceKey,
+            bloqueoEdicion: true,
+            detalleControlCaja: null,
+            detalleNomina: movimiento.detalleNomina,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
+
+          if (!existente.exists) {
+            payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+          }
+
+          await docRef.set(payload, { merge: true });
+          sincronizados += 1;
+        }
+
+        if (forzarRecarga) {
+          await cargarMovimientosDesdeFirestore();
+          return sincronizados;
+        }
+
+        setEstadoFirebase(`Base de datos conectada · ${usuarioAutenticado.email || 'sesión activa'}`, true);
+        return sincronizados;
+      } catch (error) {
+        console.error('Error sincronizando pagos de nómina:', error);
+        if (esErrorPermisoFirestore(error)) {
+          setEstadoFirebase('Sin permisos para leer nomina', false);
+        } else {
+          setEstadoFirebase('Error sincronizando nómina', false);
+        }
+        return 0;
+      }
+    }
+
     async function cargarMovimientosDesdeFirestore() {
       guardarRespaldoLocalParaMigracion();
       if (!firebaseDisponible || !firestoreDb) {
@@ -883,6 +1114,7 @@ body.dark-mode .estado-firebase.offline {
       try {
         setEstadoFirebase('Cargando movimientos...', true);
         await sincronizarCierresCajaEnFinanzas(false);
+        await sincronizarPagosNominaEnFinanzas(false);
         const snapshot = await firestoreDb.collection(COLECCION_MOVIMIENTOS).get();
         movimientos = snapshot.docs.map(doc => normalizarMovimiento({ id: doc.id, ...doc.data() }));
         movimientos = ordenarMovimientos(movimientos);
@@ -1046,6 +1278,7 @@ body.dark-mode .estado-firebase.offline {
         sourceKey: anterior?.sourceKey || null,
         bloqueoEdicion: Boolean(anterior?.bloqueoEdicion),
         detalleControlCaja: anterior?.detalleControlCaja || null,
+        detalleNomina: anterior?.detalleNomina || null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       payload.migracionHuella = generarHuellaMovimiento({ ...payload, migracionHuella: null });
@@ -1133,6 +1366,7 @@ body.dark-mode .estado-firebase.offline {
       actualizarResumen(data);
       actualizarGrafico(data);
       generarResumenMensual(data);
+      actualizarVistaNomina();
     }
 
     function actualizarTabla(data = movimientos) {
@@ -1141,16 +1375,21 @@ body.dark-mode .estado-firebase.offline {
 
       data.forEach((m) => {
         const indexReal = movimientos.findIndex(item => item.id === m.id);
-        const esAutomatico = esMovimientoAutomaticoCierre(m);
-        const detalleCierre = esAutomatico && m.detalleControlCaja
+        const esAutoCierre = esMovimientoAutomaticoCierre(m);
+        const esAutoNomina = esMovimientoAutomaticoNomina(m);
+        const esAutomatico = esMovimientoAutomatico(m);
+        const detalleCierre = esAutoCierre && m.detalleControlCaja
           ? `<div class="small text-muted mt-1">Apertura: $${Number(m.detalleControlCaja.aperturaMonto || 0).toLocaleString('es-CO')} · Cierre: $${Number(m.detalleControlCaja.cierreMonto || 0).toLocaleString('es-CO')}</div><div class="small text-muted">Hora cierre: ${formatearFechaHoraLocal(m.detalleControlCaja.cierreHora || '') || '-'}</div>`
           : '';
-        const descripcionHtml = `${m.descripcion || ''}${detalleCierre}`;
+        const detalleNomina = esAutoNomina && m.detalleNomina
+          ? `<div class="small text-muted mt-1">Empleado: ${m.detalleNomina.nombre || '-'}${m.detalleNomina.cargo ? ` · ${m.detalleNomina.cargo}` : ''}</div><div class="small text-muted">Fecha pago: ${formatearFechaHoraLocal(m.detalleNomina.fechaPago || '') || (m.fecha || '-')}</div>`
+          : '';
+        const descripcionHtml = `${m.descripcion || ''}${detalleCierre}${detalleNomina}`;
         const categoriaHtml = esAutomatico
           ? `${m.categoria || ''}<div><span class="badge text-bg-warning mt-1">Automático</span></div>`
           : (m.categoria || '');
         const acciones = esAutomatico
-          ? '<span class="text-muted small">Bloqueado por cierre de caja</span>'
+          ? `<span class="text-muted small">${esAutoNomina ? 'Bloqueado por nómina' : 'Bloqueado por cierre de caja'}</span>`
           : `
             <button class="btn btn-warning btn-sm me-1" onclick="editarMovimiento(${indexReal})"><i class="bi bi-pencil"></i></button>
             <button class="btn btn-danger btn-sm" onclick="eliminarMovimiento(${indexReal})"><i class="bi bi-trash"></i></button>
@@ -1172,8 +1411,10 @@ body.dark-mode .estado-firebase.offline {
     async function eliminarMovimiento(index) {
       const movimiento = movimientos[index];
       if (!movimiento) return;
-      if (esMovimientoAutomaticoCierre(movimiento)) {
-        alert('Este movimiento viene del cierre de caja y se actualiza automáticamente desde Señor Arepa.');
+      if (esMovimientoAutomatico(movimiento)) {
+        alert(esMovimientoAutomaticoNomina(movimiento)
+          ? 'Este movimiento viene de la nómina y se actualiza automáticamente desde la colección nomina.'
+          : 'Este movimiento viene del cierre de caja y se actualiza automáticamente desde Señor Arepa.');
         return;
       }
 
@@ -1252,8 +1493,10 @@ body.dark-mode .estado-firebase.offline {
     function editarMovimiento(index) {
       const m = movimientos[index];
       if (!m) return;
-      if (esMovimientoAutomaticoCierre(m)) {
-        alert('Este movimiento viene del cierre de caja y no se edita desde finanzas.');
+      if (esMovimientoAutomatico(m)) {
+        alert(esMovimientoAutomaticoNomina(m)
+          ? 'Este movimiento viene de la nómina y no se edita desde finanzas.'
+          : 'Este movimiento viene del cierre de caja y no se edita desde finanzas.');
         return;
       }
       indiceEdicion = index;
@@ -1291,6 +1534,117 @@ body.dark-mode .estado-firebase.offline {
       };
       lector.readAsDataURL(archivo);
     });
+
+    function obtenerMovimientosNomina(data = movimientos) {
+      return (Array.isArray(data) ? data : []).filter(m => esMovimientoAutomaticoNomina(m) && m.detalleNomina && Number(m.monto || 0) > 0);
+    }
+
+    function formatearFechaSolo(valor) {
+      if (!valor) return '';
+      const fecha = new Date(valor);
+      if (Number.isNaN(fecha.getTime())) {
+        return String(valor).slice(0, 10);
+      }
+      return fecha.toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    }
+
+    function actualizarVistaNomina() {
+      const pagosNomina = obtenerMovimientosNomina(movimientos);
+      const select = filtroEmpleadoNomina;
+      const empleadosMap = new Map();
+      pagosNomina.forEach(m => {
+        const nombre = String(m.detalleNomina?.nombre || '').trim();
+        if (!nombre) return;
+        const cargo = String(m.detalleNomina?.cargo || '').trim();
+        if (!empleadosMap.has(nombre)) empleadosMap.set(nombre, cargo);
+      });
+
+      if (select) {
+        const actual = empleadoNominaSeleccionado;
+        const opciones = ['<option value="">Todos los empleados</option>'];
+        [...empleadosMap.entries()].sort((a, b) => a[0].localeCompare(b[0], 'es', { sensitivity: 'base' })).forEach(([nombre]) => {
+          const selected = actual === nombre ? ' selected' : '';
+          opciones.push(`<option value="${nombre.replace(/"/g, '&quot;')}"${selected}>${nombre}</option>`);
+        });
+        select.innerHTML = opciones.join('');
+        if (actual && !empleadosMap.has(actual)) {
+          empleadoNominaSeleccionado = '';
+          select.value = '';
+        }
+      }
+
+      const resumenMap = new Map();
+      pagosNomina.forEach(m => {
+        const nombre = String(m.detalleNomina?.nombre || 'Sin nombre').trim();
+        const cargo = String(m.detalleNomina?.cargo || '').trim();
+        const fechaPago = m.detalleNomina?.fechaPago || m.fecha || '';
+        const actual = resumenMap.get(nombre) || { nombre, cargo, pagos: 0, total: 0, ultimoPago: '' };
+        actual.pagos += 1;
+        actual.total += Number(m.monto || 0);
+        const timeActual = new Date(actual.ultimoPago || 0).getTime() || 0;
+        const timeNuevo = new Date(fechaPago || 0).getTime() || 0;
+        if (timeNuevo >= timeActual) {
+          actual.ultimoPago = fechaPago;
+          actual.cargo = cargo || actual.cargo;
+        }
+        resumenMap.set(nombre, actual);
+      });
+
+      const resumenRows = [...resumenMap.values()].sort((a, b) => b.total - a.total);
+      const tablaResumen = document.getElementById('tablaResumenNomina');
+      if (tablaResumen) {
+        tablaResumen.innerHTML = resumenRows.length
+          ? resumenRows.map(item => `
+            <tr>
+              <td>${item.nombre}</td>
+              <td>${item.cargo || '-'}</td>
+              <td class="text-center">${item.pagos}</td>
+              <td>${Number(item.total).toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}</td>
+              <td>${formatearFechaSolo(item.ultimoPago) || '-'}</td>
+              <td><button class="btn btn-outline-primary btn-sm" onclick="seleccionarEmpleadoNomina(${JSON.stringify(item.nombre)})">Ver pagos</button></td>
+            </tr>
+          `).join('')
+          : '<tr><td colspan="6" class="text-center text-muted py-3">No hay pagos de nómina sincronizados todavía.</td></tr>';
+      }
+
+      const pagosFiltrados = empleadoNominaSeleccionado
+        ? pagosNomina.filter(m => String(m.detalleNomina?.nombre || '').trim() === empleadoNominaSeleccionado)
+        : pagosNomina;
+
+      const detalleOrdenado = [...pagosFiltrados].sort((a, b) => new Date(b.detalleNomina?.fechaPago || b.fecha || 0) - new Date(a.detalleNomina?.fechaPago || a.fecha || 0));
+      const tablaDetalle = document.getElementById('tablaDetalleNomina');
+      if (tablaDetalle) {
+        tablaDetalle.innerHTML = detalleOrdenado.length
+          ? detalleOrdenado.map(m => `
+            <tr>
+              <td>${formatearFechaSolo(m.detalleNomina?.fechaPago || m.fecha) || '-'}</td>
+              <td>${m.detalleNomina?.nombre || '-'}</td>
+              <td>${m.detalleNomina?.quincena || '-'}</td>
+              <td>${m.detalleNomina?.cargo || '-'}</td>
+              <td>${Number(m.monto || 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}</td>
+            </tr>
+          `).join('')
+          : '<tr><td colspan="5" class="text-center text-muted py-3">No hay pagos para mostrar.</td></tr>';
+      }
+
+      document.getElementById('resumenNominaEmpleados').textContent = resumenRows.length.toLocaleString('es-CO');
+      document.getElementById('resumenNominaPagos').textContent = pagosNomina.length.toLocaleString('es-CO');
+      document.getElementById('resumenNominaTotal').textContent = pagosNomina.reduce((acc, m) => acc + Number(m.monto || 0), 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+      document.getElementById('resumenNominaEmpleadoActivo').textContent = empleadoNominaSeleccionado || 'Todos';
+    }
+
+    function seleccionarEmpleadoNomina(nombre) {
+      empleadoNominaSeleccionado = String(nombre || '');
+      if (filtroEmpleadoNomina) filtroEmpleadoNomina.value = empleadoNominaSeleccionado;
+      actualizarVistaNomina();
+    }
+
+    if (filtroEmpleadoNomina) {
+      filtroEmpleadoNomina.addEventListener('change', function() {
+        empleadoNominaSeleccionado = this.value || '';
+        actualizarVistaNomina();
+      });
+    }
 
     function generarResumenMensual(data = movimientos) {
       const resumen = {};
@@ -1499,6 +1853,8 @@ body.dark-mode .estado-firebase.offline {
     window.exportarExcelYZip = exportarExcelYZip;
     window.exportarExcelConImagenes = exportarExcelConImagenes;
     window.sincronizarCierresCajaEnFinanzas = sincronizarCierresCajaEnFinanzas;
+    window.sincronizarPagosNominaEnFinanzas = sincronizarPagosNominaEnFinanzas;
+    window.seleccionarEmpleadoNomina = seleccionarEmpleadoNomina;
     window.migrarLocalStorageManual = migrarLocalStorageManual;
     window.formatearComoCOP = formatearComoCOP;
     window.toggleDarkMode = toggleDarkMode;
