@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
     <style>
   body {
     background-color: #fffbea;
@@ -469,7 +470,10 @@ body.dark-mode .estado-firebase.offline {
     let graficoCategorias = null;
     let firebaseApp = null;
     let firestoreDb = null;
+    let firebaseAuth = null;
     let firebaseDisponible = false;
+    let authDisponible = false;
+    let usuarioAutenticado = null;
 
     const formulario = document.getElementById('formulario');
     const fotoInput = document.getElementById('foto');
@@ -544,6 +548,25 @@ body.dark-mode .estado-firebase.offline {
       localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'true' : 'false');
     }
 
+    function esErrorPermisoFirestore(error) {
+      const codigo = String(error?.code || '');
+      const mensaje = String(error?.message || '');
+      return codigo.includes('permission-denied') || mensaje.includes('insufficient permissions') || mensaje.includes('Missing or insufficient permissions');
+    }
+
+    function setFormularioHabilitado(habilitado = true) {
+      formulario.querySelectorAll('input, select, textarea, button').forEach(el => {
+        if (el.id === 'foto') {
+          el.disabled = !habilitado;
+          return;
+        }
+        el.disabled = !habilitado;
+      });
+      botonGuardar.innerHTML = habilitado
+        ? '<i class="bi bi-check-circle-fill me-1"></i>Guardar Movimiento'
+        : '<i class="bi bi-lock-fill me-1"></i>Inicia sesión en Señor Arepa';
+    }
+
     async function iniciarFirebase() {
       try {
         if (!firebase.apps.length) {
@@ -552,13 +575,39 @@ body.dark-mode .estado-firebase.offline {
           firebaseApp = firebase.app();
         }
         firestoreDb = firebase.firestore();
-        firebaseDisponible = true;
-        setEstadoFirebase('Base de datos conectada', true);
+        firebaseAuth = firebase.auth(firebaseApp);
+        firebaseDisponible = Boolean(firestoreDb);
+        authDisponible = Boolean(firebaseAuth);
+        setEstadoFirebase('Esperando sesión de Firebase...', false);
       } catch (error) {
         console.error('Error iniciando Firebase:', error);
         firebaseDisponible = false;
+        authDisponible = false;
         setEstadoFirebase('Base de datos desconectada', false);
       }
+    }
+
+    async function esperarSesionFirebase(timeoutMs = 2500) {
+      if (!authDisponible || !firebaseAuth) return null;
+      if (firebaseAuth.currentUser) return firebaseAuth.currentUser;
+
+      return await new Promise((resolve) => {
+        let resuelto = false;
+        const timer = setTimeout(() => {
+          if (resuelto) return;
+          resuelto = true;
+          try { unsubscribe(); } catch (_) {}
+          resolve(firebaseAuth.currentUser || null);
+        }, timeoutMs);
+
+        const unsubscribe = firebaseAuth.onAuthStateChanged((user) => {
+          if (resuelto) return;
+          resuelto = true;
+          clearTimeout(timer);
+          unsubscribe();
+          resolve(user || null);
+        });
+      });
     }
 
     function mostrarVistaFoto(src) {
@@ -584,8 +633,17 @@ body.dark-mode .estado-firebase.offline {
     }
 
     async function cargarMovimientosDesdeFirestore() {
-      if (!firebaseDisponible) {
+      if (!firebaseDisponible || !firestoreDb) {
         actualizarTodo();
+        return;
+      }
+
+      if (!usuarioAutenticado) {
+        setEstadoFirebase('Inicia sesión en Señor Arepa para sincronizar', false);
+        movimientos = JSON.parse(localStorage.getItem(CACHE_KEY)) || JSON.parse(localStorage.getItem(CACHE_ANTERIOR_KEY)) || [];
+        movimientos = ordenarMovimientos(movimientos.map(normalizarMovimiento));
+        actualizarTodo();
+        setFormularioHabilitado(false);
         return;
       }
 
@@ -596,14 +654,18 @@ body.dark-mode .estado-firebase.offline {
         movimientos = ordenarMovimientos(movimientos);
         guardarCache();
         actualizarTodo();
-        setEstadoFirebase('Base de datos conectada', true);
+        setFormularioHabilitado(true);
+        setEstadoFirebase(`Base de datos conectada · ${usuarioAutenticado.email || 'sesión activa'}`, true);
 
         if (!snapshot.empty) return;
         await migrarLocalStorageSiAplica();
       } catch (error) {
         console.error('Error cargando movimientos desde Firestore:', error);
-        firebaseDisponible = false;
-        setEstadoFirebase('Usando respaldo local', false);
+        if (esErrorPermisoFirestore(error)) {
+          setEstadoFirebase('Sin permisos para finanzas_movimientos', false);
+        } else {
+          setEstadoFirebase('Usando respaldo local', false);
+        }
         movimientos = JSON.parse(localStorage.getItem(CACHE_KEY)) || JSON.parse(localStorage.getItem(CACHE_ANTERIOR_KEY)) || [];
         movimientos = ordenarMovimientos(movimientos.map(normalizarMovimiento));
         actualizarTodo();
@@ -613,7 +675,7 @@ body.dark-mode .estado-firebase.offline {
     async function migrarLocalStorageSiAplica() {
       const yaMigrado = localStorage.getItem(MIGRATION_KEY) === 'true';
       const legacy = JSON.parse(localStorage.getItem(CACHE_ANTERIOR_KEY)) || [];
-      if (yaMigrado || !legacy.length || !firebaseDisponible) return;
+      if (yaMigrado || !legacy.length || !firebaseDisponible || !usuarioAutenticado) return;
 
       try {
         setEstadoFirebase('Migrando datos locales...', true);
@@ -701,8 +763,8 @@ body.dark-mode .estado-firebase.offline {
       botonGuardar.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Guardando...';
 
       try {
-        if (!firebaseDisponible) {
-          throw new Error('Firebase no está disponible');
+        if (!firebaseDisponible || !usuarioAutenticado) {
+          throw new Error('No hay una sesión autenticada en Firebase');
         }
 
         await guardarMovimientoEnFirebase({ tipo, monto, categoria, fecha, descripcion, archivo });
@@ -786,8 +848,8 @@ body.dark-mode .estado-firebase.offline {
       if (!movimiento) return;
 
       try {
-        if (!firebaseDisponible || !movimiento.id) {
-          throw new Error('Movimiento sin id de Firestore');
+        if (!firebaseDisponible || !usuarioAutenticado || !movimiento.id) {
+          throw new Error('Movimiento sin sesión o sin id de Firestore');
         }
 
         await firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(movimiento.id).delete();
@@ -1111,8 +1173,23 @@ body.dark-mode .estado-firebase.offline {
       }
       movimientos = ordenarMovimientos((JSON.parse(localStorage.getItem(CACHE_KEY)) || []).map(normalizarMovimiento));
       actualizarTodo();
+      setFormularioHabilitado(false);
       await iniciarFirebase();
-      await cargarMovimientosDesdeFirestore();
+
+      if (authDisponible && firebaseAuth) {
+        usuarioAutenticado = await esperarSesionFirebase();
+        firebaseAuth.onAuthStateChanged(async (user) => {
+          usuarioAutenticado = user || null;
+          if (usuarioAutenticado) {
+            setFormularioHabilitado(true);
+          } else {
+            setFormularioHabilitado(false);
+          }
+          await cargarMovimientosDesdeFirestore();
+        });
+      } else {
+        await cargarMovimientosDesdeFirestore();
+      }
     })();
   </script>
 
