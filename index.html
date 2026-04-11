@@ -2978,50 +2978,92 @@ function cancelarPedidoActual() {
     await exportarVentasAExcel(ventas, `Ventas_del_dia_${hoy}.xlsx`, `Ventas ${hoy}`);
   }
     // Borra todas las ventas guardadas
-  function imprimirUltimaCocinero() {
-  if (!verificarAcceso(["admin", "cajero"])) return;
-  const ultimaVenta = obtenerUltimaVentaGuardada();
-  if (!ultimaVenta) {
-    alert("No hay ventas para imprimir.");
-    return;
+  function obtenerTipoPedidoImpresion(venta = {}) {
+  const tipoBase = String(venta?.tipoPedido || '-');
+  const numeroDomicilio = obtenerNumeroDomicilio(venta);
+  if (tipoBase === 'Domicilio') {
+    return numeroDomicilio > 0 ? `${tipoBase} #${numeroDomicilio}` : tipoBase;
+  }
+  return tipoBase;
+}
+
+function construirListaProductosImpresion(venta = {}, resumido = false) {
+  const pedidoImpresion = Array.isArray(venta?.pedido) ? venta.pedido : [];
+  if (!pedidoImpresion.length) return '<li>Sin productos</li>';
+
+  if (resumido) {
+    const resumen = {};
+    pedidoImpresion.forEach(item => {
+      const nombre = item?.nombre || 'Producto';
+      resumen[nombre] = (resumen[nombre] || 0) + 1;
+    });
+    return Object.entries(resumen)
+      .map(([producto, cantidad]) => `<li>${producto} x${cantidad}</li>`)
+      .join('');
   }
 
-  if (esVentaCancelada(ultimaVenta)) {
-    alert("La última venta guardada está cancelada y no se puede imprimir.");
+  return pedidoImpresion
+    .map(item => `<li>${item?.nombre || 'Producto'} - ${formatearCOP(item?.precio || 0)}</li>`)
+    .join('');
+}
+
+function abrirVentanaImpresion(contenido, titulo = 'Impresión') {
+  const w = window.open('', '_blank', 'width=420,height=720');
+  if (!w) {
+    alert('No se pudo abrir la ventana de impresión. Revisa el bloqueador de ventanas emergentes.');
     return;
   }
+  w.document.open();
+  w.document.write(contenido);
+  w.document.close();
+  w.focus();
+  w.print();
+}
 
-  if (!ultimaVenta.pedido || !Array.isArray(ultimaVenta.pedido)) {
-    alert("La última venta no tiene productos válidos.");
-    return;
-  }
-
-  const resumen = {};
-  ultimaVenta.pedido.forEach(p => {
-    resumen[p.nombre] = (resumen[p.nombre] || 0) + 1;
-  });
-
-  const contenido = `
-    <!DOCTYPE html>
-    <html>
+function generarPlantillaReciboCliente(venta = {}, referencia = 1) {
+  const observaciones = venta?.observaciones || '';
+  const costoDomicilio = Number(venta?.costoDomicilio || 0);
+  const fechaTexto = formatearFechaHoraColombia(venta?.fechaISO || venta?.fecha);
+  return `<!DOCTYPE html>
+  <html lang="es">
     <head>
+      <meta charset="UTF-8">
+      <title>Recibo Cliente</title>
       <style>
+        @page { margin: 8mm 6mm; }
         body {
           font-family: monospace;
-          font-size: 15px;
-          margin: 0;
-          padding: 11px;
+          font-size: 14px;
+          width: 58mm;
+          margin: 0 auto;
+          padding: 0;
+          line-height: 1.45;
+          color: #000;
         }
         h2 {
           text-align: center;
           font-size: 19px;
-          margin-bottom: 11px;
+          margin: 0 0 6px;
+          font-weight: 700;
         }
-        .info {
+        .sub-info {
+          text-align: center;
+          font-size: 12px;
           margin-bottom: 10px;
+          line-height: 1.3;
         }
-        .info p {
-          margin: 2px 0;
+        .line {
+          border-top: 1px dashed #000;
+          margin: 8px 0;
+        }
+        .info p,
+        .totales p {
+          margin: 4px 0;
+        }
+        .numero {
+          text-align: center;
+          font-weight: 700;
+          margin: 4px 0;
         }
         ul {
           list-style: none;
@@ -3029,73 +3071,155 @@ function cancelarPedidoActual() {
           margin: 0;
         }
         li {
-          padding: 4px 0;
-          border-bottom: 2px dashed #000;
-          font-size: 19px;
+          margin-bottom: 6px;
+        }
+        .total {
+          text-align: right;
+          font-weight: 700;
+          font-size: 16px;
+          margin-top: 8px;
+        }
+        .thanks {
+          text-align: center;
+          margin-top: 14px;
+          font-weight: 700;
+          font-size: 15px;
         }
       </style>
-    
-<style>
-  html { scroll-behavior: smooth; }
-  @media (max-width: 767px) {
-    body { padding-bottom: 120px; }
-    #appMain, #historicosVista { padding: 1rem; }
-    #productos > div { border-radius: 1rem; }
-    #productos button {
-      min-height: 72px;
-      font-size: 0.92rem;
-      line-height: 1.15rem;
-      font-weight: 700;
-      text-align: left;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-    }
-    #ventasSeccion table th,
-    #ventasSeccion table td {
-      white-space: nowrap;
-    }
-    #historicosVista table th,
-    #historicosVista table td {
-      white-space: nowrap;
-    }
-  }
-</style>
-
-</head>
+    </head>
     <body>
-      <h2>🧾 PEDIDO A COCINA</h2>
-      <div class="info">
-        
-        
-          <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${ultimaVenta.comanda ?? ultimaVenta.recibo ?? 1}</p>
-<p><strong>Cliente:</strong> ${ultimaVenta.cliente || "Sin nombre"}</p>
-        <p><strong>Hora:</strong> ${formatearHoraColombia(ultimaVenta.fechaISO || ultimaVenta.fecha)}</p>
-        <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(ultimaVenta)}</p>
-        <p><strong>Método de pago:</strong> ${ultimaVenta.formaPago || "-"}</p>
-        ${obtenerNumeroDomicilio(ultimaVenta) > 0 ? `<p><strong>N° Domicilio:</strong> ${obtenerNumeroDomicilio(ultimaVenta)}</p>` : ""}
-        ${Number(ultimaVenta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(ultimaVenta.costoDomicilio)}</p>` : ""}
-        ${ultimaVenta.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaVenta.observaciones}</p>` : ""}
+      <h2>SEÑOR AREPA</h2>
+      <div class="sub-info">
+        Matrícula No 289546<br>
+        CALLE 19#25-03 ESQUINA<br>
+        BARRIO SAN JOSÉ, ARMENIA
       </div>
+      <div class="line"></div>
+      <div class="info">
+        <p class="numero">RECIBO #${venta?.recibo ?? venta?.comanda ?? referencia}</p>
+        <p class="numero">COMANDA #${venta?.comanda ?? venta?.recibo ?? referencia}</p>
+        <p><strong>Cliente:</strong> ${venta?.cliente || 'N/A'}</p>
+        <p><strong>Fecha:</strong> ${fechaTexto}</p>
+        <p><strong>Tipo de pedido:</strong> ${obtenerTipoPedidoImpresion(venta)}</p>
+        <p><strong>Método de pago:</strong> ${venta?.formaPago || '-'}</p>
+        ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ''}
+      </div>
+      <div class="line"></div>
       <ul>
-        ${Object.entries(resumen).map(([producto, cantidad]) => `<li>${producto} x${cantidad}</li>`).join("")}
+        ${construirListaProductosImpresion(venta, false)}
       </ul>
-      <p style="text-align: center; margin-top: 10px;">👨‍🍳 Preparar con cuidado</p>
-    </div>
-</body>
-    </html>
-  `;
-
-  const w = window.open("", "_blank", "width=400,height=600");
-  w.document.write(contenido);
-  w.document.close();
-  w.focus();
-  w.print();
+      <div class="line"></div>
+      <div class="totales">
+        ${costoDomicilio > 0 ? `<p><strong>Domicilio:</strong> ${formatearCOP(costoDomicilio)}</p>` : ''}
+        <p class="total">Total venta: ${formatearCOP(venta?.total || 0)}</p>
+      </div>
+      <div class="line"></div>
+      <p class="thanks">¡Gracias por su compra!</p>
+    </body>
+  </html>`;
 }
 
+function generarPlantillaComanda(venta = {}, referencia = 1) {
+  const observaciones = venta?.observaciones || '';
+  const costoDomicilio = Number(venta?.costoDomicilio || 0);
+  const fechaTexto = formatearFechaHoraColombia(venta?.fechaISO || venta?.fecha);
+  return `<!DOCTYPE html>
+  <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>Pedido Cocina</title>
+      <style>
+        @page { margin: 8mm 6mm; }
+        body {
+          font-family: monospace;
+          font-size: 15px;
+          width: 72mm;
+          margin: 0 auto;
+          padding: 0;
+          line-height: 1.4;
+          color: #000;
+        }
+        h2 {
+          text-align: center;
+          font-size: 19px;
+          margin: 0 0 8px;
+          font-weight: 700;
+        }
+        .line {
+          border-top: 1px dashed #000;
+          margin: 8px 0;
+        }
+        .info p,
+        .extra p {
+          margin: 4px 0;
+        }
+        .numero {
+          text-align: center;
+          font-weight: 700;
+          margin: 4px 0;
+        }
+        ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+        li {
+          padding: 5px 0;
+          border-bottom: 1px dashed #000;
+          font-size: 18px;
+        }
+        .footer-note {
+          text-align: center;
+          margin-top: 12px;
+          font-weight: 700;
+        }
+      </style>
+    </head>
+    <body>
+      <h2>🧾 PEDIDO A COCINA</h2>
+      <div class="line"></div>
+      <div class="info">
+        <p class="numero">RECIBO #${venta?.recibo ?? venta?.comanda ?? referencia}</p>
+        <p class="numero">COMANDA #${venta?.comanda ?? venta?.recibo ?? referencia}</p>
+        <p><strong>Cliente:</strong> ${venta?.cliente || 'Sin nombre'}</p>
+        <p><strong>Fecha:</strong> ${fechaTexto}</p>
+        <p><strong>Tipo de pedido:</strong> ${obtenerTipoPedidoImpresion(venta)}</p>
+        <p><strong>Método de pago:</strong> ${venta?.formaPago || '-'}</p>
+        ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ''}
+      </div>
+      <div class="line"></div>
+      <ul>
+        ${construirListaProductosImpresion(venta, true)}
+      </ul>
+      ${costoDomicilio > 0 ? `<div class="line"></div><div class="extra"><p><strong>Costo domicilio:</strong> ${formatearCOP(costoDomicilio)}</p></div>` : ''}
+      <p class="footer-note">👨‍🍳 Preparar con cuidado</p>
+    </body>
+  </html>`;
+}
 
+function imprimirUltimaCocinero() {
+  if (!verificarAcceso(["admin", "cajero"])) return;
+  const ultimaVenta = obtenerUltimaVentaGuardada();
+  if (!ultimaVenta) {
+    alert("No hay ventas para imprimir.");
+    return;
+  }
+  if (esVentaCancelada(ultimaVenta)) {
+    alert("La última venta guardada está cancelada y no se puede imprimir.");
+    return;
+  }
+  if (!ultimaVenta.pedido || !Array.isArray(ultimaVenta.pedido)) {
+    alert("La última venta no tiene productos válidos.");
+    return;
+  }
 
-    // Imprimir último recibo para cliente (simple)
+  abrirVentanaImpresion(
+    generarPlantillaComanda(ultimaVenta, ultimaVenta.comanda ?? ultimaVenta.recibo ?? 1),
+    'Pedido Cocina'
+  );
+}
+
+// Imprimir último recibo para cliente (simple)
 function imprimirUltimaCliente() {
   if (!verificarAcceso(["admin", "cajero"])) return;
   const ultimaVenta = obtenerUltimaVentaGuardada();
@@ -3103,142 +3227,15 @@ function imprimirUltimaCliente() {
     alert("No hay ventas para imprimir.");
     return;
   }
-
   if (esVentaCancelada(ultimaVenta)) {
     alert("La última venta guardada está cancelada y no se puede imprimir.");
     return;
   }
 
-  const observaciones = ultimaVenta.observaciones || "";
-
-
-  let contenido = `
-    <html>
-      <head>
-        <title>Recibo Cliente</title>
-        <style>
-          body {
-            font-family: monospace;
-            font-size: 14px;
-            width: 58mm;
-            padding: 10px 12px;
-            margin: 0;
-            line-height: 1.5;
-          }
-          h2 {
-            text-align: center;
-            font-size: 19px;
-            margin: 14px 0 5px;
-            font-weight: bold;
-          }
-          .sub-info {
-            text-align: center;
-            font-size: 12px;
-            margin-bottom: 10px;
-            line-height: 1.3;
-          }
-          .line {
-            border-top: 1px dashed #000;
-            margin: 9px 0;
-          }
-          ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-          }
-          li {
-            margin-bottom: 7px;
-          }
-          .total {
-            text-align: right;
-            font-weight: bold;
-            margin-top: 14px;
-            font-size: 16px;
-          }
-          .info p {
-            margin: 6px 0;
-          }
-          .info strong {
-            font-weight: bold;
-          }
-          p.thanks {
-            text-align: center;
-            margin-top: 22px;
-            font-weight: bold;
-            font-size: 15px;
-          }
-        </style>
-      
-<style>
-  html { scroll-behavior: smooth; }
-  @media (max-width: 767px) {
-    body { padding-bottom: 120px; }
-    #appMain, #historicosVista { padding: 1rem; }
-    #productos > div { border-radius: 1rem; }
-    #productos button {
-      min-height: 72px;
-      font-size: 0.92rem;
-      line-height: 1.15rem;
-      font-weight: 700;
-      text-align: left;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-    }
-    #ventasSeccion table th,
-    #ventasSeccion table td {
-      white-space: nowrap;
-    }
-    #historicosVista table th,
-    #historicosVista table td {
-      white-space: nowrap;
-    }
-  }
-</style>
-
-</head>
-      <body>
-        <h2>SEÑOR AREPA</h2>
-        <div class="sub-info">
-          Matrícula No 289546<br>
-          CALLE 19#25-03 ESQUINA<br>
-          BARRIO SAN JOSÉ, ARMENIA
-        </div>
-        <div class="line"></div>
-        <div class="info">
-          <p style="text-align:center; font-weight:bold; margin:6px 0;">
-  RECIBO #${ultimaVenta.recibo ?? ultimaVenta.comanda ?? 1}</p>
-<p style="text-align:center; font-weight:bold; margin:6px 0;">
-  COMANDA #${ultimaVenta.comanda ?? ultimaVenta.recibo ?? 1}</p>
-<p><strong>Cliente:</strong> ${ultimaVenta.cliente || "N/A"}</p>
-          <p><strong>Fecha:</strong> ${formatearFechaHoraColombia(ultimaVenta.fechaISO || ultimaVenta.fecha)}</p>
-          <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(ultimaVenta)}</p>
-        <p><strong>Método de pago:</strong> ${ultimaVenta.formaPago || "-"}</p>
-          ${obtenerNumeroDomicilio(ultimaVenta) > 0 ? `<p><strong>N° Domicilio:</strong> ${obtenerNumeroDomicilio(ultimaVenta)}</p>` : ""}
-        ${Number(ultimaVenta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(ultimaVenta.costoDomicilio)}</p>` : ""}
-          ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ""}
-        </div>
-        <div class="line"></div>
-        <ul>`;
-
-  ultimaVenta.pedido.forEach(p => {
-    contenido += `<li>${p.nombre} - $${Number(p.precio).toLocaleString('es-CO')}</li>`;
-  });
-
-  contenido += `
-        </ul>
-        <div class="line"></div>
-        <p class="total">Total: $${Number(ultimaVenta.total).toLocaleString('es-CO')}</p>
-        <div class="line"></div>
-        <p class="thanks">¡Gracias por su compra!</p>
-      </body>
-    </html>`;
-
-  const w = window.open("", "_blank", "width=400,height=600");
-  w.document.write(contenido);
-  w.document.close();
-  w.focus();
-  w.print();
+  abrirVentanaImpresion(
+    generarPlantillaReciboCliente(ultimaVenta, ultimaVenta.recibo ?? ultimaVenta.comanda ?? 1),
+    'Recibo Cliente'
+  );
 }
 
 
@@ -3251,115 +3248,10 @@ function imprimirVentaCliente(index) {
   if (!venta) return alert("Venta no encontrada.");
   if (esVentaCancelada(venta)) return alert("Esta venta está cancelada y no se puede imprimir.");
 
-  const contenido = `
-    <html>
-      <head>
-        <title>Recibo Cliente</title>
-        <style>
-          body {
-            font-family: monospace;
-            font-size: 14px;
-            width: 58mm;
-            padding: 10px 12px;
-            margin: 0;
-            line-height: 1.5;
-          }
-          h2 {
-            text-align: center;
-            font-size: 19px;
-            margin: 14px 0;
-            font-weight: bold;
-          }
-          .line {
-            border-top: 1px dashed #000;
-            margin: 9px 0;
-          }
-          ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-          }
-          li {
-            margin-bottom: 7px;
-          }
-          .total {
-            text-align: right;
-            font-weight: bold;
-            margin-top: 14px;
-            font-size: 16px;
-          }
-          .info p {
-            margin: 6px 0;
-          }
-          .info strong {
-            font-weight: bold;
-          }
-          p.thanks {
-            text-align: center;
-            margin-top: 22px;
-            font-weight: bold;
-            font-size: 15px;
-          }
-        </style>
-      
-<style>
-  html { scroll-behavior: smooth; }
-  @media (max-width: 767px) {
-    body { padding-bottom: 120px; }
-    #appMain, #historicosVista { padding: 1rem; }
-    #productos > div { border-radius: 1rem; }
-    #productos button {
-      min-height: 72px;
-      font-size: 0.92rem;
-      line-height: 1.15rem;
-      font-weight: 700;
-      text-align: left;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-    }
-    #ventasSeccion table th,
-    #ventasSeccion table td {
-      white-space: nowrap;
-    }
-    #historicosVista table th,
-    #historicosVista table td {
-      white-space: nowrap;
-    }
-  }
-</style>
-
-</head>
-      <body>
-        <h2>SEÑOR AREPA</h2>
-        <div class="line"></div>
-        <div class="info">
-          <p style="text-align:center; font-weight:bold; margin:6px 0;">RECIBO #${venta.recibo ?? venta.comanda ?? (index + 1)}</p>
-          <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${venta.comanda ?? venta.recibo ?? (index + 1)}</p>
-          <p><strong>Cliente:</strong> ${venta.cliente || "N/A"}</p>
-          <p><strong>Fecha:</strong> ${formatearFechaHoraColombia(venta.fechaISO || venta.fecha)}</p>
-          <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(venta)}</p>
-          <p><strong>Método de pago:</strong> ${venta.formaPago || "-"}</p>
-          ${obtenerNumeroDomicilio(venta) > 0 ? `<p><strong>N° Domicilio:</strong> ${obtenerNumeroDomicilio(venta)}</p>` : ""}
-          ${Number(venta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(venta.costoDomicilio)}</p>` : ""}
-          ${venta.observaciones ? `<p><strong>Observaciones:</strong> ${venta.observaciones}</p>` : ""}
-        </div>
-        <div class="line"></div>
-        <ul>
-          ${venta.pedido.map(p => `<li>${p.nombre} - $${Number(p.precio).toLocaleString('es-CO')}</li>`).join("")}
-        </ul>
-        <div class="line"></div>
-        <p class="total">Total: $${Number(venta.total).toLocaleString('es-CO')}</p>
-        <div class="line"></div>
-        <p class="thanks">¡Gracias por su compra!</p>
-      </body>
-    </html>`;
-
-  const w = window.open("", "_blank", "width=400,height=600");
-  w.document.write(contenido);
-  w.document.close();
-  w.focus();
-  w.print();
+  abrirVentanaImpresion(
+    generarPlantillaReciboCliente(venta, venta.recibo ?? venta.comanda ?? (index + 1)),
+    'Recibo Cliente'
+  );
 }
 
 function imprimirVentaCocina(index) {
@@ -3368,99 +3260,12 @@ function imprimirVentaCocina(index) {
   const venta = ventas[index];
   if (!venta) return alert("Venta no encontrada.");
   if (esVentaCancelada(venta)) return alert("Esta venta está cancelada y no se puede imprimir.");
+  if (!venta.pedido || !Array.isArray(venta.pedido)) return alert("Esta venta no tiene productos válidos.");
 
-  const resumen = {};
-  venta.pedido.forEach(p => {
-    resumen[p.nombre] = (resumen[p.nombre] || 0) + 1;
-  });
-
-  const contenido = `
-    <html>
-      <head>
-        <title>Pedido Cocina</title>
-        <style>
-          body {
-            font-family: monospace;
-            font-size: 15px;
-            margin: 0;
-            padding: 11px;
-          }
-          h2 {
-            text-align: center;
-            font-size: 19px;
-            margin-bottom: 11px;
-          }
-          .info {
-            margin-bottom: 10px;
-          }
-          .info p {
-            margin: 2px 0;
-          }
-          ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-          }
-          li {
-            padding: 4px 0;
-            border-bottom: 2px dashed #000;
-            font-size: 19px;
-          }
-        </style>
-      
-<style>
-  html { scroll-behavior: smooth; }
-  @media (max-width: 767px) {
-    body { padding-bottom: 120px; }
-    #appMain, #historicosVista { padding: 1rem; }
-    #productos > div { border-radius: 1rem; }
-    #productos button {
-      min-height: 72px;
-      font-size: 0.92rem;
-      line-height: 1.15rem;
-      font-weight: 700;
-      text-align: left;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-    }
-    #ventasSeccion table th,
-    #ventasSeccion table td {
-      white-space: nowrap;
-    }
-    #historicosVista table th,
-    #historicosVista table td {
-      white-space: nowrap;
-    }
-  }
-</style>
-
-</head>
-      <body>
-        <h2>🧾 PEDIDO A COCINA</h2>
-        <div class="info">
-          <p style="text-align:center; font-weight:bold; margin:6px 0;">RECIBO #${venta.recibo ?? venta.comanda ?? (index + 1)}</p>
-          <p style="text-align:center; font-weight:bold; margin:6px 0;">COMANDA #${venta.comanda ?? venta.recibo ?? (index + 1)}</p>
-          <p><strong>Cliente:</strong> ${venta.cliente || "Sin nombre"}</p>
-          <p><strong>Hora:</strong> ${formatearHoraColombia(venta.fechaISO || venta.fecha)}</p>
-          <p><strong>Tipo de Pedido:</strong> ${formatearTipoPedidoVisual(venta)}</p>
-          <p><strong>Método de pago:</strong> ${venta.formaPago || "-"}</p>
-          ${obtenerNumeroDomicilio(venta) > 0 ? `<p><strong>N° Domicilio:</strong> ${obtenerNumeroDomicilio(venta)}</p>` : ""}
-          ${Number(venta.costoDomicilio || 0) > 0 ? `<p><strong>Costo domicilio:</strong> ${formatearCOP(venta.costoDomicilio)}</p>` : ""}
-          ${venta.observaciones ? `<p><strong>Observaciones:</strong> ${venta.observaciones}</p>` : ""}
-        </div>
-        <ul>
-          ${Object.entries(resumen).map(([producto, cantidad]) => `<li>${producto} x${cantidad}</li>`).join("")}
-        </ul>
-        <p style="text-align: center; margin-top: 10px;">👨‍🍳 Preparar con cuidado</p>
-      </body>
-    </html>`;
-
-  const w = window.open("", "_blank", "width=400,height=600");
-  w.document.write(contenido);
-  w.document.close();
-  w.focus();
-  w.print();
+  abrirVentanaImpresion(
+    generarPlantillaComanda(venta, venta.comanda ?? venta.recibo ?? (index + 1)),
+    'Pedido Cocina'
+  );
 }
 
 async function marcarVentaComoCancelada(index) {
