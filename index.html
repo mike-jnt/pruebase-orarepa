@@ -669,6 +669,7 @@
                 <th class="p-2 border">Diferencia</th>
                 <th class="p-2 border">Abrió</th>
                 <th class="p-2 border">Cerró</th>
+                <th class="p-2 border">Acciones</th>
               </tr>
             </thead>
             <tbody id="cierresCajaBody"></tbody>
@@ -730,9 +731,12 @@
           <textarea id="cierreCajaObservaciones" rows="3" placeholder="Observaciones del cierre" class="w-full p-3 border border-yellow-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-yellow-400"></textarea>
         </div>
       </div>
-      <div class="px-6 py-4 border-t border-green-100 bg-white flex flex-col sm:flex-row gap-2 sm:justify-end">
-        <button type="button" onclick="cerrarModalCaja('modalCierreCaja')" class="px-4 py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200">Cancelar</button>
-        <button type="button" id="btnRegistrarCierreCaja" onclick="registrarCierreCaja()" class="px-4 py-3 rounded-2xl bg-green-500 text-white font-bold hover:bg-green-600">Guardar cierre</button>
+      <div class="px-6 py-4 border-t border-green-100 bg-white flex flex-col sm:flex-row gap-2 sm:justify-between">
+        <button type="button" id="btnEliminarCierreCajaActual" data-role="admin-only" onclick="eliminarCierreCajaActual()" class="hidden px-4 py-3 rounded-2xl bg-red-100 text-red-700 font-bold hover:bg-red-200">🗑️ Borrar cierre de hoy</button>
+        <div class="flex flex-col sm:flex-row gap-2 sm:ml-auto">
+          <button type="button" onclick="cerrarModalCaja('modalCierreCaja')" class="px-4 py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200">Cancelar</button>
+          <button type="button" id="btnRegistrarCierreCaja" onclick="registrarCierreCaja()" class="px-4 py-3 rounded-2xl bg-green-500 text-white font-bold hover:bg-green-600">Guardar cierre</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1364,6 +1368,7 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
   const cierreInfoModal = document.getElementById('cierreCajaInfoModal');
   const btnApertura = document.getElementById('btnRegistrarAperturaCaja');
   const btnCierre = document.getElementById('btnRegistrarCierreCaja');
+  const btnEliminarCierreActual = document.getElementById('btnEliminarCierreCajaActual');
   const inputApertura = document.getElementById('aperturaCajaMonto');
   const inputCierre = document.getElementById('cierreCajaMonto');
   const inputObs = document.getElementById('cierreCajaObservaciones');
@@ -1392,6 +1397,11 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
 
   if (btnApertura) btnApertura.textContent = control.aperturaHora ? 'Actualizar apertura' : 'Guardar apertura';
   if (btnCierre) btnCierre.textContent = control.cierreHora ? 'Actualizar cierre' : 'Guardar cierre';
+  if (btnEliminarCierreActual) {
+    const mostrar = esAdmin() && Boolean(control.cierreHora);
+    btnEliminarCierreActual.classList.toggle('hidden', !mostrar);
+    btnEliminarCierreActual.style.display = mostrar ? '' : 'none';
+  }
   if (inputApertura && document.activeElement !== inputApertura) inputApertura.value = control.aperturaMonto ? String(control.aperturaMonto) : '';
   if (inputCierre && document.activeElement !== inputCierre) inputCierre.value = control.cierreMonto ? String(control.cierreMonto) : '';
   if (inputObs && document.activeElement !== inputObs) inputObs.value = control.cierreObservaciones || '';
@@ -1497,7 +1507,7 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
   const controles = await obtenerTodosLosControlesCaja(forzarRemoto);
   const cierres = controles.filter(control => control.cierreHora);
   if (!cierres.length) {
-    body.innerHTML = '<tr><td colspan="8" class="p-3 text-center text-gray-500">No hay cierres de caja registrados todavía.</td></tr>';
+    body.innerHTML = '<tr><td colspan="9" class="p-3 text-center text-gray-500">No hay cierres de caja registrados todavía.</td></tr>';
     return;
   }
   body.innerHTML = cierres.map(control => {
@@ -1505,6 +1515,9 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
     const esperado = Number(control.aperturaMonto || 0) + Number(resumen.totalEfectivo || 0);
     const diferencia = Number(control.cierreMonto || 0) - esperado;
     const claseDiferencia = diferencia === 0 ? 'text-green-700' : 'text-red-700';
+    const acciones = esAdmin()
+      ? `<button type="button" onclick="eliminarCierreCaja('${control.diaClave}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg font-semibold text-xs">🗑️ Borrar cierre</button>`
+      : '-';
     return `
       <tr>
         <td class="p-2 border">${control.diaClave}</td>
@@ -1515,6 +1528,7 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
         <td class="p-2 border font-semibold ${claseDiferencia}">${formatearCOP(diferencia)}</td>
         <td class="p-2 border">${control.aperturaUsuario || '-'}</td>
         <td class="p-2 border">${control.cierreUsuario || '-'}</td>
+        <td class="p-2 border text-center">${acciones}</td>
       </tr>
     `;
   }).join('');
@@ -1571,6 +1585,38 @@ async function registrarCierreCaja() {
   const filtro = document.getElementById('filtroHistoricoFecha');
   if (filtro && filtro.value === diaClave) await renderResumenCajaFecha(diaClave, true);
   renderTablaCierresCaja(true);
+}
+
+async function eliminarCierreCaja(diaClave) {
+  if (!verificarAcceso(["admin"])) return;
+  if (!diaClave) return;
+  const confirmar = confirm(`¿Seguro que quieres borrar el cierre de caja del día ${diaClave}? Se conservará la apertura.`);
+  if (!confirmar) return;
+  const actual = await obtenerControlCajaDia(diaClave, true);
+  if (!actual.cierreHora) {
+    alert('Ese día no tiene un cierre registrado.');
+    return;
+  }
+  await guardarControlCajaDia(diaClave, {
+    ...actual,
+    cierreMonto: 0,
+    cierreHora: '',
+    cierreUsuario: '',
+    cierreObservaciones: ''
+  });
+  alert('Cierre de caja eliminado correctamente.');
+  const diaActual = obtenerFechaLocalISO(new Date());
+  if (diaClave === diaActual) {
+    await renderControlCajaDiaActual(true);
+  }
+  const filtro = document.getElementById('filtroHistoricoFecha');
+  if (filtro && filtro.value === diaClave) await renderResumenCajaFecha(diaClave, true);
+  renderTablaCierresCaja(true);
+}
+
+async function eliminarCierreCajaActual() {
+  const diaClave = obtenerFechaLocalISO(new Date());
+  await eliminarCierreCaja(diaClave);
 }
 
 async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
