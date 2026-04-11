@@ -7,7 +7,9 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <style>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
+    <style>
   body {
     background-color: #fffbea;
     font-family: 'Segoe UI', sans-serif;
@@ -220,10 +222,45 @@ body.dark-mode .subseccion {
 
 
 
+
+
+.estado-firebase {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 999px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.estado-firebase.online {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.estado-firebase.offline {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+body.dark-mode .estado-firebase.online {
+  background: #14532d;
+  color: #dcfce7;
+}
+
+body.dark-mode .estado-firebase.offline {
+  background: #7f1d1d;
+  color: #fee2e2;
+}
+
 </style>
 
 </head>
 <body>
+  <div id="estadoFirebase" class="estado-firebase offline">Base de datos desconectada</div>
   <button class="btn btn-sm btn-secondary dark-toggle" onclick="toggleDarkMode()">
     <i class="bi bi-moon-fill"></i> Modo Oscuro
   </button>
@@ -403,137 +440,378 @@ body.dark-mode .subseccion {
  
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- ExcelJS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-<!-- JSZip -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<!-- FileSaver -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
+  <!-- ExcelJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+  <!-- JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- FileSaver -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <script>
-    let indiceEdicion = null;
-    let movimientos = JSON.parse(localStorage.getItem('movimientos')) || [];
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyDxrAJcH5AAxIAK2rRWD61aSQklaH--dT0",
+      authDomain: "prsenorarepa.firebaseapp.com",
+      projectId: "prsenorarepa",
+      storageBucket: "prsenorarepa.firebasestorage.app",
+      messagingSenderId: "55349021122",
+      appId: "1:55349021122:web:e4c65b2f2911bd2c4eee5b",
+      measurementId: "G-8JGY4PVMMV"
+    };
 
-    document.getElementById('formulario').addEventListener('submit', function(e) {
+    const COLECCION_MOVIMIENTOS = 'finanzas_movimientos';
+    const CACHE_KEY = 'movimientos_finanzas_cache_v2';
+    const CACHE_ANTERIOR_KEY = 'movimientos';
+    const MIGRATION_KEY = 'movimientos_finanzas_migrados_v1';
+
+    let indiceEdicion = null;
+    let movimientos = JSON.parse(localStorage.getItem(CACHE_KEY)) || [];
+    let grafico = null;
+    let graficoCategorias = null;
+    let firebaseApp = null;
+    let firestoreDb = null;
+    let firebaseDisponible = false;
+
+    const formulario = document.getElementById('formulario');
+    const fotoInput = document.getElementById('foto');
+    const vistaFoto = document.getElementById('vistaFoto');
+    const botonGuardar = formulario.querySelector('button[type="submit"]');
+    const estadoFirebase = document.getElementById('estadoFirebase');
+
+    function setEstadoFirebase(texto, online = false) {
+      if (!estadoFirebase) return;
+      estadoFirebase.textContent = texto;
+      estadoFirebase.classList.remove('online', 'offline');
+      estadoFirebase.classList.add(online ? 'online' : 'offline');
+    }
+
+    function normalizarMovimiento(item) {
+      return {
+        id: item.id || null,
+        tipo: item.tipo || 'gasto',
+        monto: Number(item.monto || 0),
+        categoria: item.categoria || '',
+        fecha: item.fecha || '',
+        descripcion: item.descripcion || '',
+        imagen: item.imagen || item.imageUrl || null,
+        createdAt: item.createdAt || null,
+        updatedAt: item.updatedAt || null
+      };
+    }
+
+    function ordenarMovimientos(data) {
+      return [...data].sort((a, b) => {
+        const fechaA = (a.fecha || '') + 'T00:00:00';
+        const fechaB = (b.fecha || '') + 'T00:00:00';
+        const timeA = new Date(fechaA).getTime() || 0;
+        const timeB = new Date(fechaB).getTime() || 0;
+        if (timeB !== timeA) return timeB - timeA;
+        const updatedA = a.updatedAt?.seconds ? a.updatedAt.seconds * 1000 : 0;
+        const updatedB = b.updatedAt?.seconds ? b.updatedAt.seconds * 1000 : 0;
+        return updatedB - updatedA;
+      });
+    }
+
+    function guardarCache() {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(movimientos));
+    }
+
+    function resetFormulario() {
+      formulario.reset();
+      document.getElementById('monto').value = '';
+      vistaFoto.innerHTML = '';
+      fotoInput.value = '';
+      fotoInput.disabled = false;
+      indiceEdicion = null;
+      botonGuardar.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Guardar Movimiento';
+    }
+
+    function formatearComoCOP(input) {
+      let valor = input.value.replace(/\D/g, '');
+      if (!valor) {
+        input.value = '';
+        return;
+      }
+      const numero = parseInt(valor, 10);
+      input.value = numero.toLocaleString('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0
+      });
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+      localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'true' : 'false');
+    }
+
+    async function iniciarFirebase() {
+      try {
+        if (!firebase.apps.length) {
+          firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
+        } else {
+          firebaseApp = firebase.app();
+        }
+        firestoreDb = firebase.firestore();
+        firebaseDisponible = true;
+        setEstadoFirebase('Base de datos conectada', true);
+      } catch (error) {
+        console.error('Error iniciando Firebase:', error);
+        firebaseDisponible = false;
+        setEstadoFirebase('Base de datos desconectada', false);
+      }
+    }
+
+    function mostrarVistaFoto(src) {
+      if (!src) {
+        vistaFoto.innerHTML = '';
+        return;
+      }
+      vistaFoto.innerHTML = `<img src="${src}" alt="Comprobante" style="max-width: 100%; max-height: 180px; border-radius: 8px;" />`;
+    }
+
+    function leerArchivoComoDataURL(archivo) {
+      return new Promise((resolve, reject) => {
+        if (!archivo) {
+          resolve(null);
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('No se pudo leer la imagen seleccionada.'));
+        reader.readAsDataURL(archivo);
+      });
+    }
+
+    async function cargarMovimientosDesdeFirestore() {
+      if (!firebaseDisponible) {
+        actualizarTodo();
+        return;
+      }
+
+      try {
+        setEstadoFirebase('Cargando movimientos...', true);
+        const snapshot = await firestoreDb.collection(COLECCION_MOVIMIENTOS).get();
+        movimientos = snapshot.docs.map(doc => normalizarMovimiento({ id: doc.id, ...doc.data() }));
+        movimientos = ordenarMovimientos(movimientos);
+        guardarCache();
+        actualizarTodo();
+        setEstadoFirebase('Base de datos conectada', true);
+
+        if (!snapshot.empty) return;
+        await migrarLocalStorageSiAplica();
+      } catch (error) {
+        console.error('Error cargando movimientos desde Firestore:', error);
+        firebaseDisponible = false;
+        setEstadoFirebase('Usando respaldo local', false);
+        movimientos = JSON.parse(localStorage.getItem(CACHE_KEY)) || JSON.parse(localStorage.getItem(CACHE_ANTERIOR_KEY)) || [];
+        movimientos = ordenarMovimientos(movimientos.map(normalizarMovimiento));
+        actualizarTodo();
+      }
+    }
+
+    async function migrarLocalStorageSiAplica() {
+      const yaMigrado = localStorage.getItem(MIGRATION_KEY) === 'true';
+      const legacy = JSON.parse(localStorage.getItem(CACHE_ANTERIOR_KEY)) || [];
+      if (yaMigrado || !legacy.length || !firebaseDisponible) return;
+
+      try {
+        setEstadoFirebase('Migrando datos locales...', true);
+        for (const item of legacy) {
+          const base = normalizarMovimiento(item);
+          const docRef = firestoreDb.collection(COLECCION_MOVIMIENTOS).doc();
+          let imagen = null;
+
+          if (base.imagen) {
+            try {
+              imagen = await convertirImagenABase64(base.imagen);
+            } catch (error) {
+              console.warn('No se pudo migrar una imagen local a Firestore:', error);
+            }
+          }
+
+          await docRef.set({
+            tipo: base.tipo,
+            monto: Number(base.monto || 0),
+            categoria: base.categoria,
+            fecha: base.fecha,
+            descripcion: base.descripcion,
+            imagen,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
+        localStorage.setItem(MIGRATION_KEY, 'true');
+        await cargarMovimientosDesdeFirestore();
+      } catch (error) {
+        console.error('Error migrando localStorage a Firestore:', error);
+        setEstadoFirebase('Error al migrar datos locales', false);
+      }
+    }
+
+    async function guardarMovimientoEnFirebase({ tipo, monto, categoria, fecha, descripcion, archivo }) {
+      const estaEditando = indiceEdicion !== null && movimientos[indiceEdicion];
+      const anterior = estaEditando ? movimientos[indiceEdicion] : null;
+      const docRef = estaEditando && anterior.id
+        ? firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(anterior.id)
+        : firestoreDb.collection(COLECCION_MOVIMIENTOS).doc();
+
+      let imagen = anterior?.imagen || null;
+
+      if (archivo) {
+        imagen = await leerArchivoComoDataURL(archivo);
+      }
+
+      const payload = {
+        tipo,
+        monto,
+        categoria,
+        fecha,
+        descripcion,
+        imagen,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      if (!estaEditando) {
+        payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      }
+
+      await docRef.set(payload, { merge: true });
+      return docRef.id;
+    }
+
+    formulario.addEventListener('submit', async function(e) {
       e.preventDefault();
+
       const tipo = document.getElementById('tipo').value;
       const montoTexto = document.getElementById('monto').value;
       const monto = parseFloat(montoTexto.replace(/[^0-9]/g, '')) || 0;
       const categoria = document.getElementById('categoria').value;
       const fecha = document.getElementById('fecha').value;
       const descripcion = document.getElementById('descripcion').value.trim();
-      const fotoInput = document.getElementById('foto');
-      const reader = new FileReader();
+      const archivo = fotoInput.files[0] || null;
 
-      if (fotoInput.files.length > 0) {
-        reader.readAsDataURL(fotoInput.files[0]);
-        reader.onload = () => {
-          const imagenBase64 = reader.result;
-          guardarMovimiento(tipo, monto, categoria, fecha, descripcion, imagenBase64);
-        };
-      } else {
-        guardarMovimiento(tipo, monto, categoria, fecha, descripcion, null);
+      if (!fecha) {
+        alert('Debes seleccionar una fecha.');
+        return;
+      }
+
+      botonGuardar.disabled = true;
+      botonGuardar.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Guardando...';
+
+      try {
+        if (!firebaseDisponible) {
+          throw new Error('Firebase no está disponible');
+        }
+
+        await guardarMovimientoEnFirebase({ tipo, monto, categoria, fecha, descripcion, archivo });
+        await cargarMovimientosDesdeFirestore();
+        resetFormulario();
+      } catch (error) {
+        console.error('Error guardando movimiento:', error);
+        setEstadoFirebase('Error guardando en Firebase', false);
+        alert('No se pudo guardar en Firebase. Revisa las reglas o la conexión.');
+      } finally {
+        botonGuardar.disabled = false;
+        if (indiceEdicion === null) {
+          botonGuardar.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Guardar Movimiento';
+        } else {
+          botonGuardar.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Actualizar Movimiento';
+        }
       }
     });
 
-    function guardarMovimiento(tipo, monto, categoria, fecha, descripcion, imagen) {
-  const movimiento = { tipo, monto, categoria, fecha, descripcion, imagen };
+    function filtrarMovimientos() {
+      const desde = document.getElementById('desde').value;
+      const hasta = document.getElementById('hasta').value;
+      const categoriaFiltro = document.getElementById('filtroCategoria').value.trim().toLowerCase();
+      const tipoFiltro = document.getElementById('filtroTipo').value;
 
-  if (indiceEdicion !== null) {
-    movimientos[indiceEdicion] = movimiento;
-    indiceEdicion = null;
-  } else {
-    movimientos.push(movimiento);
-  }
+      const filtrados = movimientos.filter(m => {
+        const fechaValida = (!desde || m.fecha >= desde) && (!hasta || m.fecha <= hasta);
+        const categoriaValida = !categoriaFiltro || (m.categoria || '').toLowerCase().includes(categoriaFiltro);
+        const tipoValido = !tipoFiltro || m.tipo === tipoFiltro;
+        return fechaValida && categoriaValida && tipoValido;
+      });
 
-  localStorage.setItem('movimientos', JSON.stringify(movimientos));
-  document.getElementById('formulario').reset();
-  document.getElementById('monto').value = '';
-  actualizarTodo();
-  document.getElementById('vistaFoto').innerHTML = "";
-
-}
-
-
-function filtrarMovimientos() {
-  const desde = document.getElementById('desde').value;
-  const hasta = document.getElementById('hasta').value;
-  const categoriaFiltro = document.getElementById('filtroCategoria').value.trim().toLowerCase();
-  const tipoFiltro = document.getElementById('filtroTipo').value;
-
-  const filtrados = movimientos.filter(m => {
-    const fechaValida = (!desde || m.fecha >= desde) && (!hasta || m.fecha <= hasta);
-    const categoriaValida = !categoriaFiltro || m.categoria.toLowerCase().includes(categoriaFiltro);
-    const tipoValido = !tipoFiltro || m.tipo === tipoFiltro;
-
-    return fechaValida && categoriaValida && tipoValido;
-  });
-
-  actualizarTabla(filtrados);
-  actualizarResumen(filtrados);
-  actualizarGrafico(filtrados);
-}
-
+      actualizarTabla(filtrados);
+      actualizarResumen(filtrados);
+      actualizarGrafico(filtrados);
+      generarResumenMensual(filtrados);
+    }
 
     document.getElementById('filtroCategoria').addEventListener('input', filtrarMovimientos);
 
     function limpiarFiltros() {
-      document.getElementById('filtroTipo').value = "";
-      document.getElementById('desde').value = "";
-      document.getElementById('hasta').value = "";
-      document.getElementById('filtroCategoria').value = "";
+      document.getElementById('filtroTipo').value = '';
+      document.getElementById('desde').value = '';
+      document.getElementById('hasta').value = '';
+      document.getElementById('filtroCategoria').value = '';
       actualizarTodo();
     }
 
-    function actualizarTodo() {
-      actualizarTabla(movimientos);
-      actualizarResumen(movimientos);
-      actualizarGrafico(movimientos);
+    function actualizarTodo(data = movimientos) {
+      actualizarTabla(data);
+      actualizarResumen(data);
+      actualizarGrafico(data);
+      generarResumenMensual(data);
     }
 
     function actualizarTabla(data = movimientos) {
       const tabla = document.getElementById('tablaMovimientos');
-      tabla.innerHTML = "";
-      data.forEach((m, i) => {
+      tabla.innerHTML = '';
+
+      data.forEach((m) => {
+        const indexReal = movimientos.findIndex(item => item.id === m.id);
         const fila = document.createElement('tr');
         fila.innerHTML = `
           <td>${m.tipo}</td>
-          <td>$${m.monto.toLocaleString('es-CO')}</td>
-          <td>${m.categoria}</td>
-          <td>${m.fecha}</td>
+          <td>$${Number(m.monto || 0).toLocaleString('es-CO')}</td>
+          <td>${m.categoria || ''}</td>
+          <td>${m.fecha || ''}</td>
           <td>${m.descripcion || ''}</td>
-          <td>${m.imagen ? '<a href="' + m.imagen + '" download="comprobante.png" class="btn btn-sm btn-outline-primary">Ver</a>' : 'Sin imagen'}</td>
+          <td>${m.imagen ? `<a href="${m.imagen}" target="_blank" class="btn btn-sm btn-outline-primary">Ver</a>` : 'Sin imagen'}</td>
           <td>
-             <button class="btn btn-warning btn-sm me-1" onclick="editarMovimiento(${i})"><i class="bi bi-pencil"></i></button>
-             <button class="btn btn-danger btn-sm" onclick="eliminarMovimiento(${i})"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-warning btn-sm me-1" onclick="editarMovimiento(${indexReal})"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="eliminarMovimiento(${indexReal})"><i class="bi bi-trash"></i></button>
           </td>
-
         `;
         tabla.appendChild(fila);
       });
     }
 
-    function eliminarMovimiento(index) {
-      movimientos.splice(index, 1);
-      localStorage.setItem('movimientos', JSON.stringify(movimientos));
-      actualizarTodo();
+    async function eliminarMovimiento(index) {
+      const movimiento = movimientos[index];
+      if (!movimiento) return;
+
+      try {
+        if (!firebaseDisponible || !movimiento.id) {
+          throw new Error('Movimiento sin id de Firestore');
+        }
+
+        await firestoreDb.collection(COLECCION_MOVIMIENTOS).doc(movimiento.id).delete();
+        movimientos.splice(index, 1);
+        movimientos = ordenarMovimientos(movimientos);
+        guardarCache();
+        actualizarTodo();
+      } catch (error) {
+        console.error('Error eliminando movimiento:', error);
+        alert('No se pudo eliminar en Firebase.');
+      }
     }
 
     function actualizarResumen(data = movimientos) {
-      const ingresos = data.filter(m => m.tipo === 'ingreso').reduce((acc, m) => acc + m.monto, 0);
-      const gastos = data.filter(m => m.tipo === 'gasto').reduce((acc, m) => acc + m.monto, 0);
+      const ingresos = data.filter(m => m.tipo === 'ingreso').reduce((acc, m) => acc + Number(m.monto || 0), 0);
+      const gastos = data.filter(m => m.tipo === 'gasto').reduce((acc, m) => acc + Number(m.monto || 0), 0);
       document.getElementById('totalIngresos').textContent = ingresos.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
       document.getElementById('totalGastos').textContent = gastos.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
       document.getElementById('balance').textContent = (ingresos - gastos).toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
     }
 
-    let grafico;
-    let graficoCategorias;
-
     function actualizarGrafico(data = movimientos) {
-      const ingresos = data.filter(m => m.tipo === 'ingreso').reduce((acc, m) => acc + m.monto, 0);
-      const gastos = data.filter(m => m.tipo === 'gasto').reduce((acc, m) => acc + m.monto, 0);
+      const ingresos = data.filter(m => m.tipo === 'ingreso').reduce((acc, m) => acc + Number(m.monto || 0), 0);
+      const gastos = data.filter(m => m.tipo === 'gasto').reduce((acc, m) => acc + Number(m.monto || 0), 0);
       const ctx = document.getElementById('grafico').getContext('2d');
       if (grafico) grafico.destroy();
       grafico = new Chart(ctx, {
@@ -543,690 +821,300 @@ function filtrarMovimientos() {
           datasets: [{ data: [ingresos, gastos], backgroundColor: ['#34d399', '#f87171'] }]
         },
         options: { responsive: true, maintainAspectRatio: false }
-
-
       });
 
-      // Agrupar por categoría
-const categorias = {};
-data.forEach(m => {
-  if (!categorias[m.categoria]) categorias[m.categoria] = 0;
-  categorias[m.categoria] += m.monto;
-});
+      const categorias = {};
+      data.forEach(m => {
+        const categoria = m.categoria || 'Sin categoría';
+        if (!categorias[categoria]) categorias[categoria] = 0;
+        categorias[categoria] += Number(m.monto || 0);
+      });
 
-// Destruir gráfico anterior si existe
-if (graficoCategorias) graficoCategorias.destroy();
+      if (graficoCategorias) graficoCategorias.destroy();
+      const ctxCat = document.getElementById('graficoCategorias').getContext('2d');
+      graficoCategorias = new Chart(ctxCat, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(categorias),
+          datasets: [{
+            label: 'Total por Categoría',
+            data: Object.values(categorias),
+            backgroundColor: '#facc15',
+            borderRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              ticks: {
+                callback: value => '$' + Number(value).toLocaleString('es-CO')
+              }
+            }
+          }
+        }
+      });
+    }
 
-const ctxCat = document.getElementById('graficoCategorias').getContext('2d');
-graficoCategorias = new Chart(ctxCat, {
-  type: 'bar',
-  data: {
-    labels: Object.keys(categorias),
-    datasets: [{
-      label: 'Total por Categoría',
-      data: Object.values(categorias),
-      backgroundColor: '#facc15',
-      borderRadius: 5
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: { display: false }
-    },
-    scales: {
-      y: {
-        ticks: {
-          callback: function(value) {
-            return '$' + value.toLocaleString('es-CO');
+    function editarMovimiento(index) {
+      const m = movimientos[index];
+      if (!m) return;
+      indiceEdicion = index;
+
+      document.getElementById('tipo').value = m.tipo;
+      document.getElementById('monto').value = Number(m.monto || 0).toLocaleString('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0
+      });
+      document.getElementById('categoria').value = m.categoria;
+      document.getElementById('fecha').value = m.fecha;
+      document.getElementById('descripcion').value = m.descripcion || '';
+      fotoInput.value = '';
+      fotoInput.disabled = false;
+      mostrarVistaFoto(m.imagen);
+      botonGuardar.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Actualizar Movimiento';
+      formulario.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    fotoInput.addEventListener('change', function () {
+      const archivo = this.files[0];
+      if (!archivo) {
+        if (indiceEdicion !== null && movimientos[indiceEdicion]?.imagen) {
+          mostrarVistaFoto(movimientos[indiceEdicion].imagen);
+        } else {
+          mostrarVistaFoto(null);
+        }
+        return;
+      }
+
+      const lector = new FileReader();
+      lector.onload = function (e) {
+        mostrarVistaFoto(e.target.result);
+      };
+      lector.readAsDataURL(archivo);
+    });
+
+    function generarResumenMensual(data = movimientos) {
+      const resumen = {};
+      data.forEach(m => {
+        if (!m.fecha) return;
+        const mes = m.fecha.slice(0, 7);
+        if (!resumen[mes]) resumen[mes] = { ingresos: 0, gastos: 0 };
+        if (m.tipo === 'ingreso') resumen[mes].ingresos += Number(m.monto || 0);
+        else resumen[mes].gastos += Number(m.monto || 0);
+      });
+
+      const cuerpo = document.getElementById('tablaResumenMensual');
+      cuerpo.innerHTML = '';
+
+      Object.entries(resumen)
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .forEach(([mes, datos]) => {
+          const balance = datos.ingresos - datos.gastos;
+          const fila = `
+            <tr>
+              <td>${mes}</td>
+              <td>$${datos.ingresos.toLocaleString('es-CO')}</td>
+              <td>$${datos.gastos.toLocaleString('es-CO')}</td>
+              <td class="${balance < 0 ? 'text-danger' : 'text-success'}">$${balance.toLocaleString('es-CO')}</td>
+            </tr>
+          `;
+          cuerpo.innerHTML += fila;
+        });
+    }
+
+    async function convertirImagenABase64(imagen) {
+      if (!imagen) return null;
+      if (imagen.startsWith('data:image/')) return imagen;
+      const response = await fetch(imagen);
+      const blob = await response.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function exportarExcel() {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Movimientos');
+
+      sheet.mergeCells('A1:E1');
+      const titleCell = sheet.getCell('A1');
+      titleCell.value = 'Gestor de Finanzas - Movimientos';
+      titleCell.font = { size: 16, bold: true };
+      titleCell.alignment = { horizontal: 'center' };
+
+      sheet.addRow([]);
+      const headerRow = sheet.addRow(['Tipo', 'Monto', 'Categoría', 'Fecha', 'Descripción']);
+      sheet.autoFilter = { from: `A${headerRow.number}`, to: `E${headerRow.number}` };
+      sheet.views = [{ state: 'frozen', ySplit: headerRow.number }];
+
+      headerRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1F4E78' } };
+        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+        cell.alignment = { horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
+      });
+
+      let totalIngresos = 0;
+      let totalGastos = 0;
+
+      movimientos.forEach((m) => {
+        const row = sheet.addRow([m.tipo, Number(m.monto || 0), m.categoria, m.fecha, m.descripcion || '']);
+        row.getCell(2).numFmt = '"$"#,##0';
+        if (sheet.rowCount % 2 === 0) {
+          row.eachCell((cell) => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F3F4F6' } };
+          });
+        }
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+          };
+          cell.alignment = { vertical: 'middle' };
+        });
+        if (m.tipo === 'ingreso') totalIngresos += Number(m.monto || 0);
+        if (m.tipo === 'gasto') totalGastos += Number(m.monto || 0);
+      });
+
+      const resumenStart = sheet.rowCount + 2;
+      const ingresosRow = sheet.getRow(resumenStart);
+      ingresosRow.getCell(1).value = 'TOTAL INGRESOS';
+      ingresosRow.getCell(2).value = totalIngresos;
+      ingresosRow.getCell(2).numFmt = '"$"#,##0';
+      ingresosRow.font = { bold: true };
+
+      const gastosRow = sheet.getRow(resumenStart + 1);
+      gastosRow.getCell(1).value = 'TOTAL GASTOS';
+      gastosRow.getCell(2).value = totalGastos;
+      gastosRow.getCell(2).numFmt = '"$"#,##0';
+      gastosRow.font = { bold: true };
+
+      const netoRow = sheet.getRow(resumenStart + 2);
+      netoRow.getCell(1).value = 'TOTAL NETO';
+      netoRow.getCell(2).value = totalIngresos - totalGastos;
+      netoRow.getCell(2).numFmt = '"$"#,##0';
+      netoRow.font = { bold: true };
+      netoRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '28A745' } };
+        cell.font = { color: { argb: 'FFFFFF' } };
+      });
+
+      sheet.columns = [
+        { width: 15 }, { width: 18 }, { width: 20 }, { width: 15 }, { width: 40 }
+      ];
+
+      const fecha = new Date();
+      const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      const nombreArchivo = `movimientos_${meses[fecha.getMonth()]}_${fecha.getFullYear()}.xlsx`;
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer]), nombreArchivo);
+    }
+
+    async function exportarExcelYZip() {
+      await exportarExcel();
+      const zip = new JSZip();
+      const carpeta = zip.folder('imagenes_movimientos');
+      const imagenes = movimientos.filter(m => m.imagen);
+
+      for (let i = 0; i < imagenes.length; i++) {
+        const m = imagenes[i];
+        try {
+          const response = await fetch(m.imagen);
+          const blob = await response.blob();
+          const ext = blob.type.split('/')[1] || 'jpg';
+          const archivoNombre = `${m.fecha || `movimiento_${i + 1}`}_${m.tipo || 'movimiento'}.${ext}`;
+          carpeta.file(archivoNombre, blob);
+        } catch (error) {
+          console.error('Error al descargar imagen:', m.imagen, error);
+        }
+      }
+
+      if (imagenes.length > 0) {
+        const zipContent = await zip.generateAsync({ type: 'blob' });
+        saveAs(zipContent, 'imagenes_movimientos.zip');
+      }
+    }
+
+    async function exportarExcelConImagenes() {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Movimientos');
+
+      sheet.mergeCells('A1:F1');
+      const titleCell = sheet.getCell('A1');
+      titleCell.value = 'Gestor de Finanzas - Movimientos';
+      titleCell.font = { size: 16, bold: true };
+      titleCell.alignment = { horizontal: 'center' };
+
+      sheet.addRow([]);
+      const headerRow = sheet.addRow(['Tipo', 'Monto', 'Categoría', 'Fecha', 'Descripción', 'Foto']);
+      sheet.autoFilter = { from: 'A' + headerRow.number, to: 'F' + headerRow.number };
+
+      headerRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1F4E78' } };
+        cell.font = { color: { argb: 'FFFFFF' }, bold: true };
+        cell.alignment = { horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
+      });
+
+      for (let i = 0; i < movimientos.length; i++) {
+        const m = movimientos[i];
+        const rowIndex = sheet.rowCount + 1;
+        const row = sheet.addRow([m.tipo, Number(m.monto || 0), m.categoria, m.fecha, m.descripcion || '', '']);
+        row.getCell(2).numFmt = '"$"#,##0';
+
+        if (m.imagen) {
+          try {
+            const base64 = await convertirImagenABase64(m.imagen);
+            const extension = base64.includes('image/png') ? 'png' : 'jpeg';
+            const imageId = workbook.addImage({ base64, extension });
+            sheet.addImage(imageId, { tl: { col: 5, row: rowIndex - 1 }, ext: { width: 100, height: 80 } });
+            sheet.getRow(rowIndex).height = 60;
+          } catch (error) {
+            console.error('No se pudo incrustar la imagen en Excel:', error);
           }
         }
       }
-    }
-  }
-});
-    }
 
-   async function exportarExcel() {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Movimientos");
+      sheet.columns = [
+        { width: 12 }, { width: 14 }, { width: 20 }, { width: 15 }, { width: 35 }, { width: 18 }
+      ];
 
-  // Título
-  sheet.mergeCells("A1:E1");
-  const titleCell = sheet.getCell("A1");
-  titleCell.value = "Gestor de Finanzas - Movimientos";
-  titleCell.font = { size: 16, bold: true };
-  titleCell.alignment = { horizontal: "center" };
-
-  // Fila vacía
-  sheet.addRow([]);
-
-  // Encabezado
-  const headerRow = sheet.addRow(["Tipo", "Monto", "Categoría", "Fecha", "Descripción"]);
-
-  // Filtros automáticos
-  sheet.autoFilter = {
-    from: `A${headerRow.number}`,
-    to: `E${headerRow.number}`
-  };
-
-  // Estilo del encabezado
-  headerRow.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "1F4E78" },
-    };
-    cell.font = { bold: true, color: { argb: "FFFFFF" } };
-    cell.alignment = { horizontal: "center" };
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
-
-  // Datos
-  let totalIngresos = 0;
-  let totalGastos = 0;
-
-  movimientos.forEach((m) => {
-    const monto = Number(m.monto);
-    const row = sheet.addRow([
-      m.tipo,
-      monto,
-      m.categoria,
-      m.fecha,
-      m.descripcion || ""
-    ]);
-
-    // Estilo a monto (columna B)
-    row.getCell(2).numFmt = '"$"#,##0';
-
-    // Alternar color de fondo
-    if (sheet.rowCount % 2 === 0) {
-      row.eachCell((cell) => {
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "F3F4F6" }
-        };
-      });
+      const fecha = new Date();
+      const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      const nombreArchivo = `movimientos_con_fotos_${meses[fecha.getMonth()]}_${fecha.getFullYear()}.xlsx`;
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer]), nombreArchivo);
     }
 
-    // Bordes y alineación
-    row.eachCell((cell) => {
-      cell.border = {
-        top: { style: "thin" },
-        left: { style: "thin" },
-        bottom: { style: "thin" },
-        right: { style: "thin" },
-      };
-      cell.alignment = { vertical: "middle" };
-    });
+    window.filtrarMovimientos = filtrarMovimientos;
+    window.limpiarFiltros = limpiarFiltros;
+    window.editarMovimiento = editarMovimiento;
+    window.eliminarMovimiento = eliminarMovimiento;
+    window.exportarExcel = exportarExcel;
+    window.exportarExcelYZip = exportarExcelYZip;
+    window.exportarExcelConImagenes = exportarExcelConImagenes;
+    window.formatearComoCOP = formatearComoCOP;
+    window.toggleDarkMode = toggleDarkMode;
 
-    if (m.tipo.toLowerCase() === "ingreso") totalIngresos += monto;
-    if (m.tipo.toLowerCase() === "gasto") totalGastos += monto;
-  });
-
-  // Totales
-  const resumenStart = sheet.rowCount + 2;
-
-  const ingresosRow = sheet.getRow(resumenStart);
-  ingresosRow.getCell(1).value = "TOTAL INGRESOS";
-  ingresosRow.getCell(2).value = totalIngresos;
-  ingresosRow.getCell(2).numFmt = '"$"#,##0';
-  ingresosRow.font = { bold: true };
-
-  const gastosRow = sheet.getRow(resumenStart + 1);
-  gastosRow.getCell(1).value = "TOTAL GASTOS";
-  gastosRow.getCell(2).value = totalGastos;
-  gastosRow.getCell(2).numFmt = '"$"#,##0';
-  gastosRow.font = { bold: true };
-
-  const netoRow = sheet.getRow(resumenStart + 2);
-  netoRow.getCell(1).value = "TOTAL NETO";
-  netoRow.getCell(2).value = totalIngresos - totalGastos;
-  netoRow.getCell(2).numFmt = '"$"#,##0';
-  netoRow.font = { bold: true };
-  netoRow.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "28A745" },
-    };
-    cell.font = { color: { argb: "FFFFFF" } };
-  });
-
-  // Ajuste de columnas
-  sheet.columns = [
-    { width: 15 },
-    { width: 18 },
-    { width: 20 },
-    { width: 15 },
-    { width: 40 },
-  ];
-
-  // Generar nombre de archivo con mes y año
-  const fecha = new Date();
-  const meses = [
-    "enero", "febrero", "marzo", "abril", "mayo", "junio",
-    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-  ];
-  const nombreArchivo = `movimientos_${meses[fecha.getMonth()]}_${fecha.getFullYear()}.xlsx`;
-
-  // Exportar archivo
-  const buffer = await workbook.xlsx.writeBuffer();
-  saveAs(new Blob([buffer]), nombreArchivo);
-}
-
-
-
-async function exportarExcel() {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Movimientos");
-
-  // Título
-  sheet.mergeCells("A1:E1");
-  const titleCell = sheet.getCell("A1");
-  titleCell.value = "Gestor de Finanzas - Movimientos";
-  titleCell.font = { size: 16, bold: true };
-  titleCell.alignment = { horizontal: "center" };
-
-  // Fila vacía
-  sheet.addRow([]);
-
-  // Encabezado
-  const headerRow = sheet.addRow(["Tipo", "Monto", "Categoría", "Fecha", "Descripción"]);
-
-  // ✅ Filtros automáticos en columnas A-E
-  sheet.autoFilter = {
-    from: `A${headerRow.number}`,
-    to: `E${headerRow.number}`
-  };
-
-  // Estilo del encabezado
-  headerRow.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "1F4E78" },
-    };
-    cell.font = { bold: true, color: { argb: "FFFFFF" } };
-    cell.alignment = { horizontal: "center" };
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
-
-  // ✅ Congelar encabezado para mantenerlo visible
-  sheet.views = [{ state: 'frozen', ySplit: headerRow.number }];
-
-  // Datos
-  let totalIngresos = 0;
-  let totalGastos = 0;
-
-  movimientos.forEach((m) => {
-    const monto = Number(m.monto);
-    const row = sheet.addRow([
-      m.tipo,
-      monto,
-      m.categoria,
-      m.fecha,
-      m.descripcion || ""
-    ]);
-
-    // Formato moneda
-    row.getCell(2).numFmt = '"$"#,##0';
-
-    // Alternar color de fondo
-    if (sheet.rowCount % 2 === 0) {
-      row.eachCell((cell) => {
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "F3F4F6" }
-        };
-      });
-    }
-
-    // Bordes y alineación
-    row.eachCell((cell) => {
-      cell.border = {
-        top: { style: "thin" },
-        left: { style: "thin" },
-        bottom: { style: "thin" },
-        right: { style: "thin" },
-      };
-      cell.alignment = { vertical: "middle" };
-    });
-
-    if (m.tipo.toLowerCase() === "ingreso") totalIngresos += monto;
-    if (m.tipo.toLowerCase() === "gasto") totalGastos += monto;
-  });
-
-  // Totales
-  const resumenStart = sheet.rowCount + 2;
-
-  const ingresosRow = sheet.getRow(resumenStart);
-  ingresosRow.getCell(1).value = "TOTAL INGRESOS";
-  ingresosRow.getCell(2).value = totalIngresos;
-  ingresosRow.getCell(2).numFmt = '"$"#,##0';
-  ingresosRow.font = { bold: true };
-
-  const gastosRow = sheet.getRow(resumenStart + 1);
-  gastosRow.getCell(1).value = "TOTAL GASTOS";
-  gastosRow.getCell(2).value = totalGastos;
-  gastosRow.getCell(2).numFmt = '"$"#,##0';
-  gastosRow.font = { bold: true };
-
-  const netoRow = sheet.getRow(resumenStart + 2);
-  netoRow.getCell(1).value = "TOTAL NETO";
-  netoRow.getCell(2).value = totalIngresos - totalGastos;
-  netoRow.getCell(2).numFmt = '"$"#,##0';
-  netoRow.font = { bold: true };
-  netoRow.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "28A745" },
-    };
-    cell.font = { color: { argb: "FFFFFF" } };
-  });
-
-  // Ajuste de columnas (solo A-E)
-  sheet.columns = [
-    { width: 15 },  // Tipo
-    { width: 18 },  // Monto
-    { width: 20 },  // Categoría
-    { width: 15 },  // Fecha
-    { width: 40 },  // Descripción
-  ];
-
-  // Nombre del archivo con mes y año
-  const fecha = new Date();
-  const meses = [
-    "enero", "febrero", "marzo", "abril", "mayo", "junio",
-    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-  ];
-  const nombreArchivo = `movimientos_${meses[fecha.getMonth()]}_${fecha.getFullYear()}.xlsx`;
-
-  // Exportar
-  const buffer = await workbook.xlsx.writeBuffer();
-  saveAs(new Blob([buffer]), nombreArchivo);
-}
-
-
-
-async function exportarExcelYZip() {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Movimientos");
-
-  // TÍTULO
-  sheet.mergeCells("A1:E1");
-  const titleCell = sheet.getCell("A1");
-  titleCell.value = "Gestor de Finanzas - Movimientos";
-  titleCell.font = { size: 16, bold: true };
-  titleCell.alignment = { horizontal: "center" };
-
-  sheet.addRow([]);
-
-  const encabezado = ["Tipo", "Monto", "Categoría", "Fecha", "Descripción"];
-  const headerRow = sheet.addRow(encabezado);
-
-  // Filtros automáticos
-  sheet.autoFilter = {
-    from: `A${headerRow.number}`,
-    to: `E${headerRow.number}`
-  };
-
-  headerRow.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "1F4E78" },
-    };
-    cell.font = { color: { argb: "FFFFFF" }, bold: true };
-    cell.alignment = { horizontal: "center" };
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
-
-  sheet.views = [{ state: 'frozen', ySplit: headerRow.number }];
-
-  // DATOS
-  let totalIngresos = 0;
-  let totalGastos = 0;
-
-  movimientos.forEach((m, index) => {
-    const row = sheet.addRow([
-      m.tipo,
-      m.monto,
-      m.categoria,
-      m.fecha,
-      m.descripcion || ""
-    ]);
-
-    row.getCell(2).numFmt = '"$"#,##0.00;[Red]\-"$"#,##0.00';
-
-    if ((sheet.rowCount % 2) === 0) {
-      row.eachCell((cell) => {
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "F3F4F6" }
-        };
-      });
-    }
-
-    row.eachCell((cell) => {
-      cell.border = {
-        top: { style: "thin" },
-        left: { style: "thin" },
-        bottom: { style: "thin" },
-        right: { style: "thin" },
-      };
-      cell.alignment = { vertical: "middle" };
-    });
-
-    // Acumuladores
-    if (m.tipo.toLowerCase() === "ingreso") totalIngresos += m.monto;
-    if (m.tipo.toLowerCase() === "gasto") totalGastos += m.monto;
-  });
-
-  // 🔢 Agregar Totales
-  const resumenStart = sheet.rowCount + 2;
-
-  const ingresosRow = sheet.getRow(resumenStart);
-  ingresosRow.getCell(1).value = "TOTAL INGRESOS";
-  ingresosRow.getCell(2).value = totalIngresos;
-  ingresosRow.getCell(2).numFmt = '"$"#,##0';
-  ingresosRow.font = { bold: true };
-
-  const gastosRow = sheet.getRow(resumenStart + 1);
-  gastosRow.getCell(1).value = "TOTAL GASTOS";
-  gastosRow.getCell(2).value = totalGastos;
-  gastosRow.getCell(2).numFmt = '"$"#,##0';
-  gastosRow.font = { bold: true };
-
-  const netoRow = sheet.getRow(resumenStart + 2);
-  netoRow.getCell(1).value = "TOTAL NETO";
-  netoRow.getCell(2).value = totalIngresos - totalGastos;
-  netoRow.getCell(2).numFmt = '"$"#,##0';
-  netoRow.font = { bold: true };
-  netoRow.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "28A745" },
-    };
-    cell.font = { color: { argb: "FFFFFF" } };
-  });
-
-  // Columnas
-  sheet.columns = [
-    { width: 12 },
-    { width: 14 },
-    { width: 20 },
-    { width: 15 },
-    { width: 50 },
-  ];
-
-  // Nombre del Excel
-  const fecha = new Date();
-  const meses = [
-    "enero", "febrero", "marzo", "abril", "mayo", "junio",
-    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-  ];
-  const nombreExcel = `movimientos_${meses[fecha.getMonth()]}_${fecha.getFullYear()}.xlsx`;
-
-  const bufferExcel = await workbook.xlsx.writeBuffer();
-  saveAs(new Blob([bufferExcel]), nombreExcel);
-
-  // ZIP de imágenes con nombre detallado
-  const zip = new JSZip();
-  const carpeta = zip.folder("imagenes_movimientos");
-
-  const imagenes = movimientos.filter(m => m.imagen);
-
-  for (let i = 0; i < imagenes.length; i++) {
-    const m = imagenes[i];
-    try {
-      const response = await fetch(m.imagen);
-      const blob = await response.blob();
-      const ext = blob.type.split("/")[1] || "jpg";
-
-      // Nombre con fecha y tipo
-      const tipo = m.tipo.toLowerCase();
-      const fechaNom = m.fecha || `movimiento_${i + 1}`;
-      const archivoNombre = `${fechaNom}_${tipo}.${ext}`;
-
-      carpeta.file(archivoNombre, blob);
-    } catch (err) {
-      console.error("Error al descargar imagen:", m.imagen);
-    }
-  }
-
-  if (imagenes.length > 0) {
-    const zipContent = await zip.generateAsync({ type: "blob" });
-    saveAs(zipContent, "imagenes_movimientos.zip");
-  }
-}
-
-
-
-
-    function toggleDarkMode() {
-      document.body.classList.toggle('dark-mode');
-      localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'true' : 'false');
-    }
-
-    (function () {
+    (async function init() {
       if (localStorage.getItem('darkMode') === 'true') {
         document.body.classList.add('dark-mode');
       }
-
-    
-
-      
+      movimientos = ordenarMovimientos((JSON.parse(localStorage.getItem(CACHE_KEY)) || []).map(normalizarMovimiento));
       actualizarTodo();
-      generarResumenMensual();
+      await iniciarFirebase();
+      await cargarMovimientosDesdeFirestore();
     })();
   </script>
-
-  <script>
-    function formatearComoCOP(input) {
-  let valor = input.value.replace(/\D/g, ""); // Elimina todo lo que no sea número
-  if (!valor) {
-    input.value = "";
-    return;
-  }
-
-  const numero = parseInt(valor);
-  input.value = numero.toLocaleString("es-CO", {
-    style: "currency",
-    currency: "COP",
-    minimumFractionDigits: 0
-  });
-}
-
-function editarMovimiento(index) {
-  const m = movimientos[index];
-  indiceEdicion = index;
-
-  document.getElementById('tipo').value = m.tipo;
-  document.getElementById('monto').value = m.monto.toLocaleString('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0
-  });
-  document.getElementById('categoria').value = m.categoria;
-  document.getElementById('fecha').value = m.fecha;
-  document.getElementById('descripcion').value = m.descripcion || "";
-
-  // Ocultar imagen (no se puede recuperar por seguridad del navegador)
-  document.getElementById('foto').value = "";
-  document.getElementById('foto').disabled = true;
-
-  document.getElementById('formulario').scrollIntoView({ behavior: "smooth" });
-}
-
-
-
-document.getElementById('foto').addEventListener('change', function () {
-  const vista = document.getElementById('vistaFoto');
-  const archivo = this.files[0];
-
-  if (archivo) {
-    const lector = new FileReader();
-    lector.onload = function (e) {
-      vista.innerHTML = `<img src="${e.target.result}" alt="Comprobante" style="max-width: 100%; max-height: 180px; border-radius: 8px;" />`;
-    };
-    lector.readAsDataURL(archivo);
-  } else {
-    vista.innerHTML = "";
-  }
-});
-
-
-function generarResumenMensual() {
-  const resumen = {};
-
-  movimientos.forEach(m => {
-    const mes = m.fecha.slice(0, 7); // "YYYY-MM"
-    if (!resumen[mes]) {
-      resumen[mes] = { ingresos: 0, gastos: 0 };
-    }
-    if (m.tipo === "ingreso") {
-      resumen[mes].ingresos += m.monto;
-    } else {
-      resumen[mes].gastos += m.monto;
-    }
-  });
-
-  const cuerpo = document.getElementById("tablaResumenMensual");
-  cuerpo.innerHTML = "";
-
-  Object.entries(resumen).forEach(([mes, datos]) => {
-    const balance = datos.ingresos - datos.gastos;
-    const fila = `
-      <tr>
-        <td>${mes}</td>
-        <td>$${datos.ingresos.toLocaleString("es-CO")}</td>
-        <td>$${datos.gastos.toLocaleString("es-CO")}</td>
-        <td class="${balance < 0 ? 'text-danger' : 'text-success'}">
-          $${balance.toLocaleString("es-CO")}
-        </td>
-      </tr>
-    `;
-    cuerpo.innerHTML += fila;
-  });
-}
-
-
-actualizarTodo();
-      generarResumenMensual();
-
-  </script>
-
-  <script>
-async function exportarExcelConImagenes() {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Movimientos");
-
-  // Título
-  sheet.mergeCells("A1:F1");
-  const titleCell = sheet.getCell("A1");
-  titleCell.value = "Gestor de Finanzas - Movimientos";
-  titleCell.font = { size: 16, bold: true };
-  titleCell.alignment = { horizontal: "center" };
-
-  // Encabezado
-  sheet.addRow([]);
-  const headerRow = sheet.addRow(["Tipo", "Monto", "Categoría", "Fecha", "Descripción", "Foto"]);
-  sheet.autoFilter = {
-  from: 'A' + headerRow.number,
-  to: 'F' + headerRow.number
-};
-
-
-  headerRow.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "1F4E78" },
-    };
-    cell.font = { color: { argb: "FFFFFF" }, bold: true };
-    cell.alignment = { horizontal: "center" };
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
-
-  // Insertar datos y fotos
-  for (let i = 0; i < movimientos.length; i++) {
-    const m = movimientos[i];
-    const rowIndex = sheet.rowCount + 1;
-    const row = sheet.addRow([
-      m.tipo,
-      m.monto,
-      m.categoria,
-      m.fecha,
-      m.descripcion || "",
-      "" // celda para imagen
-    ]);
-    row.getCell(2).numFmt = '"$"#,##0';
-
-    // Insertar imagen si existe
-    if (m.imagen) {
-      const base64 = m.imagen.split(',')[1];
-      const extension = m.imagen.includes('image/png') ? 'png' : 'jpeg';
-      const imageId = workbook.addImage({
-        base64: m.imagen,
-        extension
-      });
-
-      // Celda "F" + número de fila (columna 6)
-      sheet.addImage(imageId, {
-        tl: { col: 5, row: rowIndex - 1 },
-        ext: { width: 100, height: 80 }
-      });
-
-      // Ajuste de alto de fila
-      sheet.getRow(rowIndex).height = 60;
-    }
-  }
-
-  // Ajuste de anchos de columnas
-  sheet.columns = [
-    { width: 12 }, // Tipo
-    { width: 14 }, // Monto
-    { width: 20 }, // Categoría
-    { width: 15 }, // Fecha
-    { width: 35 }, // Descripción
-    { width: 18 }, // Foto
-  ];
-
-  // Guardar con nombre con fecha
-  const fecha = new Date();
-  const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-  const nombreArchivo = `movimientos_con_fotos_${meses[fecha.getMonth()]}_${fecha.getFullYear()}.xlsx`;
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  saveAs(new Blob([buffer]), nombreArchivo);
-}
-</script>
 
 </body>
 </html>
