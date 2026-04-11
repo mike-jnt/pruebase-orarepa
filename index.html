@@ -2826,7 +2826,7 @@ function cancelarPedidoActual() {
     const botonesAccion = `
       <button onclick="imprimirVentaCliente(${i})" class="bg-purple-500 text-white px-2 py-1 rounded text-xs">🧾 Cliente</button>
       <button onclick="imprimirVentaCocina(${i})" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">👨‍🍳 Cocina</button>
-      ${ventaCancelada ? `<span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-700">Cancelada</span>` : `<button onclick="marcarVentaComoCancelada(${i})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">❌ Cancelar</button>`}
+      ${ventaCancelada ? `<span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-700">Cancelada</span>` : (tieneAccesoGestion() ? `<button onclick="marcarVentaComoCancelada(${i})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">❌ Cancelar</button>` : "")}
       ${esAdmin() ? `<button onclick="editarVenta(${i})" class="bg-yellow-600 text-white px-2 py-1 rounded text-xs">📝 Editar</button>` : ""}
     `;
 
@@ -3471,7 +3471,7 @@ function imprimirVentaCocina(index) {
 }
 
 async function marcarVentaComoCancelada(index) {
-  if (!verificarAcceso(["admin", "cajero"])) return;
+  if (!verificarAcceso(["admin", "administrador"])) return;
   const ventas = obtenerVentasStorage();
   const venta = ventas[index];
   if (!venta) return alert("Venta no encontrada.");
