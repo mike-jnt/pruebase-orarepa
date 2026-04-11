@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestión de Pagos Quincenales</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen font-sans">
+
+  <header class="bg-blue-900 text-white py-4 shadow-md">
+    <div class="container mx-auto px-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold tracking-wide">📋 Gestión de Nómina Quincenal</h1>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-4 py-8">
+
+    <!-- Registro de Empleados -->
+    <section class="bg-white p-6 rounded-xl shadow-lg mb-8">
+      <h2 class="text-2xl font-semibold text-blue-800 mb-4 flex items-center gap-2">
+        <i class="fa-solid fa-user-pen"></i> Registrar Empleado
+      </h2>
+      <form id="form-empleado" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <input type="text" placeholder="👤 Nombre completo" id="nombre" class="border p-3 rounded-lg focus:outline-blue-500" required />
+        <input type="text" placeholder="💼 Cargo" id="cargo" class="border p-3 rounded-lg focus:outline-blue-500" required />
+        <input type="text" placeholder="💰 Valor por día" id="valorDia" class="border p-3 rounded-lg focus:outline-blue-500" required />
+        <input type="text" placeholder="💵 Valor por hora extra" id="valorHoraExtra" class="border p-3 rounded-lg focus:outline-blue-500" />
+
+        <button type="submit" class="col-span-1 md:col-span-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition duration-200 shadow">
+          <i class="fa-solid fa-user-plus mr-2"></i>Agregar Empleado
+        </button>
+      </form>
+    </section>
+
+    <!-- Tabla de empleados -->
+    <section class="bg-white p-6 rounded-xl shadow-lg">
+      <h2 class="text-2xl font-semibold text-blue-800 mb-4 flex items-center gap-2">
+        <i class="fa-solid fa-users"></i> Lista de Empleados
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left border border-gray-200 shadow-sm rounded-lg overflow-hidden">
+          <thead class="bg-blue-100 text-blue-900 font-semibold">
+            <tr>
+              <th class="p-3 border">Nombre</th>
+              <th class="p-3 border">Cargo</th>
+              <th class="p-3 border">Valor Día</th>
+              <th class="p-3 border">Días Trabajados</th>
+              <th class="p-3 border">Días Faltados</th>
+              <th class="p-3 border">Fecha Quincena</th>
+              <th class="p-3 border">Resumen</th>
+              <th class="p-3 border">Estado</th>
+              <th class="p-3 border">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-empleados" class="bg-white"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+
+  <section class="bg-white p-6 rounded-xl shadow-lg mt-8">
+
+  <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+  <h2 class="text-xl font-bold text-blue-800">📚 Historial de Pagos</h2>
+  <div class="flex gap-2">
+    <button onclick="exportarHistorialAExcel()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+  📥 Exportar a Excel
+</button>
+
+<button onclick="eliminarHistorial()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow text-sm">
+  🗑 Eliminar Historial
+</button>
+  </div>
+</div>
+
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-left border border-gray-200 shadow-sm rounded-lg">
+<thead class="bg-gray-100 text-gray-700 font-semibold">
+  <tr>
+    <th class="p-2 border">Nombre</th>
+    <th class="p-2 border">Cargo</th>
+    <th class="p-2 border">Fecha de Pago</th>
+    <th class="p-2 border">Quincena</th>
+    <th class="p-2 border">Días Trabajados</th>
+    <th class="p-2 border">Valor Día</th>
+    <th class="p-2 border">Horas Extras</th>
+    <th class="p-2 border">Bonificación</th>
+    <th class="p-2 border">Total Pagado</th>
+  </tr>
+</thead>
+
+      <tbody id="tabla-historial"></tbody>
+    </table>
+  </div>
+</section>
+
+
+  <!-- Contenedor invisible para generar PDF -->
+  <div id="pdf-container" class="hidden"></div>
+
+  <!-- Modal de asistencia -->
+<div id="modalAsistencia" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+    <h3 class="text-xl font-bold text-blue-800 mb-4">Editar Asistencia</h3>
+    <div class="space-y-4">
+      <p class="text-gray-700 font-medium">Empleado: <span id="modal-nombre" class="font-semibold text-black"></span></p>
+      <label class="block">
+        <span class="text-sm text-gray-600">Días trabajados (0-15)</span>
+        <input type="number" id="inputDias" min="0" max="15" class="mt-1 block w-full border rounded p-2 focus:outline-blue-500" />
+      </label>
+
+      <label class="block text-sm text-gray-700 mt-3">🕐 Horas Extras</label>
+<input type="number" id="inputHorasExtras" class="border p-2 w-full rounded focus:outline-blue-500" min="0" />
+
+<label class="block text-sm text-gray-700 mt-3">🎁 Bonificación</label>
+<input type="text" id="inputBonificacion" class="border p-2 w-full rounded focus:outline-blue-500" />
+<label class="block text-sm text-gray-700 mt-3">💸 Dinero Prestado</label>
+<input type="text" id="inputPrestamo" class="border p-2 w-full rounded focus:outline-blue-500" />
+
+
+      <div class="flex justify-end gap-2">
+        <button onclick="cerrarModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancelar</button>
+        <button onclick="guardarAsistencia()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
+
+
+  <script>
+    let empleadoActual = null;
+    let historial = JSON.parse(localStorage.getItem("historialPagos")) || [];
+    let empleados = JSON.parse(localStorage.getItem("empleados")) || [];
+
+    const form = document.getElementById("form-empleado");
+    const tabla = document.getElementById("tabla-empleados");
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const nombre = document.getElementById("nombre").value.trim();
+  const cargo = document.getElementById("cargo").value.trim();
+  const valorDia = parseInt(limpiarNumeroCOP(document.getElementById("valorDia").value));
+  const valorHoraExtra = parseInt(limpiarNumeroCOP(document.getElementById("valorHoraExtra").value)) || 0;
+
+
+
+  if (!nombre || !cargo || isNaN(valorDia)) return alert("Complete todos los campos correctamente.");
+
+  // Verificar si ya existe un empleado con el mismo nombre y cargo
+  const yaExiste = empleados.some(emp =>
+    emp.nombre.toLowerCase() === nombre.toLowerCase() &&
+    emp.cargo.toLowerCase() === cargo.toLowerCase()
+  );
+
+  if (yaExiste) {
+    alert("Ya existe un empleado registrado con ese nombre y cargo.");
+    return;
+  }
+
+empleados.push({
+  id: Date.now(),
+  nombre,
+  cargo,
+  valorDia,
+  valorHoraExtra,
+  diasTrabajados: 0,
+  horasExtras: 0,
+  bonificacion: 0,
+  estadoPago: "Pendiente"
+});
+
+
+  localStorage.setItem("empleados", JSON.stringify(empleados));
+  form.reset();
+  mostrarEmpleados();
+});
+
+
+    function mostrarEmpleados() {
+      tabla.innerHTML = "";
+      empleados.forEach(emp => {
+        const diasFaltados = 15 - emp.diasTrabajados;
+        const totalTrabajado = emp.valorDia * emp.diasTrabajados;
+        const totalQuincena = emp.valorDia * 15;
+        const diferencia = totalQuincena - totalTrabajado;
+        const estadoColor = emp.estadoPago === "Pagado" ? "text-green-600" : "text-red-600";
+        const btnDesactivado = emp.estadoPago === "Pagado" ? "opacity-50 cursor-not-allowed" : "";
+        const extras = (emp.horasExtras || 0) * (emp.valorHoraExtra || 0);
+        const bonificacion = emp.bonificacion || 0;
+        const totalFinal = totalTrabajado + extras + bonificacion;
+        const prestamo = emp.prestamo || 0;
+        const totalPagarConDescuento = totalFinal - prestamo;
+
+
+
+        tabla.innerHTML += `
+          <tr class="hover:bg-gray-50 transition-all duration-200">
+            <td class="p-3 border">${emp.nombre}</td>
+            <td class="p-3 border">${emp.cargo}</td>
+            <td class="p-3 border">${formatearCOP(emp.valorDia)}</td>
+
+            <td class="p-3 border">${emp.diasTrabajados}</td>
+            <td class="p-3 border">${diasFaltados}</td>
+            <td class="p-3 border">${generarRangoQuincena(emp.fechaPago)}</td>
+            <td class="p-3 border">
+            
+
+            <div>Total base: <strong>${formatearCOP(totalTrabajado)}</strong></div>
+             ${extras > 0 ? `
+
+            <div class="text-xs text-blue-500">Horas extra: +${formatearCOP(extras)}</div>` : ""}${bonificacion > 0 ? `
+
+ 
+            <div class="text-xs text-blue-500">Bonificación: +${formatearCOP(bonificacion)}</div>` : ""}
+            <div class="text-sm text-green-700 font-bold">💵 Total a pagar: ${formatearCOP(totalPagarConDescuento)}</div>
+             ${prestamo > 0 ? `<div class="text-xs text-red-500">Prestado: -${formatearCOP(prestamo)}</div>` : ""}
+
+            <div>Total: <strong>${formatearCOP(totalTrabajado)}</strong></div>
+            <div class="text-xs text-gray-500">Completa: ${formatearCOP(totalQuincena)}</div>
+             ${diasFaltados > 0 ? `<div class="text-xs text-red-500">Faltó: -${formatearCOP(diferencia)}</div>` : ""}
+
+
+            
+            <td class="p-3 border font-bold ${estadoColor}">${emp.estadoPago}</td>
+            <td class="p-3 border space-y-1">
+
+
+              <button onclick="registrarAsistencia(${emp.id})" class="bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded text-xs w-full ${btnDesactivado}" ${emp.estadoPago === "Pagado" ? "disabled" : ""}>Asistencia</button>
+
+              ${emp.estadoPago === "Pendiente" ? `
+  <button onclick="marcarComoPagado(${emp.id})"
+    class="bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded text-xs w-full">
+    Marcar Pagado
+  </button>` : `
+  <button onclick="desmarcarPagado(${emp.id})"
+    class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-2 py-1 rounded text-xs w-full">
+    Desmarcar Pagado
+  </button>`}
+
+              
+              <button onclick="generarPDF(${emp.id})" class="bg-purple-100 hover:bg-purple-200 text-purple-800 px-2 py-1 rounded text-xs w-full">Generar PDF</button>
+
+
+              <button onclick="eliminarEmpleado(${emp.id})" class="bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded text-xs w-full">Eliminar</button>
+
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+
+function eliminarEmpleado(id) {
+  if (confirm("¿Estás seguro de eliminar este empleado?")) {
+    empleados = empleados.filter(emp => emp.id !== id);
+    localStorage.setItem("empleados", JSON.stringify(empleados));
+    mostrarEmpleados();
+  }
+}
+
+
+function registrarAsistencia(id) {
+  empleadoActual = empleados.find(emp => emp.id === id);
+  document.getElementById("modal-nombre").textContent = empleadoActual.nombre;
+  document.getElementById("inputDias").value = empleadoActual.diasTrabajados;
+  document.getElementById("modalAsistencia").classList.remove("hidden");
+document.getElementById("inputHorasExtras").value = empleadoActual.horasExtras || 0;
+document.getElementById("inputBonificacion").value = empleadoActual.bonificacion ? formatearCOP(empleadoActual.bonificacion) : "";
+document.getElementById("inputPrestamo").value = empleadoActual.prestamo ? formatearCOP(empleadoActual.prestamo) : "";
+
+
+
+}
+
+
+
+function marcarComoPagado(id) {
+  const index = empleados.findIndex(emp => emp.id === id);
+  const empleado = empleados[index];
+  const totalBase = empleado.valorDia * empleado.diasTrabajados;
+const totalExtras = (empleado.horasExtras || 0) * (empleado.valorHoraExtra || 0);
+const totalFinal = totalBase + (empleado.bonificacion || 0) + totalExtras;
+
+  const fechaPago = new Date().toISOString();
+  empleados[index].estadoPago = "Pagado";
+  empleados[index].fechaPago = fechaPago;
+
+  // Agregar al historial
+historial.push({
+  nombre: empleado.nombre,
+  cargo: empleado.cargo,
+  valorDia: empleado.valorDia,
+  diasTrabajados: empleado.diasTrabajados,
+  horasExtras: empleado.horasExtras || 0,
+  valorHoraExtra: empleado.valorHoraExtra || 0,
+  bonificacion: empleado.bonificacion || 0,
+  totalPagado: totalFinal,
+  fechaPago: fechaPago,
+  quincena: generarRangoQuincena(fechaPago)
+});
+
+
+  localStorage.setItem("empleados", JSON.stringify(empleados));
+  localStorage.setItem("historialPagos", JSON.stringify(historial));
+  mostrarEmpleados();
+  mostrarHistorial();
+}
+
+
+
+async function generarPDF(id) {
+    const emp = empleados.find(e => e.id === id);
+    if (!emp) {
+      alert("Empleado no encontrado");
+      return;
+    }
+
+    const image = new Image();
+    image.src = "./logo.png";
+
+    image.onload = function () {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      // 🎯 LOGO REDONDO
+      doc.setFillColor(255, 255, 255);
+      doc.circle(25, 25, 15, 'F'); // círculo blanco
+      doc.addImage(image, 'PNG', 10, 10, 30, 30); // logo encima
+
+      // 📌 TÍTULOS A LA DERECHA DEL LOGO
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(25, 40, 90);
+      doc.text("SEÑOR AREPA", 50, 18);
+
+      doc.setFontSize(12);
+      doc.setFont("Helvetica", "normal");
+      doc.text("Pago quincenal", 50, 27);
+
+      // 📆 Fecha
+      const fecha = new Date().toLocaleDateString("es-CO", {
+        year: "numeric", month: "long", day: "numeric"
+      });
+
+      doc.setFontSize(10);
+      doc.setTextColor(80);
+      doc.text(`Fecha de emisión: ${fecha}`, 200, 35, { align: "right" });
+
+      // 📊 CÁLCULOS
+      const diasFaltados = 15 - emp.diasTrabajados;
+      const totalTrabajado = emp.valorDia * emp.diasTrabajados;
+      const totalQuincena = emp.valorDia * 15;
+      const diferencia = totalQuincena - totalTrabajado;
+      const extras = (emp.horasExtras || 0) * (emp.valorHoraExtra || 0);
+      const bonificacion = emp.bonificacion || 0;
+      const totalFinal = totalTrabajado + extras + bonificacion;
+      const prestamo = emp.prestamo || 0;
+      const totalPagarConDescuento = totalFinal - prestamo;
+
+      const f = n => `$ ${n.toLocaleString('es-CO')}`; // formateador COP
+
+      // 👤 Info empleado
+      doc.autoTable({
+        startY: 40,
+        head: [['Empleado', 'Cargo', 'Estado de Pago']],
+        body: [[emp.nombre, emp.cargo, emp.estadoPago]],
+        styles: { halign: 'center', fontSize: 10 },
+        headStyles: { fillColor: [25, 40, 90], textColor: 255 },
+      });
+
+      // 📅 Asistencia
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 5,
+        head: [['Días Trabajados', 'Días Faltados', 'Valor Día', 'Total Base']],
+        body: [[
+          emp.diasTrabajados,
+          diasFaltados,
+          f(emp.valorDia),
+          f(totalTrabajado)
+        ]],
+        styles: { halign: 'center', fontSize: 10 },
+        headStyles: { fillColor: [60, 90, 160], textColor: 255 },
+      });
+
+      // ⏱️ Extras y Bonos
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 5,
+        head: [['Horas Extras', 'Valor Hora Extra', 'Total Extras', 'Bonificación']],
+        body: [[
+          emp.horasExtras || 0,
+          f(emp.valorHoraExtra || 0),
+          f(extras),
+          f(bonificacion)
+        ]],
+        styles: { halign: 'center', fontSize: 10 },
+        headStyles: { fillColor: [90, 120, 180], textColor: 255 },
+      });
+
+      // 💰 Totales
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [['Quincena Completa', 'Descuento por Faltas', 'Extras y Bonos', 'Préstamo', 'TOTAL A PAGAR']],
+        body: [[
+          f(totalQuincena),
+          `-${f(diferencia)}`,
+          `+${f(extras + bonificacion)}`,
+          `-${f(prestamo)}`,
+          f(totalPagarConDescuento)
+        ]],
+        styles: { halign: 'center', fontSize: 11 },
+        headStyles: { fillColor: [0, 150, 50], textColor: 255, fontStyle: 'bold' },
+        bodyStyles: { textColor: [0, 0, 0] },
+      });
+
+      // ✍️ Firmas
+      const firmasY = doc.lastAutoTable.finalY + 30;
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Firma Recursos Humanos:", 20, firmasY);
+      doc.line(20, firmasY + 5, 90, firmasY + 5);
+
+      doc.text("Firma Recibe:", 120, firmasY);
+      doc.line(120, firmasY + 5, 190, firmasY + 5);
+
+      // Guardar PDF
+      doc.save(`Recibo_${emp.nombre.replace(/\s+/g, "_")}.pdf`);
+    };
+
+    image.onerror = function () {
+      alert("❌ No se pudo cargar el logo. Asegúrate de que esté junto al index.html con el nombre 'logo.png'");
+    };
+  }
+
+
+function guardarAsistencia() {
+  const dias = parseInt(document.getElementById("inputDias").value);
+  const horasExtras = parseInt(document.getElementById("inputHorasExtras").value) || 0;
+  const bonificacion = parseInt(limpiarNumeroCOP(document.getElementById("inputBonificacion").value)) || 0;
+  const prestamo = parseInt(limpiarNumeroCOP(document.getElementById("inputPrestamo").value)) || 0;
+
+
+  if (isNaN(dias) || dias < 0 || dias > 15) {
+    alert("Ingrese un número válido entre 0 y 15.");
+    return;
+  }
+
+  const index = empleados.findIndex(emp => emp.id === empleadoActual.id);
+  empleados[index].diasTrabajados = dias;
+  empleados[index].horasExtras = horasExtras;
+  empleados[index].bonificacion = bonificacion;
+  empleados[index].prestamo = prestamo;
+
+
+  localStorage.setItem("empleados", JSON.stringify(empleados));
+  cerrarModal();
+  mostrarEmpleados();
+}
+
+
+
+
+function cerrarModal() {
+  document.getElementById("modalAsistencia").classList.add("hidden");
+}
+
+function generarRangoQuincena(fechaPago) {
+  const ahora = new Date();
+  const mesActual = ahora.toLocaleString('es-ES', { month: 'long' });
+  const añoActual = ahora.getFullYear();
+
+  const dia = ahora.getDate();
+  const esPrimeraQuincena = dia <= 15;
+
+  // Si aún no ha sido pagado, se asigna la quincena actual
+  if (!fechaPago) {
+    return esPrimeraQuincena
+      ? `01 al 15 de ${mesActual} ${añoActual}`
+      : `16 al 30 de ${mesActual} ${añoActual}`;
+  }
+
+  // Si fue pagado, asignar la siguiente quincena
+  const fecha = new Date(fechaPago);
+  const siguiente = new Date(fecha);
+  siguiente.setDate(siguiente.getDate() + 15);
+
+  const mesSiguiente = siguiente.toLocaleString('es-ES', { month: 'long' });
+  const añoSiguiente = siguiente.getFullYear();
+  const diaSiguiente = siguiente.getDate();
+
+  return diaSiguiente <= 15
+    ? `01 al 15 de ${mesSiguiente} ${añoSiguiente}`
+    : `16 al 30 de ${mesSiguiente} ${añoSiguiente}`;
+}
+
+
+function formatearCOP(valor) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    minimumFractionDigits: 0
+  }).format(valor);
+}
+
+function limpiarNumeroCOP(valor) {
+  return valor.replace(/\D/g, "");
+}
+
+function formatearInputCOP(input) {
+  const valorLimpio = limpiarNumeroCOP(input.value);
+  const valorNumerico = parseInt(valorLimpio || "0");
+  input.value = valorNumerico.toLocaleString("es-CO");
+}
+
+
+function desmarcarPagado(id) {
+  const index = empleados.findIndex(emp => emp.id === id);
+  empleados[index].estadoPago = "Pendiente";
+  empleados[index].fechaPago = null;
+  localStorage.setItem("empleados", JSON.stringify(empleados));
+  mostrarEmpleados();
+}
+
+
+function mostrarHistorial() {
+  const tbody = document.getElementById("tabla-historial");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  historial.forEach(entry => {
+    const fecha = new Date(entry.fechaPago).toLocaleDateString("es-CO");
+    const diasFaltados = 15 - entry.diasTrabajados;
+    const totalBase = entry.valorDia * entry.diasTrabajados;
+    const totalExtras = (entry.horasExtras || 0) * (entry.valorHoraExtra || 0);
+    const totalFinal = totalBase + (entry.bonificacion || 0) + totalExtras;
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="p-2 border">${entry.nombre}</td>
+        <td class="p-2 border">${entry.cargo}</td>
+        <td class="p-2 border">${fecha}</td>
+        <td class="p-2 border">${entry.quincena || ""}</td>
+        <td class="p-2 border">${entry.diasTrabajados}</td>
+        <td class="p-2 border">${formatearCOP(entry.valorDia)}</td>
+        <td class="p-2 border">${entry.horasExtras || 0}</td>
+        <td class="p-2 border">${formatearCOP(entry.bonificacion || 0)}</td>
+        <td class="p-2 border font-semibold">${formatearCOP(totalFinal)}</td>
+      </tr>
+    `;
+  });
+}
+
+
+
+function eliminarHistorial() {
+  const confirmar = confirm("¿Estás seguro de que deseas eliminar todo el historial de pagos?");
+  if (!confirmar) return;
+
+  historial = [];
+  localStorage.removeItem("historialPagos");
+  mostrarHistorial();
+  alert("✅ Historial de pagos eliminado correctamente.");
+}
+
+
+async function exportarHistorialAExcel() {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Historial de Pagos");
+
+  worksheet.columns = [
+    { header: "Empleado", key: "empleado", width: 25 },
+    { header: "Cargo", key: "cargo", width: 20 },
+    { header: "Fecha", key: "fecha", width: 20 },
+    { header: "Días Trabajados", key: "diasTrabajados", width: 15 },
+    { header: "Días Faltados", key: "diasFaltados", width: 15 },
+    { header: "Valor Día", key: "valorDia", width: 15 },
+    { header: "Total Base", key: "totalBase", width: 18 },
+    { header: "Horas Extras", key: "horasExtras", width: 15 },
+    { header: "Valor Hora Extra", key: "valorHoraExtra", width: 18 },
+    { header: "Total Extras", key: "totalExtras", width: 18 },
+    { header: "Bonificación", key: "bonificacion", width: 18 },
+    { header: "Total a Pagar", key: "totalFinal", width: 20 }
+  ];
+
+  const historial = JSON.parse(localStorage.getItem("historialPagos")) || [];
+
+  historial.forEach((pago) => {
+    const diasFaltados = 15 - pago.diasTrabajados;
+    const totalBase = pago.valorDia * pago.diasTrabajados;
+    const totalExtras = (pago.horasExtras || 0) * (pago.valorHoraExtra || 0);
+    const totalFinal = totalBase + (pago.bonificacion || 0) + totalExtras;
+
+    worksheet.addRow({
+      empleado: pago.nombre,
+      cargo: pago.cargo,
+      fecha: pago.fechaPago || pago.fecha,
+      diasTrabajados: pago.diasTrabajados,
+      diasFaltados: diasFaltados,
+      valorDia: pago.valorDia,
+      totalBase: totalBase,
+      horasExtras: pago.horasExtras || 0,
+      valorHoraExtra: pago.valorHoraExtra || 0,
+      totalExtras: totalExtras,
+      bonificacion: pago.bonificacion || 0,
+      totalFinal: totalFinal
+    });
+  });
+
+  // Formato COP con separadores de miles
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return; // saltar cabecera
+
+    [6, 7, 9, 10, 11, 12].forEach((col) => {
+      const cell = row.getCell(col);
+      cell.numFmt = '"$"#,##0';
+    });
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  });
+
+  const link = document.createElement("a");
+  const fecha = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+  link.href = URL.createObjectURL(blob);
+  link.download = `Historial_Pagos_${fecha}.xlsx`;
+  link.click();
+}
+
+// Mostrar historial de pagos en pantalla con horas extras y bonificación
+function mostrarHistorialPagos() {
+  const historial = JSON.parse(localStorage.getItem("historialPagos")) || [];
+  const contenedor = document.getElementById("historialPagos");
+  contenedor.innerHTML = "";
+
+  if (historial.length === 0) {
+    contenedor.innerHTML = "<p class='text-center text-gray-600'>No hay historial disponible.</p>";
+    return;
+  }
+
+  historial.forEach((pago) => {
+    const diasFaltados = 15 - pago.diasTrabajados;
+    const totalBase = pago.valorDia * pago.diasTrabajados;
+    const totalExtras = (pago.horasExtras || 0) * (pago.valorHoraExtra || 0);
+    const totalFinal = totalBase + (pago.bonificacion || 0) + totalExtras;
+
+    const card = document.createElement("div");
+    card.className = "bg-white shadow rounded p-4 mb-4 border border-gray-200";
+    card.innerHTML = `
+      <p><strong>Empleado:</strong> ${pago.nombre}</p>
+      <p><strong>Cargo:</strong> ${pago.cargo}</p>
+      <p><strong>Fecha de Pago:</strong> ${pago.fechaPago || pago.fecha}</p>
+      <p><strong>Días Trabajados:</strong> ${pago.diasTrabajados}</p>
+      <p><strong>Días Faltados:</strong> ${diasFaltados}</p>
+      <p><strong>Valor Día:</strong> $${pago.valorDia.toLocaleString('es-CO')}</p>
+      <p><strong>Total Base:</strong> $${totalBase.toLocaleString('es-CO')}</p>
+      <p><strong>Horas Extras:</strong> ${pago.horasExtras || 0}</p>
+      <p><strong>Valor Hora Extra:</strong> $${(pago.valorHoraExtra || 0).toLocaleString('es-CO')}</p>
+      <p><strong>Total Extras:</strong> $${totalExtras.toLocaleString('es-CO')}</p>
+      <p><strong>Bonificación:</strong> $${(pago.bonificacion || 0).toLocaleString('es-CO')}</p>
+      <p><strong>Total a Pagar:</strong> $${totalFinal.toLocaleString('es-CO')}</p>
+    `;
+    contenedor.appendChild(card);
+  });
+}
+
+
+
+
+    window.onload = mostrarEmpleados;
+    mostrarEmpleados();
+    mostrarHistorial();
+    document.getElementById("inputBonificacion").addEventListener("input", function () {
+  formatearInputCOP(this);
+});
+
+    document.getElementById("valorDia").addEventListener("input", function () {
+  formatearInputCOP(this);
+});
+
+document.getElementById("inputPrestamo").addEventListener("input", function () {
+  formatearInputCOP(this);
+});
+
+
+
+  </script>
+</body>
+</html>
+
