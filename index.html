@@ -1422,6 +1422,7 @@ const DEFINICIONES_CATALOGO = {
 };
 let catalogoProductos = { comida: [], adiciones: [], bebidas: [] };
 let catalogoBaseProductos = null;
+let ultimoProductoEditorCreado = null;
 let contadorProductoCatalogo = 0;
 
 function obtenerRefCatalogoFirestore() {
@@ -1690,10 +1691,10 @@ function renderizarEditorCatalogo() {
   contenedor.innerHTML = Object.keys(DEFINICIONES_CATALOGO).map(categoriaId => {
     const def = DEFINICIONES_CATALOGO[categoriaId];
     const filas = (catalogoProductos[categoriaId] || []).map((producto, index) => `
-      <tr>
+      <tr id="fila-editor-${categoriaId}-${producto.id}">
         <td class="p-2 border text-center text-sm text-gray-500">${index + 1}</td>
         <td class="p-2 border">
-          <input type="text" value="${escaparHTML(producto.nombre)}" oninput="actualizarNombreProductoEditor('${categoriaId}', '${producto.id}', this.value)" class="w-full border border-yellow-200 rounded-lg px-3 py-2 text-sm" placeholder="Nombre del producto">
+          <input type="text" id="input-nombre-editor-${categoriaId}-${producto.id}" value="${escaparHTML(producto.nombre)}" oninput="actualizarNombreProductoEditor('${categoriaId}', '${producto.id}', this.value)" class="w-full border border-yellow-200 rounded-lg px-3 py-2 text-sm" placeholder="Nombre del producto">
         </td>
         <td class="p-2 border w-[180px]">
           <input type="text" value="${formatearNumeroConPuntosEntrada(producto.precio)}" oninput="actualizarPrecioProductoEditor('${categoriaId}', '${producto.id}', this)" class="w-full border border-yellow-200 rounded-lg px-3 py-2 text-sm text-right" placeholder="0">
@@ -1730,16 +1731,38 @@ function renderizarEditorCatalogo() {
       </section>
     `;
   }).join('');
+  enfocarUltimoProductoCreadoEditor();
+}
+
+function enfocarUltimoProductoCreadoEditor() {
+  if (!ultimoProductoEditorCreado?.categoriaId || !ultimoProductoEditorCreado?.productoId) return;
+  const { categoriaId, productoId } = ultimoProductoEditorCreado;
+  requestAnimationFrame(() => {
+    const fila = document.getElementById(`fila-editor-${categoriaId}-${productoId}`);
+    const inputNombre = document.getElementById(`input-nombre-editor-${categoriaId}-${productoId}`);
+    if (fila) {
+      fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      fila.classList.add('bg-yellow-50');
+      setTimeout(() => fila.classList.remove('bg-yellow-50'), 1800);
+    }
+    if (inputNombre) {
+      inputNombre.focus();
+      inputNombre.select();
+    }
+    ultimoProductoEditorCreado = null;
+  });
 }
 
 function agregarProductoEditor(categoriaId) {
   if (!catalogoProductos[categoriaId]) return;
-  catalogoProductos[categoriaId].push({
+  const nuevoProducto = {
     id: generarIdProductoCatalogo(categoriaId),
     nombre: '',
     precio: 0,
     icono: DEFINICIONES_CATALOGO[categoriaId]?.iconoDefecto || '•'
-  });
+  };
+  catalogoProductos[categoriaId].push(nuevoProducto);
+  ultimoProductoEditorCreado = { categoriaId, productoId: nuevoProducto.id };
   renderizarEditorCatalogo();
 }
 
