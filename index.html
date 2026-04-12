@@ -171,6 +171,269 @@
   }
 </style>
 
+
+<style id="compact-ui-tuning">
+  body { font-size: 15px; }
+
+  #topNav {
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
+  }
+
+  #topNav span.text-lg,
+  #topNav .text-lg,
+  #topNav .md\:text-xl {
+    font-size: 1rem !important;
+    line-height: 1.2 !important;
+  }
+
+  #loginScreen input,
+  #loginScreen button,
+  #appMain input,
+  #appMain select,
+  #appMain textarea,
+  #cajaVista input,
+  #cajaVista select,
+  #cajaVista textarea,
+  #historicosVista input,
+  #historicosVista select,
+  #historicosVista textarea,
+  #domiciliosVista input,
+  #domiciliosVista select,
+  #domiciliosVista textarea {
+    border-radius: 1rem !important;
+  }
+
+  #loginScreen input,
+  #appMain input,
+  #appMain select,
+  #appMain textarea,
+  #cajaVista input,
+  #cajaVista select,
+  #cajaVista textarea,
+  #historicosVista input,
+  #historicosVista select,
+  #historicosVista textarea,
+  #domiciliosVista input,
+  #domiciliosVista select,
+  #domiciliosVista textarea {
+    padding: 0.72rem 0.9rem !important;
+    font-size: 0.92rem !important;
+  }
+
+  #loginScreen button,
+  #appContent button,
+  #appContent .menu-link-text {
+    font-size: 0.88rem !important;
+    line-height: 1.15 !important;
+  }
+
+  #appContent button:not(#mobileMenuButton):not(#mobileMenuHeaderClose),
+  #loginScreen button {
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
+  }
+
+  #appMain,
+  #cajaVista,
+  #historicosVista,
+  #domiciliosVista {
+    padding: 0.85rem !important;
+  }
+
+  @media (min-width: 768px) {
+    #appMain,
+    #cajaVista,
+    #historicosVista,
+    #domiciliosVista {
+      padding: 1rem !important;
+    }
+  }
+
+  #appMain > div,
+  #cajaVista > div,
+  #historicosVista > div,
+  #domiciliosVista > div {
+    max-width: 1320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  #appMain .bg-white,
+  #cajaVista .bg-white,
+  #historicosVista .bg-white,
+  #domiciliosVista .bg-white {
+    border-radius: 1rem !important;
+  }
+
+  #appMain .bg-white[class*="p-"],
+  #cajaVista .bg-white[class*="p-"],
+  #historicosVista .bg-white[class*="p-"],
+  #domiciliosVista .bg-white[class*="p-"] {
+    padding: 0.95rem !important;
+  }
+
+  #appMain h2,
+  #cajaVista h2,
+  #historicosVista h2,
+  #domiciliosVista h2 {
+    font-size: clamp(1.25rem, 0.9vw + 1rem, 1.7rem) !important;
+    line-height: 1.15 !important;
+  }
+
+  #appMain h3,
+  #cajaVista h3,
+  #historicosVista h3,
+  #domiciliosVista h3,
+  #appMain h4,
+  #cajaVista h4,
+  #historicosVista h4,
+  #domiciliosVista h4 {
+    line-height: 1.2 !important;
+  }
+
+  #appMain .text-2xl,
+  #cajaVista .text-2xl,
+  #historicosVista .text-2xl,
+  #domiciliosVista .text-2xl {
+    font-size: 1.35rem !important;
+  }
+
+  #appMain .text-xl,
+  #cajaVista .text-xl,
+  #historicosVista .text-xl,
+  #domiciliosVista .text-xl {
+    font-size: 1.08rem !important;
+  }
+
+  #appMain .text-lg,
+  #cajaVista .text-lg,
+  #historicosVista .text-lg,
+  #domiciliosVista .text-lg {
+    font-size: 0.98rem !important;
+  }
+
+  #productos {
+    gap: 0.8rem !important;
+  }
+
+  #productos > div > .grid {
+    gap: 0.6rem !important;
+  }
+
+  #productos button {
+    min-height: 56px !important;
+    padding: 0.68rem 0.55rem !important;
+    font-size: 0.8rem !important;
+    line-height: 1.1 !important;
+    border-radius: 0.9rem !important;
+  }
+
+  @media (max-width: 767px) {
+    #productos button {
+      min-height: 58px !important;
+      font-size: 0.82rem !important;
+      justify-content: flex-start !important;
+      text-align: left !important;
+    }
+
+    #mobileQuickBar {
+      padding-top: 0.5rem !important;
+      padding-bottom: 0.5rem !important;
+    }
+
+    #mobileQuickBar button,
+    #mobileQuickBar > div {
+      min-height: auto !important;
+    }
+
+    #mobileQuickBar button {
+      padding-top: 0.6rem !important;
+      padding-bottom: 0.6rem !important;
+      border-radius: 0.9rem !important;
+      font-size: 0.84rem !important;
+    }
+
+    .venta-step-btn {
+      padding-top: 0.7rem !important;
+      padding-bottom: 0.7rem !important;
+      font-size: 0.82rem !important;
+      border-radius: 0.9rem !important;
+    }
+  }
+
+  #pedidoActualCard button,
+  #controlCajaSeccion button,
+  #ventasSeccion button,
+  #historicosVista button,
+  #domiciliosVista button {
+    border-radius: 0.9rem !important;
+  }
+
+  #total,
+  #pedidoActualCard #total {
+    font-size: 1.08rem !important;
+  }
+
+  #ventasSeccion table th,
+  #ventasSeccion table td,
+  #tablaResumen th,
+  #tablaResumen td,
+  #tablaHistoricoDetalle th,
+  #tablaHistoricoDetalle td,
+  #tablaDomicilios th,
+  #tablaDomicilios td,
+  #tablaCierresCaja th,
+  #tablaCierresCaja td {
+    padding: 0.45rem 0.55rem !important;
+    font-size: 0.83rem !important;
+    line-height: 1.2 !important;
+  }
+
+  #modalPagoMixto .max-w-2xl,
+  #modalAperturaCaja .max-w-lg,
+  #modalCierreCaja .max-w-lg,
+  #modalDineroEsperado .max-w-4xl {
+    border-radius: 1.25rem !important;
+  }
+
+  #modalPagoMixto .px-4,
+  #modalPagoMixto .sm\:px-6,
+  #modalAperturaCaja .px-6,
+  #modalCierreCaja .px-6,
+  #modalDineroEsperado .px-6 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  #modalPagoMixto .py-4,
+  #modalPagoMixto .py-5,
+  #modalAperturaCaja .py-4,
+  #modalAperturaCaja .p-6,
+  #modalCierreCaja .py-4,
+  #modalCierreCaja .p-6,
+  #modalDineroEsperado .py-4,
+  #modalDineroEsperado .p-6 {
+    padding-top: 0.9rem !important;
+    padding-bottom: 0.9rem !important;
+  }
+
+  #modalPagoMixto h3,
+  #modalAperturaCaja h3,
+  #modalCierreCaja h3,
+  #modalDineroEsperado h3 {
+    font-size: 1.05rem !important;
+  }
+
+  #modalPagoMixto button,
+  #modalAperturaCaja button,
+  #modalCierreCaja button,
+  #modalDineroEsperado button {
+    font-size: 0.88rem !important;
+    border-radius: 1rem !important;
+  }
+</style>
+
 </head>
 
 <body class="bg-yellow-50 font-sans">
@@ -273,6 +536,9 @@
         <a href="inventario.html" data-role="gestion-only" class="bg-yellow-600 text-white font-semibold px-3 py-2 rounded-lg shadow hover:bg-yellow-700 transition text-center">
           📆 Inventario
         </a>
+        <button type="button" onclick="abrirEditorCatalogo()" data-role="gestion-only" class="bg-white text-yellow-700 font-semibold px-3 py-2 rounded-lg shadow hover:bg-yellow-100 transition text-center">
+          🍽️ Editar menú
+        </button>
         <button type="button" onclick="cerrarSesionRol()" class="bg-white/20 text-white font-semibold px-3 py-2 rounded-lg shadow hover:bg-white/30 transition text-center border border-white/40">
           🔒 Cerrar sesión
         </button>
@@ -310,6 +576,7 @@
           <button type="button" onclick="abrirHistoricos(); cerrarMobileMenu();" data-role="gestion-only" class="menu-link-text admin">📈 Históricos</button>
           <button type="button" onclick="abrirDomiciliosVista(); cerrarMobileMenu();" data-role="gestion-only" class="menu-link-text admin">🛵 Domicilios</button>
           <a href="inventario.html" data-role="gestion-only" class="menu-link-text admin">📆 Inventario</a>
+          <button type="button" onclick="cerrarMobileMenu(); abrirEditorCatalogo();" data-role="gestion-only" class="menu-link-text admin">🍽️ Editar menú</button>
           <button type="button" onclick="exportarVentasExcelConEstilo(); cerrarMobileMenu();" id="btnExportarExcelMobile" data-role="gestion-only" class="menu-link-text admin">📊 Exportar ventas a Excel</button>
           <button type="button" onclick="borrarVentas(); cerrarMobileMenu();" data-role="gestion-only" class="menu-link-text admin">🗑️ Borrar ventas</button>
           <button type="button" onclick="generarResumenProductos(); cerrarMobileMenu();" data-role="gestion-only" class="menu-link-text admin">📦 Ver resumen productos</button>
@@ -1048,6 +1315,36 @@
     </div>
   </main>
 
+
+
+  <div id="modalEditorCatalogo" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/45 px-3 py-4 sm:px-6">
+    <div class="w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-yellow-100 flex flex-col">
+      <div class="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-yellow-100 bg-yellow-50">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-yellow-700 font-bold">Gestión de productos</p>
+          <h3 class="text-lg sm:text-xl font-black text-gray-800">Editar menú, adiciones y bebidas</h3>
+          <p class="text-xs sm:text-sm text-gray-500">Cambia nombres y precios, o crea productos nuevos y sincronízalos en todos los equipos.</p>
+          <p id="estadoCatalogoSync" class="mt-2 inline-flex items-center rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs font-semibold border border-blue-100">Catálogo cargado en modo local</p>
+        </div>
+        <button type="button" onclick="cerrarEditorCatalogo()" class="w-10 h-10 rounded-full bg-white border border-yellow-200 text-gray-600 hover:bg-yellow-100 text-xl leading-none">×</button>
+      </div>
+
+      <div class="px-4 sm:px-6 py-4 border-b border-yellow-100 flex flex-wrap gap-2 bg-white">
+        <button type="button" onclick="agregarProductoEditor('comida')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-xl font-semibold text-sm">+ Agregar comida</button>
+        <button type="button" onclick="agregarProductoEditor('adiciones')" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-xl font-semibold text-sm">+ Agregar adición</button>
+        <button type="button" onclick="agregarProductoEditor('bebidas')" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-xl font-semibold text-sm">+ Agregar bebida</button>
+        <button type="button" onclick="restablecerCatalogoBase()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-xl font-semibold text-sm">↺ Restablecer menú base</button>
+      </div>
+
+      <div id="editorCatalogoContenido" class="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-6 bg-yellow-50/50"></div>
+
+      <div class="px-4 sm:px-6 py-4 border-t border-yellow-100 bg-white flex flex-col sm:flex-row gap-2 sm:justify-end">
+        <button type="button" onclick="cerrarEditorCatalogo()" class="px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold">Cancelar</button>
+        <button type="button" onclick="guardarCatalogoDesdeEditor()" class="px-4 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-white font-semibold">Guardar cambios del catálogo</button>
+      </div>
+    </div>
+  </div>
+
   <script>
       let pedido = [];
   let total = 0;
@@ -1085,12 +1382,455 @@ const CONTROL_CAJA_STORAGE_KEY = "controlCajaPorDia";
 let controlCajaCache = JSON.parse(localStorage.getItem(CONTROL_CAJA_STORAGE_KEY) || "{}");
 let controlCajaFirebasePermisosDisponibles = true;
 let controlCajaFirebasePermisosAvisados = false;
+let catalogoUnsubscribe = null;
+let catalogoFirestorePermisosDisponibles = true;
+let catalogoGuardandoRemoto = false;
+const CATALOGO_FIRESTORE_COLLECTION = "configuracion";
+const CATALOGO_FIRESTORE_DOC_ID = "catalogoProductos";
 const INVENTARIO_STORAGE_KEY = "inventarioCocina";
 const INVENTARIO_COLLECTION = "inventario";
 const STOCK_BEBIDA_BAJO_UMBRAL = 5;
 let inventarioUnsubscribe = null;
 let inventarioBebidasEstado = {};
 let inventarioPermisosAvisados = false;
+const CATALOGO_PRODUCTOS_STORAGE_KEY = 'senor_arepa_catalogo_productos_v2';
+const DEFINICIONES_CATALOGO = {
+  comida: {
+    id: 'comida',
+    titulo: 'Comida',
+    descripcion: 'Productos principales del menú.',
+    selectorGrid: '#categoriaComida .grid',
+    iconoDefecto: '⚪',
+    claseBoton: 'bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm'
+  },
+  adiciones: {
+    id: 'adiciones',
+    titulo: 'Adiciones',
+    descripcion: 'Complementos opcionales para el pedido.',
+    selectorGrid: '#categoriaAdiciones .grid',
+    iconoDefecto: '🧀',
+    claseBoton: 'bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm'
+  },
+  bebidas: {
+    id: 'bebidas',
+    titulo: 'Bebidas',
+    descripcion: 'Bebidas disponibles en el menú.',
+    selectorGrid: '#categoriaBebidas .grid',
+    iconoDefecto: '🥤',
+    claseBoton: 'bg-yellow-300 hover:bg-yellow-400 p-3 rounded-xl shadow-sm'
+  }
+};
+let catalogoProductos = { comida: [], adiciones: [], bebidas: [] };
+let catalogoBaseProductos = null;
+let contadorProductoCatalogo = 0;
+
+function obtenerRefCatalogoFirestore() {
+  if (!firestoreDisponible || !firestoreDb) return null;
+  return firestoreDb.collection(CATALOGO_FIRESTORE_COLLECTION).doc(CATALOGO_FIRESTORE_DOC_ID);
+}
+
+function tienePermisoGestionCatalogoRemoto() {
+  return tieneAccesoGestion();
+}
+
+function actualizarEstadoCatalogoSync(mensaje = 'Catálogo cargado en modo local', tipo = 'info') {
+  const el = document.getElementById('estadoCatalogoSync');
+  if (!el) return;
+  const clases = {
+    info: 'bg-blue-50 text-blue-700 border-blue-100',
+    ok: 'bg-green-50 text-green-700 border-green-100',
+    warn: 'bg-amber-50 text-amber-700 border-amber-100',
+    error: 'bg-red-50 text-red-700 border-red-100',
+    neutral: 'bg-gray-100 text-gray-700 border-gray-200'
+  };
+  el.className = `mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${clases[tipo] || clases.info}`;
+  el.textContent = mensaje;
+}
+
+function prepararPayloadCatalogoFirestore() {
+  const limpio = normalizarCatalogoProductos(catalogoProductos);
+  return {
+    comida: (limpio.comida || []).map(item => ({ id: item.id, nombre: String(item.nombre || '').trim(), precio: Number(item.precio || 0), icono: item.icono || DEFINICIONES_CATALOGO.comida.iconoDefecto })),
+    adiciones: (limpio.adiciones || []).map(item => ({ id: item.id, nombre: String(item.nombre || '').trim(), precio: Number(item.precio || 0), icono: item.icono || DEFINICIONES_CATALOGO.adiciones.iconoDefecto })),
+    bebidas: (limpio.bebidas || []).map(item => ({ id: item.id, nombre: String(item.nombre || '').trim(), precio: Number(item.precio || 0), icono: item.icono || DEFINICIONES_CATALOGO.bebidas.iconoDefecto })),
+    updatedAt: window.firebase?.firestore?.FieldValue?.serverTimestamp ? window.firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+    updatedBy: String(localStorage.getItem('usuarioEmailActual') || '')
+  };
+}
+
+async function guardarCatalogoProductosRemoto(mostrarEstado = true) {
+  if (!tienePermisoGestionCatalogoRemoto()) {
+    throw new Error('No tienes permisos para guardar el catálogo en Firebase.');
+  }
+  const ref = obtenerRefCatalogoFirestore();
+  if (!ref) {
+    throw new Error('Firebase no está disponible en este momento.');
+  }
+  catalogoGuardandoRemoto = true;
+  if (mostrarEstado) actualizarEstadoCatalogoSync('Guardando catálogo en Firebase...', 'info');
+  try {
+    await ref.set(prepararPayloadCatalogoFirestore(), { merge: true });
+    registrarHeartbeatFirebase();
+    catalogoFirestorePermisosDisponibles = true;
+    if (mostrarEstado) actualizarEstadoCatalogoSync('Catálogo sincronizado con Firebase.', 'ok');
+  } catch (error) {
+    if (String(error?.message || '').toLowerCase().includes('missing or insufficient permissions')) {
+      catalogoFirestorePermisosDisponibles = false;
+      actualizarEstadoCatalogoSync('Sin permisos en Firebase para el catálogo. Se guardó solo en este equipo.', 'warn');
+    } else {
+      actualizarEstadoCatalogoSync('No se pudo guardar el catálogo en Firebase. Se conservó la copia local.', 'error');
+    }
+    throw error;
+  } finally {
+    catalogoGuardandoRemoto = false;
+  }
+}
+
+async function sembrarCatalogoRemotoSiNoExiste() {
+  if (!tienePermisoGestionCatalogoRemoto()) return;
+  const ref = obtenerRefCatalogoFirestore();
+  if (!ref) return;
+  try {
+    const doc = await ref.get();
+    registrarHeartbeatFirebase();
+    if (!doc.exists) {
+      await guardarCatalogoProductosRemoto(false);
+      actualizarEstadoCatalogoSync('Catálogo base publicado en Firebase.', 'ok');
+    }
+  } catch (error) {
+    console.error('No se pudo sembrar el catálogo remoto:', error);
+  }
+}
+
+function aplicarCatalogoRemoto(data = null, origen = 'firebase') {
+  const remoto = normalizarCatalogoProductos(data || {});
+  const tieneItems = Object.values(remoto).some(lista => Array.isArray(lista) && lista.length);
+  if (!tieneItems) return false;
+  catalogoProductos = remoto;
+  guardarCatalogoProductosLocal();
+  renderizarCatalogoProductosUI();
+  actualizarEstadoCatalogoSync(origen === 'firebase' ? 'Catálogo sincronizado desde Firebase.' : 'Catálogo actualizado.', 'ok');
+  return true;
+}
+
+function escucharCatalogoFirestore() {
+  if (!firestoreDisponible || !firestoreDb) {
+    actualizarEstadoCatalogoSync('Catálogo en modo local. Firebase no disponible.', 'warn');
+    return;
+  }
+  if (typeof catalogoUnsubscribe === 'function') {
+    catalogoUnsubscribe();
+    catalogoUnsubscribe = null;
+  }
+  const ref = obtenerRefCatalogoFirestore();
+  if (!ref) return;
+  catalogoUnsubscribe = ref.onSnapshot(async (doc) => {
+    registrarHeartbeatFirebase();
+    catalogoFirestorePermisosDisponibles = true;
+    const aplicado = aplicarCatalogoRemoto(doc.exists ? doc.data() : null, 'firebase');
+    if (!aplicado) {
+      actualizarEstadoCatalogoSync('Catálogo remoto vacío. Usando copia local por ahora.', 'warn');
+      await sembrarCatalogoRemotoSiNoExiste();
+    }
+  }, (error) => {
+    console.error('Error al escuchar el catálogo desde Firebase:', error);
+    if (String(error?.message || '').toLowerCase().includes('missing or insufficient permissions')) {
+      catalogoFirestorePermisosDisponibles = false;
+      actualizarEstadoCatalogoSync('Firebase no tiene permisos para leer el catálogo. Se usa la copia local.', 'warn');
+    } else {
+      actualizarEstadoCatalogoSync('No se pudo sincronizar el catálogo. Se usa la copia local.', 'error');
+    }
+  });
+}
+
+function clonarJSON(data) {
+  return JSON.parse(JSON.stringify(data));
+}
+
+function generarIdProductoCatalogo(categoriaId = 'producto') {
+  contadorProductoCatalogo += 1;
+  return `${categoriaId}-${Date.now()}-${contadorProductoCatalogo}`;
+}
+
+function limpiarNumeroEntero(valor = '') {
+  return String(valor || '').replace(/\D+/g, '');
+}
+
+function formatearNumeroConPuntosEntrada(valor = 0) {
+  const numero = Number(limpiarNumeroEntero(valor));
+  if (!numero) return '';
+  return numero.toLocaleString('es-CO');
+}
+
+function obtenerIconoDesdeTexto(texto = '', iconoDefecto = '•') {
+  const limpio = String(texto || '').trim();
+  const primerToken = limpio.split(/\s+/)[0] || '';
+  if (!primerToken) return iconoDefecto;
+  const tieneSimbolo = /[^A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ]/.test(primerToken) || Array.from(primerToken).some(ch => (ch.codePointAt(0) || 0) > 255);
+  return tieneSimbolo ? primerToken : iconoDefecto;
+}
+
+function normalizarCatalogoProductos(origen = null) {
+  const base = origen && typeof origen === 'object' ? origen : {};
+  const salida = { comida: [], adiciones: [], bebidas: [] };
+  Object.keys(DEFINICIONES_CATALOGO).forEach(categoriaId => {
+    const iconoDefecto = DEFINICIONES_CATALOGO[categoriaId].iconoDefecto;
+    const lista = Array.isArray(base[categoriaId]) ? base[categoriaId] : [];
+    salida[categoriaId] = lista.map((producto, index) => ({
+      id: producto?.id || generarIdProductoCatalogo(categoriaId),
+      nombre: String(producto?.nombre || '').trim() || `${DEFINICIONES_CATALOGO[categoriaId].titulo} ${index + 1}`,
+      precio: Number(producto?.precio || 0),
+      icono: producto?.icono || iconoDefecto
+    })).filter(producto => producto.nombre);
+  });
+  return salida;
+}
+
+function extraerCatalogoBaseDesdeDOM() {
+  const salida = { comida: [], adiciones: [], bebidas: [] };
+  Object.keys(DEFINICIONES_CATALOGO).forEach(categoriaId => {
+    const def = DEFINICIONES_CATALOGO[categoriaId];
+    const grid = document.querySelector(def.selectorGrid);
+    if (!grid) return;
+    grid.querySelectorAll('button').forEach(btn => {
+      const onclick = btn.getAttribute('onclick') || '';
+      const match = onclick.match(/agregarProducto\('([^']+)'\s*,\s*([0-9.]+)/);
+      if (!match) return;
+      salida[categoriaId].push({
+        id: generarIdProductoCatalogo(categoriaId),
+        nombre: String(match[1] || '').trim(),
+        precio: Number(match[2] || 0),
+        icono: obtenerIconoDesdeTexto(btn.textContent || '', def.iconoDefecto)
+      });
+    });
+  });
+  return salida;
+}
+
+function guardarCatalogoProductosLocal() {
+  try {
+    localStorage.setItem(CATALOGO_PRODUCTOS_STORAGE_KEY, JSON.stringify(catalogoProductos));
+  } catch (error) {
+    console.error('No se pudo guardar el catálogo de productos:', error);
+  }
+}
+
+function cargarCatalogoProductos() {
+  catalogoBaseProductos = normalizarCatalogoProductos(extraerCatalogoBaseDesdeDOM());
+  let guardado = null;
+  try {
+    guardado = JSON.parse(localStorage.getItem(CATALOGO_PRODUCTOS_STORAGE_KEY) || 'null');
+  } catch (error) {
+    console.error('No se pudo leer el catálogo guardado:', error);
+  }
+  catalogoProductos = normalizarCatalogoProductos(guardado || catalogoBaseProductos);
+  guardarCatalogoProductosLocal();
+  renderizarCatalogoProductosUI();
+  actualizarEstadoCatalogoSync('Catálogo cargado desde este equipo. Esperando sincronización...', 'info');
+}
+
+function obtenerEtiquetaBotonProducto(producto, categoriaId) {
+  const icono = producto?.icono || DEFINICIONES_CATALOGO[categoriaId]?.iconoDefecto || '•';
+  return `${icono} ${producto?.nombre || 'Producto'} - ${formatearCOP(Number(producto?.precio || 0))}`;
+}
+
+function renderizarCategoriaCatalogo(categoriaId) {
+  const def = DEFINICIONES_CATALOGO[categoriaId];
+  const grid = document.querySelector(def.selectorGrid);
+  if (!grid) return;
+  const fragment = document.createDocumentFragment();
+  (catalogoProductos[categoriaId] || []).forEach(producto => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = def.claseBoton;
+    btn.dataset.productName = producto.nombre;
+    btn.dataset.originalLabel = obtenerEtiquetaBotonProducto(producto, categoriaId);
+    btn.innerHTML = `<span>${btn.dataset.originalLabel}</span>`;
+    btn.addEventListener('click', () => agregarProducto(producto.nombre, Number(producto.precio || 0)));
+    fragment.appendChild(btn);
+  });
+  grid.innerHTML = '';
+  grid.appendChild(fragment);
+}
+
+function actualizarProductosBebidaInventarioDesdeCatalogo() {
+  PRODUCTOS_BEBIDA_INVENTARIO = new Set((catalogoProductos.bebidas || []).map(item => normalizarClaveInventario(item?.nombre || '')));
+}
+
+function renderizarCatalogoProductosUI() {
+  Object.keys(DEFINICIONES_CATALOGO).forEach(renderizarCategoriaCatalogo);
+  actualizarProductosBebidaInventarioDesdeCatalogo();
+  actualizarAlertasStockBebidas();
+  if (!document.getElementById('modalEditorCatalogo')?.classList.contains('hidden')) {
+    renderizarEditorCatalogo();
+  }
+}
+
+function abrirEditorCatalogo() {
+  if (!verificarAcceso(['admin', 'administrador'])) return;
+  const modal = document.getElementById('modalEditorCatalogo');
+  if (!modal) return;
+  renderizarEditorCatalogo();
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.body.classList.add('overflow-hidden');
+}
+
+function cerrarEditorCatalogo() {
+  const modal = document.getElementById('modalEditorCatalogo');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  document.body.classList.remove('overflow-hidden');
+}
+
+function renderizarEditorCatalogo() {
+  const contenedor = document.getElementById('editorCatalogoContenido');
+  if (!contenedor) return;
+  contenedor.innerHTML = Object.keys(DEFINICIONES_CATALOGO).map(categoriaId => {
+    const def = DEFINICIONES_CATALOGO[categoriaId];
+    const filas = (catalogoProductos[categoriaId] || []).map((producto, index) => `
+      <tr>
+        <td class="p-2 border text-center text-sm text-gray-500">${index + 1}</td>
+        <td class="p-2 border">
+          <input type="text" value="${escaparHTML(producto.nombre)}" oninput="actualizarNombreProductoEditor('${categoriaId}', '${producto.id}', this.value)" class="w-full border border-yellow-200 rounded-lg px-3 py-2 text-sm" placeholder="Nombre del producto">
+        </td>
+        <td class="p-2 border w-[180px]">
+          <input type="text" value="${formatearNumeroConPuntosEntrada(producto.precio)}" oninput="actualizarPrecioProductoEditor('${categoriaId}', '${producto.id}', this)" class="w-full border border-yellow-200 rounded-lg px-3 py-2 text-sm text-right" placeholder="0">
+        </td>
+        <td class="p-2 border text-center w-[90px]">
+          <button type="button" onclick="eliminarProductoEditor('${categoriaId}', '${producto.id}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg text-xs font-semibold">Eliminar</button>
+        </td>
+      </tr>
+    `).join('');
+    return `
+      <section class="bg-white border border-yellow-100 rounded-2xl shadow-sm overflow-hidden">
+        <div class="px-4 py-4 border-b border-yellow-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h4 class="text-lg font-bold text-gray-800">${def.titulo}</h4>
+            <p class="text-sm text-gray-500">${def.descripcion}</p>
+          </div>
+          <button type="button" onclick="agregarProductoEditor('${categoriaId}')" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-xl text-sm font-semibold">+ Agregar ${def.titulo.toLowerCase()}</button>
+        </div>
+        <div class="overflow-auto">
+          <table class="min-w-full text-sm bg-white">
+            <thead class="bg-yellow-50 text-gray-600">
+              <tr>
+                <th class="p-2 border w-16">#</th>
+                <th class="p-2 border text-left">Nombre</th>
+                <th class="p-2 border text-right">Precio</th>
+                <th class="p-2 border text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filas || `<tr><td colspan="4" class="p-4 text-center text-gray-500">Todavía no hay productos en esta sección.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    `;
+  }).join('');
+}
+
+function agregarProductoEditor(categoriaId) {
+  if (!catalogoProductos[categoriaId]) return;
+  catalogoProductos[categoriaId].push({
+    id: generarIdProductoCatalogo(categoriaId),
+    nombre: '',
+    precio: 0,
+    icono: DEFINICIONES_CATALOGO[categoriaId]?.iconoDefecto || '•'
+  });
+  renderizarEditorCatalogo();
+}
+
+function actualizarNombreProductoEditor(categoriaId, productoId, valor) {
+  const producto = (catalogoProductos[categoriaId] || []).find(item => item.id === productoId);
+  if (!producto) return;
+  producto.nombre = String(valor || '').trimStart();
+}
+
+function actualizarPrecioProductoEditor(categoriaId, productoId, input) {
+  const producto = (catalogoProductos[categoriaId] || []).find(item => item.id === productoId);
+  if (!producto || !input) return;
+  const limpio = limpiarNumeroEntero(input.value);
+  producto.precio = Number(limpio || 0);
+  input.value = formatearNumeroConPuntosEntrada(limpio);
+}
+
+function eliminarProductoEditor(categoriaId, productoId) {
+  catalogoProductos[categoriaId] = (catalogoProductos[categoriaId] || []).filter(item => item.id !== productoId);
+  renderizarEditorCatalogo();
+}
+
+function validarCatalogoProductos() {
+  const errores = [];
+  Object.keys(DEFINICIONES_CATALOGO).forEach(categoriaId => {
+    (catalogoProductos[categoriaId] || []).forEach((producto, index) => {
+      if (!String(producto?.nombre || '').trim()) {
+        errores.push(`${DEFINICIONES_CATALOGO[categoriaId].titulo} ${index + 1}: falta el nombre.`);
+      }
+      if (Number(producto?.precio || 0) < 0) {
+        errores.push(`${DEFINICIONES_CATALOGO[categoriaId].titulo} ${index + 1}: el precio no puede ser negativo.`);
+      }
+    });
+  });
+  return errores;
+}
+
+async function guardarCatalogoDesdeEditor() {
+  const errores = validarCatalogoProductos();
+  if (errores.length) {
+    alert('Corrige esto antes de guardar\n\n- ' + errores.join('\n- '));
+    return;
+  }
+  catalogoProductos = normalizarCatalogoProductos(catalogoProductos);
+  guardarCatalogoProductosLocal();
+  renderizarCatalogoProductosUI();
+
+  let mensajeFinal = 'Catálogo actualizado correctamente en este equipo.';
+  if (tienePermisoGestionCatalogoRemoto() && firestoreDisponible && firestoreDb) {
+    try {
+      await guardarCatalogoProductosRemoto(true);
+      mensajeFinal = 'Catálogo actualizado y sincronizado con Firebase correctamente.';
+    } catch (error) {
+      console.error('No se pudo guardar el catálogo en Firebase:', error);
+      mensajeFinal = 'Catálogo guardado en este equipo, pero Firebase no lo pudo sincronizar. Revisa permisos o conexión.';
+    }
+  } else if (tienePermisoGestionCatalogoRemoto()) {
+    actualizarEstadoCatalogoSync('Firebase no disponible. Catálogo guardado solo en este equipo.', 'warn');
+    mensajeFinal = 'Catálogo guardado en este equipo. Firebase no estaba disponible para compartirlo.';
+  }
+
+  cerrarEditorCatalogo();
+  alert(mensajeFinal);
+}
+
+async function restablecerCatalogoBase() {
+  if (!confirm('¿Seguro que quieres volver al menú base original?')) return;
+  catalogoProductos = clonarJSON(catalogoBaseProductos || { comida: [], adiciones: [], bebidas: [] });
+  catalogoProductos = normalizarCatalogoProductos(catalogoProductos);
+  guardarCatalogoProductosLocal();
+  renderizarCatalogoProductosUI();
+  renderizarEditorCatalogo();
+  if (tienePermisoGestionCatalogoRemoto() && firestoreDisponible && firestoreDb) {
+    try {
+      await guardarCatalogoProductosRemoto(true);
+    } catch (error) {
+      console.error('No se pudo restablecer el catálogo en Firebase:', error);
+    }
+  } else {
+    actualizarEstadoCatalogoSync('Menú base restablecido solo en este equipo.', 'warn');
+  }
+}
+
+function escaparHTML(valor = '') {
+  return String(valor)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 
 function normalizarClaveInventario(nombre = "") {
@@ -1194,13 +1934,7 @@ function escucharInventarioFirestore() {
   });
 }
 
-const PRODUCTOS_BEBIDA_INVENTARIO = new Set([
-  'QUATRO', 'COCA COLA 400 ml', 'COCA COLA 250 ml', 'JUGO HIT 500 ml', 'SPRITE', 'COCA COLA ZERO',
-  'BRISA LIMON', 'BRISA MANZANA', 'MISTER TEA', 'AGUA CON GAS', 'AGUA SABORISADA', 'POSTOBON 400 ml',
-  'POSTOBON 250 ml', 'POSTOBON 1.5', 'SODA BRETAÑA', 'GATORADE', 'PREMIO 400 ml', 'PREMIO 1.5l',
-  'QUATRO 1.5L', 'COCA COLA 1.5L', 'JUGO HIT 1.L', 'SPRITE 1.5L', 'COCA COLA ZERO 1.5L', 'AGUA',
-  'MILO CALIENTE', 'CAFE CON LECHE', 'TINTO', 'CERVEZA POKER', 'CERVEZA CORONA'
-].map(normalizarClaveInventario));
+let PRODUCTOS_BEBIDA_INVENTARIO = new Set();
 
 function esProductoBebidaInventario(nombre = "") {
   return PRODUCTOS_BEBIDA_INVENTARIO.has(normalizarClaveInventario(nombre));
@@ -2396,6 +3130,7 @@ async function inicializarFirebaseVentas() {
         aplicarSesionAutenticada(registro.usuario || email.split('@')[0], registro.rol || 'cajero', user.email || '');
         escucharVentasFirestore();
         escucharInventarioFirestore();
+        escucharCatalogoFirestore();
         programarSyncVentasPendientes(50);
       } else {
         if (typeof ventasUnsubscribe === 'function') {
@@ -2406,8 +3141,14 @@ async function inicializarFirebaseVentas() {
           inventarioUnsubscribe();
           inventarioUnsubscribe = null;
         }
+        if (typeof catalogoUnsubscribe === 'function') {
+          catalogoUnsubscribe();
+          catalogoUnsubscribe = null;
+        }
         inventarioBebidasEstado = obtenerMapaInventarioLocal();
         actualizarAlertasStockBebidas(inventarioBebidasEstado);
+        cargarCatalogoProductos();
+        actualizarEstadoCatalogoSync('Catálogo cargado en modo local', 'neutral');
         limpiarSesionLocal();
         guardarVentasEnCache([]);
       }
@@ -2583,7 +3324,12 @@ async function cerrarSesionRol() {
     ventasUnsubscribe();
     ventasUnsubscribe = null;
   }
+  if (typeof catalogoUnsubscribe === 'function') {
+    catalogoUnsubscribe();
+    catalogoUnsubscribe = null;
+  }
   limpiarSesionLocal();
+  actualizarEstadoCatalogoSync('Catálogo cargado en modo local', 'neutral');
   guardarVentasEnCache([]);
   try {
     if (firebaseAuth) {
@@ -4482,7 +5228,21 @@ window.addEventListener('DOMContentLoaded', () => {
   const loginScreen = document.getElementById('loginScreen');
   if (appContent) appContent.classList.add('hidden');
   if (loginScreen) loginScreen.classList.remove('hidden');
+  cargarCatalogoProductos();
   aplicarPermisosPorRol();
+
+  const modalEditor = document.getElementById('modalEditorCatalogo');
+  if (modalEditor) {
+    modalEditor.addEventListener('click', (event) => {
+      if (event.target === modalEditor) cerrarEditorCatalogo();
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !document.getElementById('modalEditorCatalogo')?.classList.contains('hidden')) {
+      cerrarEditorCatalogo();
+    }
+  });
 });
 
 </script>
