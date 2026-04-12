@@ -490,15 +490,30 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <input type="text" id="cliente" placeholder="Nombre del Cliente" class="w-full p-3 border border-yellow-300 rounded-xl text-base" />
-        <select id="formaPago" class="w-full p-3 border border-yellow-300 rounded-xl text-base">
-          <option value="">Seleccione forma de pago</option>
-          <option value="QR Señor arepa">QR Señor arepa</option>
-          <option value="QR Señora arepa">QR Señora arepa</option>
-          <option value="Bre-B">Bre-B</option>
-          <option value="daviplata">daviplata</option>
-          <option value="nequi">nequi</option>
-          <option value="efectivo">efectivo</option>
-        </select>
+        <div class="space-y-2">
+          <select id="formaPago" class="w-full p-3 border border-yellow-300 rounded-xl text-base">
+            <option value="">Seleccione forma de pago</option>
+            <option value="QR Señor arepa">QR Señor arepa</option>
+            <option value="QR Señora arepa">QR Señora arepa</option>
+            <option value="Bre-B">Bre-B</option>
+            <option value="daviplata">daviplata</option>
+            <option value="nequi">nequi</option>
+            <option value="efectivo">efectivo</option>
+            <option value="mixto">mixto</option>
+          </select>
+          <div id="bloquePagoMixtoResumen" class="hidden rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div class="min-w-0">
+                <p class="text-xs font-bold uppercase tracking-wide text-blue-700">Pago mixto</p>
+                <p id="textoPagoMixtoResumen" class="mt-1 text-sm text-gray-700">Configura cómo se reparte el pago entre los medios disponibles.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="abrirModalPagoMixto()" class="rounded-xl bg-blue-500 px-4 py-2 text-sm font-bold text-white hover:bg-blue-600">Configurar</button>
+                <button type="button" onclick="limpiarPagoMixtoActual()" class="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-gray-700 border border-blue-200 hover:bg-blue-100">Limpiar</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div>
           <label for="tipoPedido" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Pedido</label>
           <select id="tipoPedido" class="p-3 border border-yellow-300 rounded-xl w-full text-base">
@@ -689,6 +704,45 @@
 
     </div>
   </main>
+
+  <div id="modalPagoMixto" class="fixed inset-0 z-[85] hidden bg-black/40 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div class="min-h-full flex items-center justify-center">
+      <div class="relative w-full max-w-2xl my-4 rounded-3xl bg-white shadow-2xl border border-blue-100 overflow-hidden max-h-[calc(100vh-2rem)] flex flex-col">
+      <div class="flex items-center justify-between gap-3 border-b border-blue-100 px-4 sm:px-6 py-4 bg-blue-50 shrink-0">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-blue-700 font-bold">Pago mixto</p>
+          <h3 class="text-xl font-extrabold text-gray-800">Distribuir el pago</h3>
+        </div>
+        <button type="button" onclick="cerrarModalPagoMixto()" class="w-10 h-10 rounded-full bg-white border border-blue-200 text-gray-600 hover:bg-blue-100">✕</button>
+      </div>
+      <div class="px-4 sm:px-6 py-5 space-y-4 overflow-y-auto">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+            <p class="text-xs uppercase tracking-wide text-gray-500">Total a cobrar</p>
+            <p id="pagoMixtoTotal" class="text-xl font-extrabold text-gray-800 mt-1">$0</p>
+          </div>
+          <div class="rounded-2xl border border-green-100 bg-green-50 p-4">
+            <p class="text-xs uppercase tracking-wide text-gray-500">Asignado</p>
+            <p id="pagoMixtoAsignado" class="text-xl font-extrabold text-green-700 mt-1">$0</p>
+          </div>
+          <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+            <p class="text-xs uppercase tracking-wide text-gray-500">Diferencia</p>
+            <p id="pagoMixtoDiferencia" class="text-xl font-extrabold text-amber-700 mt-1">$0</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600">Ingresa cuánto pagó el cliente en cada medio. La suma debe coincidir con el total real del pedido, incluyendo domicilio si aplica.</p>
+        <div id="pagoMixtoInputs" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+      <div class="flex flex-col-reverse sm:flex-row justify-between gap-3 border-t border-blue-100 px-4 sm:px-6 py-4 bg-gray-50 shrink-0">
+        <button type="button" onclick="limpiarPagoMixtoActual()" class="w-full sm:w-auto px-4 py-3 rounded-2xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-100">Limpiar reparto</button>
+        <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <button type="button" onclick="cerrarModalPagoMixto()" class="w-full sm:w-auto px-4 py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200">Cancelar</button>
+          <button type="button" onclick="confirmarPagoMixto()" class="w-full sm:w-auto px-4 py-3 rounded-2xl bg-blue-500 text-white font-bold hover:bg-blue-600">Guardar pago mixto</button>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
 
   <div id="modalAperturaCaja" class="fixed inset-0 z-[80] hidden bg-black/40 backdrop-blur-sm p-4">
     <div class="max-w-lg mx-auto mt-6 md:mt-12 bg-white rounded-3xl shadow-2xl border border-yellow-100 overflow-hidden">
@@ -1420,20 +1474,19 @@ function obtenerVentasActivasDelDia(diaClave) {
 function calcularResumenCajaDia(diaClave) {
   const ventasActivas = obtenerVentasActivasDelDia(diaClave);
   const totalVentas = ventasActivas.reduce((acc, venta) => acc + obtenerIngresoRealVenta(venta), 0);
-  const totalEfectivo = ventasActivas
-    .filter(venta => String(venta.formaPago || "").toLowerCase() === "efectivo")
-    .reduce((acc, venta) => acc + obtenerIngresoRealVenta(venta), 0);
+  const totalCobrado = ventasActivas.reduce((acc, venta) => acc + obtenerTotalCobradoVenta(venta), 0);
+  const totalEfectivo = ventasActivas.reduce((acc, venta) => acc + obtenerValorPagoPorMedio(venta, "efectivo"), 0);
+  const totalOtrosMedios = ventasActivas.reduce((acc, venta) => acc + obtenerTotalOtrosMediosVenta(venta), 0);
   const domicilios = ventasActivas.filter(venta => esPedidoDomicilio(venta)).length;
-  const ajusteDomiciliosTransferencia = ventasActivas
-    .filter(venta => esPedidoDomicilio(venta) && esPagoTransferencia(venta))
-    .reduce((acc, venta) => acc + obtenerValorDomicilio(venta), 0);
-  const efectivoNetoSistema = totalEfectivo - ajusteDomiciliosTransferencia;
+  const efectivoNetoSistema = totalEfectivo;
   return {
     cantidadVentas: ventasActivas.length,
     totalVentas,
+    totalCobrado,
     totalEfectivo,
+    totalOtrosMedios,
     domicilios,
-    ajusteDomiciliosTransferencia,
+    ajusteDomiciliosTransferencia: 0,
     efectivoNetoSistema,
     montoEsperado: efectivoNetoSistema
   };
@@ -1501,7 +1554,7 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
       : 'Haz clic para registrar cierre';
   }
   if (dineroEsperadoResumenTexto) {
-    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperado)} · ajuste domicilios transferencia -${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)} · ${control.cierreHora ? `diferencia ${formatearCOP(diferencia)}` : 'ver detalle completo'}`;
+    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperado)} · efectivo recibido ${formatearCOP(resumen.totalEfectivo || 0)} · ${control.cierreHora ? `diferencia ${formatearCOP(diferencia)}` : 'ver detalle completo'}`;
   }
 
   if (aperturaInfoModal) aperturaInfoModal.textContent = control.aperturaHora
@@ -1538,7 +1591,7 @@ function cerrarModalCaja(id) {
   const modal = document.getElementById(id);
   if (!modal) return;
   modal.classList.add('hidden');
-  if (!["modalAperturaCaja", "modalCierreCaja", "modalDineroEsperado"].some(modalId => !document.getElementById(modalId)?.classList.contains('hidden'))) {
+  if (!["modalAperturaCaja", "modalCierreCaja", "modalDineroEsperado", "modalPagoMixto"].some(modalId => !document.getElementById(modalId)?.classList.contains('hidden'))) {
     document.body.classList.remove('overflow-hidden');
   }
 }
@@ -1574,19 +1627,19 @@ function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
         <p class="text-xs text-gray-500 mt-1">${control.aperturaHora ? `${formatearFechaHoraColombia(control.aperturaHora)} · ${control.aperturaUsuario || 'Sin usuario'}` : 'Primero registra la apertura'}</p>
       </div>
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo del sistema</p>
-        <p class="text-xl font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivo)}</p>
-        <p class="text-xs text-gray-500 mt-1">Ventas activas pagadas en efectivo, sin domicilios</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo recibido</p>
+        <p class="text-xl font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivo || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">Incluye ventas en efectivo y la parte en efectivo de pagos mixtos</p>
       </div>
       <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Ajuste domicilios transferencia</p>
-        <p class="text-xl font-extrabold text-amber-700 mt-1">-${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">Se descuenta del efectivo esperado porque ese valor queda en transferencias</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Otros medios</p>
+        <p class="text-xl font-extrabold text-amber-700 mt-1">${formatearCOP(resumen.totalOtrosMedios || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">Transferencias, QR, Bre-B, daviplata, nequi y la parte no en efectivo de pagos mixtos</p>
       </div>
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Dinero esperado</p>
         <p class="text-xl font-extrabold text-blue-700 mt-1">${formatearCOP(esperado)}</p>
-        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo del sistema - domicilios por transferencia</p>
+        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo recibido en caja</p>
       </div>
       <div class="rounded-xl border ${control.cierreHora ? (diferencia === 0 ? 'border-green-100 bg-green-50' : 'border-red-100 bg-red-50') : 'border-gray-200 bg-gray-50'} p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Diferencia al cierre</p>
@@ -1597,8 +1650,9 @@ function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
     <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
       <p><strong>Ventas activas del día:</strong> ${resumen.cantidadVentas || 0}</p>
       <p><strong>Domicilios del día:</strong> ${resumen.domicilios || 0}</p>
-      <p><strong>Total vendido activo:</strong> ${formatearCOP(resumen.totalVentas || 0)} <span class="text-xs text-gray-500">(sin domicilios)</span></p>
-      <p><strong>Ajuste por domicilios pagados por transferencia:</strong> -${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)}</p>
+      <p><strong>Total vendido activo:</strong> ${formatearCOP(resumen.totalVentas || 0)} <span class="text-xs text-gray-500">(solo productos)</span></p>
+      <p><strong>Total cobrado real:</strong> ${formatearCOP(resumen.totalCobrado || 0)} <span class="text-xs text-gray-500">(productos + domicilios)</span></p>
+      <p><strong>Otros medios del día:</strong> ${formatearCOP(resumen.totalOtrosMedios || 0)}</p>
       ${control.cierreObservaciones ? `<p class="mt-2"><strong>Observaciones del cierre:</strong> ${control.cierreObservaciones}</p>` : ''}
     </div>
   `;
@@ -1647,7 +1701,7 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
         <td class="p-2 border">${formatearCOP(control.aperturaMonto)}</td>
         <td class="p-2 border">${formatearCOP(control.cierreMonto)}</td>
         <td class="p-2 border">${formatearCOP(resumen.totalEfectivo)}</td>
-        <td class="p-2 border">${formatearCOP(esperado)}<div class="text-[11px] text-gray-500 mt-1">- ${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)} domicilios transferencia</div></td>
+        <td class="p-2 border">${formatearCOP(esperado)}<div class="text-[11px] text-gray-500 mt-1">Apertura + efectivo recibido</div></td>
         <td class="p-2 border font-semibold ${claseDiferencia}">${formatearCOP(diferencia)}</td>
         <td class="p-2 border">${control.aperturaUsuario || '-'}</td>
         <td class="p-2 border">${control.cierreUsuario || '-'}</td>
@@ -1771,19 +1825,19 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
         <p class="text-xs text-gray-500 mt-1">${control.cierreHora ? `${formatearFechaHoraColombia(control.cierreHora)} · ${control.cierreUsuario || 'Sin usuario'}` : 'No registrado'}</p>
       </div>
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo del sistema</p>
-        <p class="text-lg font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivo)}</p>
-        <p class="text-xs text-gray-500 mt-1">${resumen.cantidadVentas} venta(s) activas, sin domicilios</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo recibido</p>
+        <p class="text-lg font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivo || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">${resumen.cantidadVentas} venta(s) activas con dinero real en caja</p>
       </div>
       <div class="rounded-xl border border-amber-100 bg-amber-50 p-3">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Ajuste domicilios transferencia</p>
-        <p class="text-lg font-extrabold text-amber-700 mt-1">-${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">Se descuenta del efectivo esperado porque ese valor queda en transferencias</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Otros medios</p>
+        <p class="text-lg font-extrabold text-amber-700 mt-1">${formatearCOP(resumen.totalOtrosMedios || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">Pagos fuera de caja, incluidos los mixtos</p>
       </div>
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
         <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo esperado</p>
         <p class="text-lg font-extrabold text-gray-800 mt-1">${formatearCOP(esperado)}</p>
-        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo del sistema - domicilios transferencia</p>
+        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo recibido</p>
       </div>
     </div>
     ${control.cierreObservaciones ? `<p class="mt-3 text-sm text-gray-600"><strong>Observaciones:</strong> ${control.cierreObservaciones}</p>` : ''}
@@ -1925,10 +1979,269 @@ function normalizarVenta(venta = {}) {
   copia.costoDomicilio = Number(copia.costoDomicilio || 0);
   const numeroDomicilio = Number(copia.numeroDomicilio || 0);
   copia.numeroDomicilio = Number.isFinite(numeroDomicilio) && numeroDomicilio > 0 ? numeroDomicilio : null;
+  copia.totalCobrado = redondearPago(Number(copia.totalCobrado || 0) || (copia.subtotalProductos + copia.costoDomicilio));
+  copia.detallePagos = normalizarDetallePagos(copia.detallePagos || copia.pagos || [], copia.totalCobrado);
+  if (!copia.detallePagos.length) copia.detallePagos = crearDetallePagoSimple(copia.formaPago, copia.totalCobrado);
   copia._localId = String(copia._localId || copia._docId || '').trim() || null;
   copia._syncEstado = copia._syncEstado === 'pendiente' ? 'pendiente' : 'sincronizado';
   copia.total = copia.subtotalProductos;
   return copia;
+}
+
+
+const MEDIOS_PAGO_DISPONIBLES = [
+  { value: "QR Señor arepa", label: "QR Señor arepa" },
+  { value: "QR Señora arepa", label: "QR Señora arepa" },
+  { value: "Bre-B", label: "Bre-B" },
+  { value: "daviplata", label: "daviplata" },
+  { value: "nequi", label: "nequi" },
+  { value: "efectivo", label: "efectivo" }
+];
+let detallePagoMixtoActual = [];
+
+function redondearPago(valor) {
+  const numero = Number(valor || 0);
+  if (!Number.isFinite(numero)) return 0;
+  return Math.round(numero * 100) / 100;
+}
+
+function obtenerTotalCobradoVenta(venta = {}) {
+  return redondearPago(obtenerIngresoRealVenta(venta) + obtenerValorDomicilio(venta));
+}
+
+function crearDetallePagoSimple(medio = "", valor = 0) {
+  const medioLimpio = String(medio || "").trim();
+  const monto = redondearPago(valor);
+  if (!medioLimpio || monto <= 0) return [];
+  return [{ medio: medioLimpio, valor: monto }];
+}
+
+function normalizarDetallePagos(detalle = [], totalEsperado = 0) {
+  if (!Array.isArray(detalle)) return [];
+  const permitidos = new Set(MEDIOS_PAGO_DISPONIBLES.map(item => item.value));
+  const acumulado = new Map();
+  detalle.forEach(item => {
+    const medio = String(item?.medio || item?.metodo || item?.formaPago || "").trim();
+    const valor = redondearPago(item?.valor);
+    if (!permitidos.has(medio) || valor <= 0) return;
+    acumulado.set(medio, redondearPago((acumulado.get(medio) || 0) + valor));
+  });
+  let salida = Array.from(acumulado.entries()).map(([medio, valor]) => ({ medio, valor }));
+  const esperado = redondearPago(totalEsperado);
+  const suma = redondearPago(salida.reduce((acc, item) => acc + item.valor, 0));
+  if (esperado > 0 && salida.length && Math.abs(suma - esperado) <= 1) {
+    const diferencia = redondearPago(esperado - suma);
+    if (Math.abs(diferencia) > 0) {
+      salida[salida.length - 1].valor = redondearPago(salida[salida.length - 1].valor + diferencia);
+    }
+  }
+  return salida.filter(item => item.valor > 0);
+}
+
+function obtenerDetallePagosVenta(venta = {}) {
+  const totalCobrado = obtenerTotalCobradoVenta(venta);
+  const detalleNormalizado = normalizarDetallePagos(venta?.detallePagos || venta?.pagos || [], totalCobrado);
+  if (detalleNormalizado.length) return detalleNormalizado;
+  return crearDetallePagoSimple(venta?.formaPago, totalCobrado);
+}
+
+function obtenerValorPagoPorMedio(venta = {}, medio = "") {
+  const medioLimpio = String(medio || "").trim().toLowerCase();
+  return redondearPago(obtenerDetallePagosVenta(venta)
+    .filter(item => String(item.medio || "").trim().toLowerCase() === medioLimpio)
+    .reduce((acc, item) => acc + Number(item.valor || 0), 0));
+}
+
+function obtenerTotalOtrosMediosVenta(venta = {}) {
+  return redondearPago(obtenerDetallePagosVenta(venta)
+    .filter(item => String(item.medio || "").trim().toLowerCase() !== "efectivo")
+    .reduce((acc, item) => acc + Number(item.valor || 0), 0));
+}
+
+function esPagoMixto(venta = {}) {
+  return String(venta?.formaPago || "").trim().toLowerCase() === "mixto" || obtenerDetallePagosVenta(venta).length > 1;
+}
+
+function obtenerEtiquetaFormaPago(venta = {}) {
+  const detalle = obtenerDetallePagosVenta(venta);
+  if (!detalle.length) return venta?.formaPago || "-";
+  if (detalle.length === 1) return detalle[0].medio;
+  return `mixto · ${detalle.map(item => `${item.medio}: ${formatearCOP(item.valor)}`).join(" + ")}`;
+}
+
+function obtenerTotalCobradoActual() {
+  return redondearPago(obtenerSubtotalPedidoActual() + obtenerCostoDomicilioActual());
+}
+
+function normalizarDetallePagoMixtoActual(totalEsperado = obtenerTotalCobradoActual()) {
+  detallePagoMixtoActual = normalizarDetallePagos(detallePagoMixtoActual, totalEsperado);
+  return detallePagoMixtoActual;
+}
+
+function obtenerMontoAsignadoPagoMixtoActual(totalEsperado = obtenerTotalCobradoActual()) {
+  return redondearPago(normalizarDetallePagoMixtoActual(totalEsperado).reduce((acc, item) => acc + Number(item.valor || 0), 0));
+}
+
+function obtenerDiferenciaPagoMixtoActual(totalEsperado = obtenerTotalCobradoActual()) {
+  return redondearPago(totalEsperado - obtenerMontoAsignadoPagoMixtoActual(totalEsperado));
+}
+
+function limpiarTextoMontoConPuntos(valor = "") {
+  return String(valor || "").replace(/\D+/g, "");
+}
+
+function convertirTextoMontoConPuntosANumero(valor = "") {
+  const limpio = limpiarTextoMontoConPuntos(valor);
+  return limpio ? Number(limpio) : 0;
+}
+
+function formatearTextoMontoConPuntos(valor = "") {
+  const numero = convertirTextoMontoConPuntosANumero(valor);
+  return numero > 0 ? numero.toLocaleString('es-CO') : "";
+}
+
+function aplicarFormatoMontoInput(input) {
+  if (!input) return 0;
+  const numero = convertirTextoMontoConPuntosANumero(input.value);
+  input.value = numero > 0 ? numero.toLocaleString('es-CO') : "";
+  return numero;
+}
+
+function manejarInputMontoPagoMixto(event) {
+  aplicarFormatoMontoInput(event?.target);
+  actualizarTotalesModalPagoMixto();
+}
+
+function leerDetallePagoMixtoDesdeModal() {
+  const detalle = MEDIOS_PAGO_DISPONIBLES.map(item => {
+    const input = document.getElementById(`pagoMixto_${item.value}`);
+    return { medio: item.value, valor: redondearPago(convertirTextoMontoConPuntosANumero(input?.value || 0)) };
+  });
+  return normalizarDetallePagos(detalle, obtenerTotalCobradoActual());
+}
+
+function renderInputsPagoMixto() {
+  const contenedor = document.getElementById("pagoMixtoInputs");
+  if (!contenedor) return;
+  contenedor.innerHTML = MEDIOS_PAGO_DISPONIBLES.map(item => `
+    <label class="rounded-2xl border border-blue-100 bg-white px-4 py-3">
+      <span class="block text-sm font-bold text-gray-700 mb-2">${item.label}</span>
+      <input type="text" inputmode="numeric" autocomplete="off" id="pagoMixto_${item.value}" data-medio-pago="${item.value}" class="w-full p-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="0">
+    </label>
+  `).join("");
+  MEDIOS_PAGO_DISPONIBLES.forEach(item => {
+    const input = document.getElementById(`pagoMixto_${item.value}`);
+    if (!input) return;
+    input.addEventListener("input", manejarInputMontoPagoMixto);
+    input.addEventListener("blur", (event) => aplicarFormatoMontoInput(event.target));
+  });
+}
+
+function poblarModalPagoMixto() {
+  const totalEsperado = obtenerTotalCobradoActual();
+  const detalle = normalizarDetallePagoMixtoActual(totalEsperado);
+  MEDIOS_PAGO_DISPONIBLES.forEach(item => {
+    const input = document.getElementById(`pagoMixto_${item.value}`);
+    if (!input) return;
+    const encontrado = detalle.find(det => det.medio === item.value);
+    input.value = encontrado?.valor ? formatearTextoMontoConPuntos(encontrado.valor) : "";
+  });
+  actualizarTotalesModalPagoMixto();
+}
+
+function actualizarTotalesModalPagoMixto() {
+  const totalEsperado = obtenerTotalCobradoActual();
+  const detalle = leerDetallePagoMixtoDesdeModal();
+  const asignado = redondearPago(detalle.reduce((acc, item) => acc + Number(item.valor || 0), 0));
+  const diferencia = redondearPago(totalEsperado - asignado);
+  const totalEl = document.getElementById("pagoMixtoTotal");
+  const asignadoEl = document.getElementById("pagoMixtoAsignado");
+  const diferenciaEl = document.getElementById("pagoMixtoDiferencia");
+  if (totalEl) totalEl.textContent = formatearCOP(totalEsperado);
+  if (asignadoEl) asignadoEl.textContent = formatearCOP(asignado);
+  if (diferenciaEl) {
+    diferenciaEl.textContent = formatearCOP(Math.abs(diferencia));
+    diferenciaEl.className = `text-xl font-extrabold mt-1 ${Math.abs(diferencia) < 0.01 ? "text-green-700" : "text-amber-700"}`;
+  }
+}
+
+function actualizarResumenPagoMixtoUI() {
+  const formaPago = document.getElementById("formaPago")?.value || "";
+  const bloque = document.getElementById("bloquePagoMixtoResumen");
+  const texto = document.getElementById("textoPagoMixtoResumen");
+  if (!bloque || !texto) return;
+  const esMixto = formaPago === "mixto";
+  bloque.classList.toggle("hidden", !esMixto);
+  if (!esMixto) return;
+  const totalEsperado = obtenerTotalCobradoActual();
+  const detalle = normalizarDetallePagoMixtoActual(totalEsperado);
+  const asignado = redondearPago(detalle.reduce((acc, item) => acc + Number(item.valor || 0), 0));
+  const diferencia = redondearPago(totalEsperado - asignado);
+  if (!detalle.length) {
+    texto.textContent = "Configura cómo se reparte el pago entre los medios disponibles.";
+    return;
+  }
+  const resumen = detalle.map(item => `${item.medio}: ${formatearCOP(item.valor)}`).join(" + ");
+  texto.textContent = Math.abs(diferencia) < 0.01
+    ? `${resumen} · total configurado correctamente`
+    : `${resumen} · faltan/ sobran ${formatearCOP(Math.abs(diferencia))} para completar el total`;
+}
+
+function abrirModalPagoMixto() {
+  if ((document.getElementById("formaPago")?.value || "") !== "mixto") return;
+  renderInputsPagoMixto();
+  poblarModalPagoMixto();
+  abrirModalCaja("modalPagoMixto");
+}
+
+function cerrarModalPagoMixto() {
+  cerrarModalCaja("modalPagoMixto");
+}
+
+function confirmarPagoMixto() {
+  const totalEsperado = obtenerTotalCobradoActual();
+  const detalle = leerDetallePagoMixtoDesdeModal();
+  const asignado = redondearPago(detalle.reduce((acc, item) => acc + Number(item.valor || 0), 0));
+  const diferencia = redondearPago(totalEsperado - asignado);
+  if (!detalle.length) {
+    alert("Ingresa al menos un valor en los medios de pago.");
+    return;
+  }
+  if (Math.abs(diferencia) >= 0.01) {
+    alert("La suma del pago mixto debe coincidir exactamente con el total a cobrar.");
+    return;
+  }
+  detallePagoMixtoActual = detalle;
+  actualizarResumenPagoMixtoUI();
+  cerrarModalPagoMixto();
+}
+
+function limpiarPagoMixtoActual() {
+  detallePagoMixtoActual = [];
+  MEDIOS_PAGO_DISPONIBLES.forEach(item => {
+    const input = document.getElementById(`pagoMixto_${item.value}`);
+    if (input) input.value = "";
+  });
+  actualizarTotalesModalPagoMixto();
+  actualizarResumenPagoMixtoUI();
+}
+
+function manejarCambioFormaPago() {
+  const formaPago = document.getElementById("formaPago")?.value || "";
+  if (formaPago !== "mixto") {
+    detallePagoMixtoActual = [];
+    actualizarResumenPagoMixtoUI();
+    return;
+  }
+  actualizarResumenPagoMixtoUI();
+  abrirModalPagoMixto();
+}
+
+function construirDetallePagosVentaDesdeFormulario(formaPago, totalCobrado) {
+  if (String(formaPago || "").trim().toLowerCase() !== "mixto") {
+    return crearDetallePagoSimple(formaPago, totalCobrado);
+  }
+  return normalizarDetallePagoMixtoActual(totalCobrado);
 }
 
 function guardarVentasEnCache(ventas) {
@@ -2589,6 +2902,7 @@ function aplicarPermisosPorRol() {
       el.textContent = detalleTexto;
       el.classList.toggle("hidden", !detalleTexto);
     });
+    actualizarResumenPagoMixtoUI();
   }
 
   // Recalcula el total usando solo los productos.
@@ -2662,7 +2976,9 @@ function aplicarPermisosPorRol() {
   const costoDomicilioInput = document.getElementById("costoDomicilio");
   if (costoDomicilioInput) costoDomicilioInput.value = "";
   document.getElementById("observaciones").value = "";
+  limpiarPagoMixtoActual();
   actualizarCampoCostoDomicilio();
+  actualizarResumenPagoMixtoUI();
   actualizarVistaPedido();
   irAPasoVenta(1);
 }
@@ -2730,6 +3046,17 @@ function cancelarPedidoActual() {
     actualizarTotal();
     const subtotalProductos = obtenerSubtotalPedidoActual();
     const observaciones = document.getElementById("observaciones").value.trim();
+    const totalCobrado = redondearPago(subtotalProductos + costoDomicilio);
+    const detallePagos = construirDetallePagosVentaDesdeFormulario(formaPago, totalCobrado);
+
+    if (formaPago === "mixto") {
+      const sumaDetalle = redondearPago(detallePagos.reduce((acc, item) => acc + Number(item.valor || 0), 0));
+      if (!detallePagos.length || Math.abs(sumaDetalle - totalCobrado) >= 0.01) {
+        alert("Configura el pago mixto para que coincida exactamente con el total a cobrar.");
+        abrirModalPagoMixto();
+        return;
+      }
+    }
 
     const ahora = new Date();
     const fechaBase = ventaOriginalEnEdicion?.fechaISO ? new Date(ventaOriginalEnEdicion.fechaISO) : ahora;
@@ -2752,6 +3079,8 @@ function cancelarPedidoActual() {
       subtotalProductos,
       observaciones,
       pedido: [...pedido],
+      detallePagos,
+      totalCobrado,
       total: subtotalProductos,
       estado: ventaOriginalEnEdicion?.estado || ESTADO_VENTA_ACTIVA,
       fechaCancelacion: ventaOriginalEnEdicion?.fechaCancelacion || null,
@@ -2835,7 +3164,7 @@ function cancelarPedidoActual() {
         <td class='border p-1'>${v.comanda ?? v.recibo ?? (i + 1)}</td>
         <td class='border p-1'>${formatearFechaHoraColombia(v.fechaISO || v.fecha)}</td>
         <td class='border p-1'>${v.cliente}</td>
-        <td class='border p-1'>${v.formaPago}</td>
+        <td class='border p-1'>${obtenerEtiquetaFormaPago(v)}</td>
         <td class='border p-1'>${formatearTipoPedidoVisual(v)}</td>
         <td class='border p-1'>${obtenerBadgeEstadoVenta(v)}</td>
         <td class='border p-1'>${productosResumen}</td>
@@ -2924,7 +3253,7 @@ function cancelarPedidoActual() {
         </div>
         <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
           <div class="bg-white rounded-xl p-2 border border-yellow-100"><span class="text-gray-500 block text-xs">Fecha</span><strong>${formatearFechaHoraColombia(v.fechaISO || v.fecha)}</strong></div>
-          <div class="bg-white rounded-xl p-2 border border-yellow-100"><span class="text-gray-500 block text-xs">Pago</span><strong>${v.formaPago || '-'}</strong></div>
+          <div class="bg-white rounded-xl p-2 border border-yellow-100"><span class="text-gray-500 block text-xs">Pago</span><strong>${obtenerEtiquetaFormaPago(v)}</strong></div>
           <div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Tipo de pedido</span><strong>${formatearTipoPedidoVisual(v)}</strong></div>
           ${Number(v.costoDomicilio || 0) > 0 ? `<div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Costo domicilio</span><strong>${formatearCOP(v.costoDomicilio)}</strong></div>` : ''}
           ${(v.observaciones || '').trim() ? `<div class="bg-white rounded-xl p-2 border border-yellow-100 col-span-2"><span class="text-gray-500 block text-xs">Observaciones</span><strong>${v.observaciones}</strong></div>` : ''}
@@ -3069,6 +3398,7 @@ function cancelarPedidoActual() {
 
     ventasNormalizadas.forEach((venta, i) => {
       const { fecha, cliente, formaPago, tipoPedido, pedido, costoDomicilio } = venta;
+      const formaPagoTexto = obtenerEtiquetaFormaPago(venta);
       const total = obtenerIngresoRealVenta(venta);
       const ventaCancelada = esVentaCancelada(venta);
       if (!ventaCancelada) {
@@ -3080,7 +3410,7 @@ function cancelarPedidoActual() {
           venta.comanda ?? venta.recibo ?? (i + 1),
           formatearFechaHoraColombia(venta.fechaISO || fecha),
           cliente,
-          formaPago,
+          formaPagoTexto,
           tipoPedido,
           obtenerNumeroDomicilio(venta) || '',
           parseFloat(costoDomicilio || 0),
@@ -3303,7 +3633,7 @@ function generarPlantillaReciboCliente(venta = {}, referencia = 1) {
         <p><strong>Cliente:</strong> ${venta?.cliente || 'N/A'}</p>
         <p><strong>Fecha:</strong> ${fechaTexto}</p>
         <p><strong>Tipo de pedido:</strong> ${obtenerTipoPedidoImpresion(venta)}</p>
-        <p><strong>Método de pago:</strong> ${venta?.formaPago || '-'}</p>
+        <p><strong>Método de pago:</strong> ${obtenerEtiquetaFormaPago(venta)}</p>
         ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ''}
       </div>
       <div class="line"></div>
@@ -3386,7 +3716,7 @@ function generarPlantillaComanda(venta = {}, referencia = 1) {
         <p><strong>Cliente:</strong> ${venta?.cliente || 'Sin nombre'}</p>
         <p><strong>Fecha:</strong> ${fechaTexto}</p>
         <p><strong>Tipo de pedido:</strong> ${obtenerTipoPedidoImpresion(venta)}</p>
-        <p><strong>Método de pago:</strong> ${venta?.formaPago || '-'}</p>
+        <p><strong>Método de pago:</strong> ${obtenerEtiquetaFormaPago(venta)}</p>
         ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ''}
       </div>
       <div class="line"></div>
@@ -3525,6 +3855,7 @@ function editarVenta(index) {
   // Cargar datos al formulario
   document.getElementById("cliente").value = venta.cliente;
   document.getElementById("formaPago").value = venta.formaPago;
+  detallePagoMixtoActual = normalizarDetallePagos(venta.detallePagos || venta.pagos || [], obtenerTotalCobradoVenta(venta));
   document.getElementById("tipoPedido").value = venta.tipoPedido;
   const costoDomicilioInput = document.getElementById("costoDomicilio");
   if (costoDomicilioInput) costoDomicilioInput.value = Number(venta.costoDomicilio || 0) > 0 ? Number(venta.costoDomicilio || 0) : "";
@@ -3610,8 +3941,10 @@ function volverAlPOS() {
         }
       });
       const tipoPedidoSelect = document.getElementById("tipoPedido");
+      const formaPagoSelect = document.getElementById("formaPago");
       const costoDomicilioInput = document.getElementById("costoDomicilio");
       if (tipoPedidoSelect) tipoPedidoSelect.addEventListener("change", actualizarCampoCostoDomicilio);
+      if (formaPagoSelect) formaPagoSelect.addEventListener("change", manejarCambioFormaPago);
       if (costoDomicilioInput) {
         costoDomicilioInput.addEventListener("input", () => {
           actualizarTotal();
@@ -3622,7 +3955,7 @@ function volverAlPOS() {
       await inicializarFirebaseVentas();
       await renderControlCajaDiaActual(true);
       renderTablaCierresCaja(false);
-      document.querySelectorAll('#modalAperturaCaja, #modalCierreCaja, #modalDineroEsperado').forEach(modal => {
+      document.querySelectorAll('#modalAperturaCaja, #modalCierreCaja, #modalDineroEsperado, #modalPagoMixto').forEach(modal => {
         modal?.addEventListener('click', (event) => {
           if (event.target === modal) cerrarModalCaja(modal.id);
         });
@@ -3630,6 +3963,7 @@ function volverAlPOS() {
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           ['modalAperturaCaja', 'modalCierreCaja', 'modalDineroEsperado'].forEach(cerrarModalCaja);
+          cerrarModalPagoMixto();
         }
       });
       const loginUsuario = document.getElementById("loginUsuario");
@@ -3735,6 +4069,8 @@ function volverAlPOS() {
     const subtotalProductos = Number.isFinite(subtotalBase) && subtotalBase >= 0 ? subtotalBase : 0;
     const costoDomicilio = Number(v.costoDomicilio || 0);
     const numeroDomicilio = Number(v.numeroDomicilio || 0);
+    const totalCobrado = redondearPago(Number(v.totalCobrado || 0) || (subtotalProductos + costoDomicilio));
+    const detallePagos = normalizarDetallePagos(v.detallePagos || v.pagos || [], totalCobrado);
     return {
       ...v,
       pedido: pedidoNormalizado,
@@ -3746,6 +4082,8 @@ function volverAlPOS() {
       subtotalProductos,
       numeroDomicilio: Number.isFinite(numeroDomicilio) && numeroDomicilio > 0 ? numeroDomicilio : null,
       costoDomicilio,
+      totalCobrado,
+      detallePagos: detallePagos.length ? detallePagos : crearDetallePagoSimple(v.formaPago, totalCobrado),
       total: subtotalProductos
     };
   }
@@ -3756,14 +4094,15 @@ function volverAlPOS() {
   }
 
   function esPagoEfectivo(venta = {}) {
-    return String(venta?.formaPago || '').trim().toLowerCase() === 'efectivo';
+    return obtenerValorPagoPorMedio(venta, 'efectivo') > 0;
   }
 
   function esPagoTransferencia(venta = {}) {
-    return !esPagoEfectivo(venta);
+    return obtenerTotalOtrosMediosVenta(venta) > 0;
   }
 
   function obtenerEtiquetaPagoDomicilio(venta = {}) {
+    if (esPagoMixto(venta)) return 'Mixto';
     return esPagoEfectivo(venta) ? 'Efectivo' : 'Transferencia';
   }
 
@@ -3866,7 +4205,7 @@ function volverAlPOS() {
           <td class="p-2 border">${v.comanda ?? '-'}</td>
           <td class="p-2 border">${formatearHoraColombia(v.fechaISO || v.fecha)}</td>
           <td class="p-2 border">${v.cliente || 'N/A'}</td>
-          <td class="p-2 border">${v.formaPago || '-'}</td>
+          <td class="p-2 border">${obtenerEtiquetaFormaPago(v)}</td>
           <td class="p-2 border">${formatearTipoPedidoVisual(v)}</td>
           <td class="p-2 border">${obtenerBadgeEstadoVenta(v)}</td>
           <td class="p-2 border">${v.observaciones || '-'}</td>
@@ -4111,7 +4450,7 @@ function volverAlPOS() {
           <td class="p-2 border">${v.comanda ?? '-'}</td>
           <td class="p-2 border">${formatearHoraColombia(v.fechaISO || v.fecha)}</td>
           <td class="p-2 border">${v.cliente || 'N/A'}</td>
-          <td class="p-2 border">${v.formaPago || '-'}</td>
+          <td class="p-2 border">${obtenerEtiquetaFormaPago(v)}</td>
           <td class="p-2 border">${obtenerEtiquetaPagoDomicilio(v)}</td>
           <td class="p-2 border font-semibold">${formatearDinero(obtenerValorDomicilio(v))}</td>
           <td class="p-2 border">${formatearDinero(obtenerIngresoRealVenta(v))}</td>
