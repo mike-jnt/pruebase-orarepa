@@ -2175,8 +2175,49 @@ function normalizarControlCaja(control = {}, diaClave = "") {
     cierreMonto: Number(control.cierreMonto || 0),
     cierreHora: control.cierreHora || "",
     cierreUsuario: control.cierreUsuario || "",
-    cierreObservaciones: control.cierreObservaciones || ""
+    cierreObservaciones: control.cierreObservaciones || "",
+    cantidadVentas: Number(control.cantidadVentas || 0),
+    domicilios: Number(control.domicilios || 0),
+    totalVentas: Number(control.totalVentas || 0),
+    totalCobrado: Number(control.totalCobrado || 0),
+    totalDomicilios: Number(control.totalDomicilios || 0),
+    totalEfectivoBruto: Number(control.totalEfectivoBruto || 0),
+    ajusteDomiciliosEfectivo: Number(control.ajusteDomiciliosEfectivo || 0),
+    totalEfectivoSistema: Number(control.totalEfectivoSistema || 0),
+    totalDigitalBruto: Number(control.totalDigitalBruto || 0),
+    ajusteDomiciliosDigitales: Number(control.ajusteDomiciliosDigitales || 0),
+    totalTransferenciasDigitales: Number(control.totalTransferenciasDigitales || 0),
+    esperadoCaja: Number(control.esperadoCaja || 0),
+    esperadoTransferencias: Number(control.esperadoTransferencias || 0),
+    esperadoTotal: Number(control.esperadoTotal || 0),
+    diferenciaCaja: Number(control.diferenciaCaja || 0),
+    ultimaActualizacionResumen: control.ultimaActualizacionResumen || ""
   };
+}
+
+function construirPayloadControlCaja(control = {}, resumen = null, esperados = null) {
+  const controlBase = normalizarControlCaja(control, control?.diaClave || '');
+  const resumenCaja = resumen || calcularResumenCajaDia(controlBase.diaClave);
+  const esperadosCaja = esperados || calcularEsperadosCierre(controlBase, resumenCaja);
+  return normalizarControlCaja({
+    ...controlBase,
+    cantidadVentas: Number(resumenCaja.cantidadVentas || 0),
+    domicilios: Number(resumenCaja.domicilios || 0),
+    totalVentas: Number(resumenCaja.totalVentas || 0),
+    totalCobrado: Number(resumenCaja.totalCobrado || 0),
+    totalDomicilios: Number(resumenCaja.totalDomicilios || 0),
+    totalEfectivoBruto: Number(resumenCaja.totalEfectivoBruto || 0),
+    ajusteDomiciliosEfectivo: Number(resumenCaja.ajusteDomiciliosEfectivo || 0),
+    totalEfectivoSistema: Number(resumenCaja.totalEfectivoSistema || 0),
+    totalDigitalBruto: Number(resumenCaja.totalDigitalBruto || 0),
+    ajusteDomiciliosDigitales: Number(resumenCaja.ajusteDomiciliosDigitales || 0),
+    totalTransferenciasDigitales: Number(resumenCaja.totalTransferenciasDigitales || 0),
+    esperadoCaja: Number(esperadosCaja.esperadoCaja || 0),
+    esperadoTransferencias: Number(esperadosCaja.esperadoTransferencias || 0),
+    esperadoTotal: Number(esperadosCaja.esperadoTotal || 0),
+    diferenciaCaja: Number(esperadosCaja.diferenciaCaja || 0),
+    ultimaActualizacionResumen: new Date().toISOString()
+  }, controlBase.diaClave);
 }
 
 function guardarControlCajaEnCache(control = {}) {
@@ -2228,7 +2269,10 @@ async function obtenerControlCajaDia(diaClave, forzarRemoto = false) {
 }
 
 async function guardarControlCajaDia(diaClave, payload = {}) {
-  const control = normalizarControlCaja({ ...payload, diaClave }, diaClave);
+  const base = normalizarControlCaja({ ...payload, diaClave }, diaClave);
+  const resumen = calcularResumenCajaDia(diaClave);
+  const esperados = calcularEsperadosCierre(base, resumen);
+  const control = construirPayloadControlCaja(base, resumen, esperados);
   guardarControlCajaEnCache(control);
   if (firestoreDisponible && firestoreDb && controlCajaFirebasePermisosDisponibles) {
     try {
@@ -2244,6 +2288,29 @@ async function guardarControlCajaDia(diaClave, payload = {}) {
     }
   }
   return control;
+}
+
+async function sincronizarResumenCajaDiaEnSegundoPlano(diaClave) {
+  if (!diaClave) return null;
+  const controlActual = obtenerControlCajaLocal(diaClave);
+  const resumen = calcularResumenCajaDia(diaClave);
+  const esperados = calcularEsperadosCierre(controlActual, resumen);
+  const payload = construirPayloadControlCaja({ ...controlActual, diaClave }, resumen, esperados);
+  guardarControlCajaEnCache(payload);
+  if (firestoreDisponible && firestoreDb && controlCajaFirebasePermisosDisponibles) {
+    try {
+      await firestoreDb.collection("controlCaja").doc(diaClave).set(payload, { merge: true });
+      controlCajaFirebasePermisosDisponibles = true;
+      registrarHeartbeatFirebase();
+    } catch (error) {
+      if (esErrorPermisoFirestore(error)) {
+        desactivarFirebaseCajaPorPermisos(error);
+      } else {
+        console.error("No se pudo sincronizar el resumen de caja en Firebase:", error);
+      }
+    }
+  }
+  return payload;
 }
 
 function obtenerVentasActivasDelDia(diaClave) {
@@ -2359,6 +2426,7 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
   const control = await obtenerControlCajaDia(diaClave, forzarRemoto);
   const resumen = calcularResumenCajaDia(diaClave);
   const esperados = calcularEsperadosCierre(control, resumen);
+  await sincronizarResumenCajaDiaEnSegundoPlano(diaClave);
 
   const aperturaEstadoTexto = document.getElementById('aperturaCajaEstadoTexto');
   const cierreEstadoTexto = document.getElementById('cierreCajaEstadoTexto');
@@ -4074,6 +4142,7 @@ function escucharVentasFirestore() {
       programarSyncVentasPendientes(50);
       primeraCarga = false;
 
+      await sincronizarResumenCajaDiaEnSegundoPlano(obtenerFechaLocalISO(new Date()));
       mostrarVentas();
       refrescarVistasAnaliticasSiEstanAbiertas();
     }, (error) => {
@@ -4955,6 +5024,7 @@ if (typeof window.guardarVenta !== 'function') {
       }
       if (typeof window.guardarReferenciaUltimaVenta === 'function') window.guardarReferenciaUltimaVenta(venta);
       if (typeof window.limpiarContextoEdicionVenta === 'function') window.limpiarContextoEdicionVenta();
+      await sincronizarResumenCajaDiaEnSegundoPlano(diaClave);
       alert(window.firestoreDisponible ? 'Venta guardada localmente y enviada a sincronización.' : 'Venta guardada localmente.');
       window.limpiarPedido();
       if (typeof window.mostrarVentas === 'function') window.mostrarVentas();
