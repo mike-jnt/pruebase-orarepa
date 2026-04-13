@@ -2295,6 +2295,33 @@ function calcularEsperadosCierre(control = {}, resumen = {}) {
   return { apertura, esperadoCaja, esperadoTransferencias, esperadoTotal, diferenciaCaja };
 }
 
+function obtenerEstiloDiferenciaCaja(diferencia, tieneCierre = false) {
+  if (!tieneCierre) {
+    return {
+      card: 'border-gray-200 bg-gray-50',
+      text: 'text-gray-700'
+    };
+  }
+  return Number(diferencia || 0) < 0
+    ? {
+        card: 'border-red-100 bg-red-50',
+        text: 'text-red-700'
+      }
+    : {
+        card: 'border-green-100 bg-green-50',
+        text: 'text-green-700'
+      };
+}
+
+function formatearDiferenciaCaja(diferencia) {
+  const valor = redondearPago(Number(diferencia || 0));
+  const abs = formatearCOP(Math.abs(valor));
+  if (valor > 0) return `+${abs}`;
+  if (valor < 0) return `-${abs}`;
+  return formatearCOP(0);
+}
+
+
 function actualizarTarjetasEstadoCaja(control = {}, resumen = {}) {
   const cards = [
     {
@@ -2356,7 +2383,7 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
       : 'Haz clic para registrar cierre';
   }
   if (dineroEsperadoResumenTexto) {
-    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperados.esperadoCaja)} en caja · ${formatearCOP(esperados.esperadoTransferencias)} en transferencias · total ${formatearCOP(esperados.esperadoTotal)}${control.cierreHora ? ` · diferencia caja ${formatearCOP(esperados.diferenciaCaja)}` : ''}`;
+    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperados.esperadoCaja)} en caja · ${formatearCOP(esperados.esperadoTransferencias)} en transferencias · total ${formatearCOP(esperados.esperadoTotal)}${control.cierreHora ? ` · diferencia caja ${formatearDiferenciaCaja(esperados.diferenciaCaja)}` : ''}`;
   }
 
   if (aperturaInfoModal) aperturaInfoModal.textContent = control.aperturaHora
@@ -2420,6 +2447,7 @@ function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
   const contenedor = document.getElementById('contenidoModalDineroEsperado');
   if (!contenedor) return;
   const esperados = calcularEsperadosCierre(control, resumen);
+  const estiloDiferencia = obtenerEstiloDiferenciaCaja(esperados.diferenciaCaja, Boolean(control.cierreHora));
   contenedor.innerHTML = `
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
@@ -2457,9 +2485,9 @@ function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
         <p class="text-xl font-extrabold text-indigo-700 mt-1">${formatearCOP(esperados.esperadoTotal)}</p>
         <p class="text-xs text-gray-500 mt-1">Caja + transferencias</p>
       </div>
-      <div class="rounded-xl border ${control.cierreHora ? (esperados.diferenciaCaja === 0 ? 'border-green-100 bg-green-50' : 'border-red-100 bg-red-50') : 'border-gray-200 bg-gray-50'} p-4">
+      <div class="rounded-xl border ${estiloDiferencia.card} p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Diferencia de caja</p>
-        <p class="text-xl font-extrabold mt-1 ${control.cierreHora ? (esperados.diferenciaCaja === 0 ? 'text-green-700' : 'text-red-700') : 'text-gray-700'}">${control.cierreHora ? formatearCOP(esperados.diferenciaCaja) : 'Pendiente'}</p>
+        <p class="text-xl font-extrabold mt-1 ${estiloDiferencia.text}">${control.cierreHora ? formatearDiferenciaCaja(esperados.diferenciaCaja) : 'Pendiente'}</p>
         <p class="text-xs text-gray-500 mt-1">${control.cierreHora ? `Se compara contra ${formatearCOP(esperados.esperadoCaja)} esperado en caja` : 'Se calcula cuando registres el cierre'}</p>
       </div>
     </div>
@@ -2520,7 +2548,7 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
         <td class="p-2 border">${formatearCOP(esperados.esperadoCaja)}</td>
         <td class="p-2 border">${formatearCOP(esperados.esperadoTransferencias)}</td>
         <td class="p-2 border">${formatearCOP(esperados.esperadoTotal)}</td>
-        <td class="p-2 border ${esperados.diferenciaCaja === 0 ? 'text-green-700' : 'text-red-700'} font-semibold">${formatearCOP(esperados.diferenciaCaja)}</td>
+        <td class="p-2 border ${esperados.diferenciaCaja < 0 ? 'text-red-700' : 'text-green-700'} font-semibold">${formatearDiferenciaCaja(esperados.diferenciaCaja)}</td>
         <td class="p-2 border">${control.aperturaUsuario || '-'}</td>
         <td class="p-2 border">${control.cierreUsuario || '-'}</td>
         <td class="p-2 border">${acciones}</td>
@@ -2626,8 +2654,8 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
         <p class="text-xs uppercase tracking-wide text-yellow-700 font-bold">Caja de la fecha consultada</p>
         <h5 class="text-base font-extrabold text-gray-800">${diaClave}</h5>
       </div>
-      <div class="text-sm ${control.cierreHora ? (esperados.diferenciaCaja === 0 ? 'text-green-700' : 'text-red-700') : 'text-gray-600'}">
-        ${control.cierreHora ? `<strong>Diferencia de caja:</strong> ${formatearCOP(esperados.diferenciaCaja)}` : 'Cierre pendiente'}
+      <div class="text-sm ${control.cierreHora ? (esperados.diferenciaCaja < 0 ? 'text-red-700' : 'text-green-700') : 'text-gray-600'}">
+        ${control.cierreHora ? `<strong>Diferencia de caja:</strong> ${formatearDiferenciaCaja(esperados.diferenciaCaja)}` : 'Cierre pendiente'}
       </div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
