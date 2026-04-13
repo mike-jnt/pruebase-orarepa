@@ -3601,10 +3601,15 @@ function formatearCOP(valor) {
     return `$${Number(valor || 0).toLocaleString('es-CO')}`;
   }
 function mostrarVentas() {
-    document.getElementById("filtroCliente").value = "";
+    const filtro = document.getElementById("filtroCliente");
+    if (filtro) filtro.value = "";
     paginaVentasActual = 1;
     renderVentasTabla();
-    renderControlCajaDiaActual();
+    try {
+      renderControlCajaDiaActual();
+    } catch (error) {
+      console.error("No se pudo refrescar el control de caja al mostrar ventas:", error);
+    }
   }
 </script>
 
@@ -4064,6 +4069,16 @@ function guardarVentasEnCache(ventas) {
 }
 
 function obtenerVentasStorage() {
+  if (!Array.isArray(ventasCache) || !ventasCache.length) {
+    try {
+      const guardadas = JSON.parse(localStorage.getItem("ventas") || "[]");
+      if (Array.isArray(guardadas) && guardadas.length) {
+        ventasCache = guardadas.map(normalizarVenta);
+      }
+    } catch (error) {
+      console.error("No se pudieron leer las ventas desde localStorage:", error);
+    }
+  }
   return Array.isArray(ventasCache) ? ventasCache.map(normalizarVenta) : [];
 }
 
@@ -4242,7 +4257,8 @@ async function inicializarFirebaseVentas() {
         cargarCatalogoProductos();
         actualizarEstadoCatalogoSync('Catálogo cargado en modo local', 'neutral');
         limpiarSesionLocal();
-        guardarVentasEnCache([]);
+        ventasCache = JSON.parse(localStorage.getItem("ventas") || "[]").map(normalizarVenta);
+        mostrarVentas();
         actualizarIndicadorFirebase("verificando", "Firebase listo. Inicia sesión para sincronizar");
       }
     });
@@ -4647,7 +4663,15 @@ function actualizarResumenMovil() {
   }
 
   function renderVentasTabla() {
-    const filtro = document.getElementById("filtroCliente").value.toLowerCase().trim();
+    const inputFiltro = document.getElementById("filtroCliente");
+    const filtro = (inputFiltro?.value || "").toLowerCase().trim();
+    if ((!Array.isArray(ventasCache) || !ventasCache.length) && localStorage.getItem("ventas")) {
+      try {
+        ventasCache = JSON.parse(localStorage.getItem("ventas") || "[]").map(normalizarVenta);
+      } catch (error) {
+        console.error("No se pudo reconstruir la caché de ventas para la tabla:", error);
+      }
+    }
     const ventasDelDia = obtenerVentasDelDiaActualConIndices();
     const ventasFiltradas = ventasDelDia
       .filter(({ venta }) => (venta.cliente || "").toLowerCase().includes(filtro));
@@ -4675,10 +4699,15 @@ function actualizarResumenMovil() {
   }
 
   function mostrarVentas() {
-    document.getElementById("filtroCliente").value = "";
+    const filtro = document.getElementById("filtroCliente");
+    if (filtro) filtro.value = "";
     paginaVentasActual = 1;
     renderVentasTabla();
-    renderControlCajaDiaActual();
+    try {
+      renderControlCajaDiaActual();
+    } catch (error) {
+      console.error("No se pudo refrescar el control de caja al mostrar ventas:", error);
+    }
   }
 
   function cambiarPaginaVentas(direccion) {
