@@ -1404,6 +1404,8 @@ const CONTROL_CAJA_STORAGE_KEY = "controlCajaPorDia";
 let controlCajaCache = JSON.parse(localStorage.getItem(CONTROL_CAJA_STORAGE_KEY) || "{}");
 let controlCajaFirebasePermisosDisponibles = true;
 let controlCajaFirebasePermisosAvisados = false;
+let migracionCierresControlCajaEnCurso = false;
+let migracionCierresControlCajaProgramada = false;
 let catalogoUnsubscribe = null;
 let catalogoFirestorePermisosDisponibles = true;
 let catalogoGuardandoRemoto = false;
@@ -2190,6 +2192,10 @@ function normalizarControlCaja(control = {}, diaClave = "") {
     esperadoCaja: Number(control.esperadoCaja || 0),
     esperadoTransferencias: Number(control.esperadoTransferencias || 0),
     esperadoTotal: Number(control.esperadoTotal || 0),
+    totalMenosApertura: Number(control.totalMenosApertura || control.gananciaDia || control.valorFinanzas || control.totalParaFinanzas || 0),
+    gananciaDia: Number(control.gananciaDia || control.totalMenosApertura || control.valorFinanzas || control.totalParaFinanzas || 0),
+    valorFinanzas: Number(control.valorFinanzas || control.gananciaDia || control.totalMenosApertura || control.totalParaFinanzas || 0),
+    totalParaFinanzas: Number(control.totalParaFinanzas || control.valorFinanzas || control.gananciaDia || control.totalMenosApertura || 0),
     diferenciaCaja: Number(control.diferenciaCaja || 0),
     ultimaActualizacionResumen: control.ultimaActualizacionResumen || ""
   };
@@ -2215,6 +2221,10 @@ function construirPayloadControlCaja(control = {}, resumen = null, esperados = n
     esperadoCaja: Number(esperadosCaja.esperadoCaja || 0),
     esperadoTransferencias: Number(esperadosCaja.esperadoTransferencias || 0),
     esperadoTotal: Number(esperadosCaja.esperadoTotal || 0),
+    totalMenosApertura: Number(esperadosCaja.totalMenosApertura || 0),
+    gananciaDia: Number(esperadosCaja.gananciaDia || esperadosCaja.totalMenosApertura || 0),
+    valorFinanzas: Number(esperadosCaja.valorFinanzas || esperadosCaja.totalMenosApertura || 0),
+    totalParaFinanzas: Number(esperadosCaja.totalParaFinanzas || esperadosCaja.totalMenosApertura || 0),
     diferenciaCaja: Number(esperadosCaja.diferenciaCaja || 0),
     ultimaActualizacionResumen: new Date().toISOString()
   }, controlBase.diaClave);
@@ -2313,6 +2323,58 @@ async function sincronizarResumenCajaDiaEnSegundoPlano(diaClave) {
   return payload;
 }
 
+async function migrarCierresGuardadosEnFirebase() {
+  if (migracionCierresControlCajaEnCurso || !esAdmin() || !firestoreDisponible || !firestoreDb || !controlCajaFirebasePermisosDisponibles) {
+    return 0;
+  }
+  migracionCierresControlCajaEnCurso = true;
+  try {
+    const snapshot = await firestoreDb.collection('controlCaja').get();
+    if (snapshot.empty) return 0;
+    let actualizados = 0;
+    for (const doc of snapshot.docs) {
+      const diaClave = String(doc.id || '').trim();
+      if (!diaClave) continue;
+      const remoto = normalizarControlCaja({ diaClave, ...doc.data() }, diaClave);
+      const resumen = calcularResumenCajaDia(diaClave);
+      const esperados = calcularEsperadosCierre(remoto, resumen);
+      const payload = construirPayloadControlCaja(remoto, resumen, esperados);
+      await firestoreDb.collection('controlCaja').doc(diaClave).set(payload, { merge: true });
+      guardarControlCajaEnCache(payload);
+      actualizados += 1;
+    }
+    registrarHeartbeatFirebase();
+    return actualizados;
+  } catch (error) {
+    if (esErrorPermisoFirestore(error)) {
+      desactivarFirebaseCajaPorPermisos(error);
+    } else {
+      console.error('No se pudieron migrar los cierres guardados de Firebase:', error);
+    }
+    return 0;
+  } finally {
+    migracionCierresControlCajaEnCurso = false;
+  }
+}
+
+function programarMigracionCierresGuardados(delay = 1200) {
+  if (migracionCierresControlCajaProgramada || !esAdmin()) return;
+  migracionCierresControlCajaProgramada = true;
+  window.setTimeout(async () => {
+    try {
+      const actualizados = await migrarCierresGuardadosEnFirebase();
+      if (actualizados > 0) {
+        await renderControlCajaDiaActual(true);
+        await renderTablaCierresCaja(true);
+        const filtro = document.getElementById('filtroHistoricoFecha');
+        if (filtro?.value) await renderResumenCajaFecha(filtro.value, true);
+      }
+    } finally {
+      migracionCierresControlCajaProgramada = false;
+    }
+  }, delay);
+}
+
 function obtenerVentasActivasDelDia(diaClave) {
   return filtrarVentasActivas(obtenerVentasNormalizadas().filter(v => v.diaClave === diaClave));
 }
@@ -2358,8 +2420,12 @@ function calcularEsperadosCierre(control = {}, resumen = {}) {
   const esperadoCaja = redondearPago(apertura + Number(resumen.totalEfectivoSistema || resumen.totalEfectivo || 0));
   const esperadoTransferencias = redondearPago(Number(resumen.totalTransferenciasDigitales || resumen.totalTransferenciasNetas || 0));
   const esperadoTotal = redondearPago(esperadoCaja + esperadoTransferencias);
+  const totalMenosApertura = redondearPago(Math.max(0, esperadoTotal - apertura));
+  const valorFinanzas = totalMenosApertura;
+  const totalParaFinanzas = totalMenosApertura;
+  const gananciaDia = totalMenosApertura;
   const diferenciaCaja = control.cierreHora ? redondearPago(Number(control.cierreMonto || 0) - esperadoCaja) : 0;
-  return { apertura, esperadoCaja, esperadoTransferencias, esperadoTotal, diferenciaCaja };
+  return { apertura, esperadoCaja, esperadoTransferencias, esperadoTotal, totalMenosApertura, valorFinanzas, totalParaFinanzas, gananciaDia, diferenciaCaja };
 }
 
 function obtenerEstiloDiferenciaCaja(diferencia, tieneCierre = false) {
@@ -2451,7 +2517,7 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
       : 'Haz clic para registrar cierre';
   }
   if (dineroEsperadoResumenTexto) {
-    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperados.esperadoCaja)} en caja · ${formatearCOP(esperados.esperadoTransferencias)} en transferencias · total ${formatearCOP(esperados.esperadoTotal)}${control.cierreHora ? ` · diferencia caja ${formatearDiferenciaCaja(esperados.diferenciaCaja)}` : ''}`;
+    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperados.esperadoCaja)} en caja · ${formatearCOP(esperados.esperadoTransferencias)} en transferencias · total ${formatearCOP(esperados.esperadoTotal)} · finanzas ${formatearCOP(esperados.valorFinanzas)}${control.cierreHora ? ` · diferencia caja ${formatearDiferenciaCaja(esperados.diferenciaCaja)}` : ''}`;
   }
 
   if (aperturaInfoModal) aperturaInfoModal.textContent = control.aperturaHora
@@ -2553,6 +2619,11 @@ function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
         <p class="text-xl font-extrabold text-indigo-700 mt-1">${formatearCOP(esperados.esperadoTotal)}</p>
         <p class="text-xs text-gray-500 mt-1">Caja + transferencias</p>
       </div>
+      <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Valor para finanzas</p>
+        <p class="text-xl font-extrabold text-emerald-700 mt-1">${formatearCOP(esperados.valorFinanzas)}</p>
+        <p class="text-xs text-gray-500 mt-1">Esperado total menos apertura</p>
+      </div>
       <div class="rounded-xl border ${estiloDiferencia.card} p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Diferencia de caja</p>
         <p class="text-xl font-extrabold mt-1 ${estiloDiferencia.text}">${control.cierreHora ? formatearDiferenciaCaja(esperados.diferenciaCaja) : 'Pendiente'}</p>
@@ -2595,7 +2666,7 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
   const controles = await obtenerTodosLosControlesCaja(forzarRemoto);
   const cierres = controles.filter(control => control.cierreHora);
   if (!cierres.length) {
-    body.innerHTML = '<tr><td colspan="13" class="p-3 text-center text-gray-500">No hay cierres de caja registrados todavía.</td></tr>';
+    body.innerHTML = '<tr><td colspan="14" class="p-3 text-center text-gray-500">No hay cierres de caja registrados todavía.</td></tr>';
     return;
   }
   body.innerHTML = cierres.map(control => {
@@ -2616,6 +2687,7 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
         <td class="p-2 border">${formatearCOP(esperados.esperadoCaja)}</td>
         <td class="p-2 border">${formatearCOP(esperados.esperadoTransferencias)}</td>
         <td class="p-2 border">${formatearCOP(esperados.esperadoTotal)}</td>
+        <td class="p-2 border font-semibold text-emerald-700">${formatearCOP(esperados.valorFinanzas)}</td>
         <td class="p-2 border ${esperados.diferenciaCaja < 0 ? 'text-red-700' : 'text-green-700'} font-semibold">${formatearDiferenciaCaja(esperados.diferenciaCaja)}</td>
         <td class="p-2 border">${control.aperturaUsuario || '-'}</td>
         <td class="p-2 border">${control.cierreUsuario || '-'}</td>
@@ -2766,6 +2838,11 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
         <p class="text-xs uppercase tracking-wide text-gray-500">Esperado total</p>
         <p class="text-lg font-extrabold text-indigo-700 mt-1">${formatearCOP(esperados.esperadoTotal)}</p>
         <p class="text-xs text-gray-500 mt-1">Caja + transferencias</p>
+      </div>
+      <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Valor para finanzas</p>
+        <p class="text-lg font-extrabold text-emerald-700 mt-1">${formatearCOP(esperados.valorFinanzas)}</p>
+        <p class="text-xs text-gray-500 mt-1">Esperado total menos apertura</p>
       </div>
     </div>
     <div class="mt-3 text-sm text-gray-700 space-y-1">
@@ -4089,6 +4166,7 @@ async function inicializarFirebaseVentas() {
         escucharInventarioFirestore();
         escucharCatalogoFirestore();
         programarSyncVentasPendientes(50);
+        programarMigracionCierresGuardados(1800);
       } else {
         if (typeof ventasUnsubscribe === 'function') {
           ventasUnsubscribe();
@@ -4141,6 +4219,7 @@ function escucharVentasFirestore() {
 
       programarSyncVentasPendientes(50);
       primeraCarga = false;
+      programarMigracionCierresGuardados(900);
 
       await sincronizarResumenCajaDiaEnSegundoPlano(obtenerFechaLocalISO(new Date()));
       mostrarVentas();
