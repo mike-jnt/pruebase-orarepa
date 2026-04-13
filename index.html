@@ -3835,6 +3835,20 @@ function obtenerEtiquetaFormaPago(venta = {}) {
   return `mixto · ${detalle.map(item => `${item.medio}: ${formatearCOP(item.valor)}`).join(" + ")}`;
 }
 
+function formatearTipoPedidoVisual(venta = {}) {
+  const tipo = String(venta?.tipoPedido || '-').trim() || '-';
+  const numeroDomicilio = Number(venta?.numeroDomicilio || 0);
+  const costoDomicilio = Number(venta?.costoDomicilio || 0);
+
+  if (tipo.toLowerCase() !== 'domicilio') return tipo;
+
+  const partes = ['Domicilio'];
+  if (numeroDomicilio > 0) partes[0] += ` #${numeroDomicilio}`;
+  if (costoDomicilio > 0) partes.push(formatearCOP(costoDomicilio));
+
+  return partes.join(' · ');
+}
+
 function obtenerTotalCobradoActual() {
   return redondearPago(obtenerSubtotalPedidoActual() + obtenerCostoDomicilioActual());
 }
