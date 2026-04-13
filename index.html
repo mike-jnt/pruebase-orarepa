@@ -3562,6 +3562,10 @@ async function iniciarSesion() {
     return;
   }
 
+  if (!firebaseInicializado) {
+    await inicializarFirebaseVentas();
+  }
+
   if (!authDisponible || !firebaseAuth) {
     if (error) {
       error.textContent = "Firebase Auth aún no está listo. Revisa la conexión.";
@@ -3573,6 +3577,7 @@ async function iniciarSesion() {
   const email = resolverEmailIngreso(usuario);
 
   try {
+    actualizarIndicadorFirebase("verificando", "Iniciando sesión en Firebase...");
     await firebaseAuth.signInWithEmailAndPassword(email, clave);
     if (error) error.classList.add("hidden");
     const campoClave = document.getElementById("loginClave");
@@ -3584,8 +3589,9 @@ async function iniciarSesion() {
     toggleVerClave();
   } catch (err) {
     console.error("Error al iniciar sesión con Firebase Auth:", err);
+    actualizarIndicadorFirebase("desconectado", obtenerMensajeErrorFirebase(err, "auth"));
     if (error) {
-      error.textContent = "No fue posible iniciar sesión. Verifica el usuario/correo y la contraseña en Firebase Auth.";
+      error.textContent = obtenerMensajeErrorFirebase(err, "auth");
       error.classList.remove("hidden");
     }
   }
@@ -3704,6 +3710,31 @@ function resolverEmailIngreso(entradaUsuario = "") {
   if (registro?.email) return registro.email;
   if (valor.includes('@')) return valor;
   return `${valor}@prsenorarepa.com`;
+}
+
+
+function obtenerMensajeErrorFirebase(error, contexto = "firebase") {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '');
+  if (!navigator.onLine) return 'Sin conexión a internet';
+  if (code.includes('permission-denied') || message.includes('Missing or insufficient permissions')) {
+    return 'Sin permisos para acceder a la base de datos';
+  }
+  if (code.includes('unavailable')) {
+    return 'Firebase no responde en este momento';
+  }
+  if (code.includes('network-request-failed')) {
+    return 'No se pudo conectar con Firebase';
+  }
+  if (contexto === 'auth') {
+    if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found') || code.includes('invalid-login-credentials')) {
+      return 'Usuario o contraseña incorrectos';
+    }
+    if (code.includes('too-many-requests')) {
+      return 'Demasiados intentos. Espera un momento';
+    }
+  }
+  return message || 'Error de conexión con Firebase';
 }
 
 function aplicarSesionAutenticada(usuario, rol, email) {
@@ -4161,7 +4192,7 @@ async function inicializarFirebaseVentas() {
   firebaseInicializado = true;
   actualizarIndicadorFirebase("verificando", "Iniciando conexión con Firebase...");
   iniciarMonitorConexionFirebase();
-  if (!window.firebase) {
+  if (!window.firebase || !firebase?.initializeApp || !firebase?.auth || !firebase?.firestore) {
     actualizarIndicadorFirebase("desconectado", "SDK de Firebase no disponible");
     return;
   }
@@ -4171,11 +4202,23 @@ async function inicializarFirebaseVentas() {
     firestoreDb = firebase.firestore(firebaseApp);
     authDisponible = Boolean(firebaseAuth);
     firestoreDisponible = Boolean(firestoreDb);
+
+    if (authDisponible && firebaseAuth?.setPersistence && firebase?.auth?.Auth?.Persistence?.LOCAL) {
+      try {
+        await firebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+      } catch (persistError) {
+        console.warn('No se pudo fijar la persistencia local de Firebase Auth:', persistError);
+      }
+    }
+
+    actualizarIndicadorFirebase("verificando", "Firebase listo. Inicia sesión para sincronizar");
+
     firebaseAuth.onAuthStateChanged((user) => {
       if (user) {
         const email = String(user.email || '').toLowerCase();
         const registro = resolverRegistroUsuario(email) || resolverRegistroUsuario(user.displayName || '') || { usuario: email.split('@')[0], rol: 'cajero', nombre: user.displayName || email };
         aplicarSesionAutenticada(registro.usuario || email.split('@')[0], registro.rol || 'cajero', user.email || '');
+        registrarHeartbeatFirebase();
         escucharVentasFirestore();
         escucharInventarioFirestore();
         escucharCatalogoFirestore();
@@ -4200,13 +4243,14 @@ async function inicializarFirebaseVentas() {
         actualizarEstadoCatalogoSync('Catálogo cargado en modo local', 'neutral');
         limpiarSesionLocal();
         guardarVentasEnCache([]);
+        actualizarIndicadorFirebase("verificando", "Firebase listo. Inicia sesión para sincronizar");
       }
     });
   } catch (error) {
     console.error("Error al inicializar Firebase:", error);
     firestoreDisponible = false;
     authDisponible = false;
-    actualizarIndicadorFirebase("desconectado", "No se pudo iniciar Firebase");
+    actualizarIndicadorFirebase("desconectado", obtenerMensajeErrorFirebase(error));
   }
 }
 
@@ -4240,7 +4284,7 @@ function escucharVentasFirestore() {
       refrescarVistasAnaliticasSiEstanAbiertas();
     }, (error) => {
       console.error("Error al escuchar ventas de Firebase:", error);
-      actualizarIndicadorFirebase("desconectado", "Error al sincronizar con Firebase");
+      actualizarIndicadorFirebase("desconectado", obtenerMensajeErrorFirebase(error));
     });
 }
 
@@ -4306,6 +4350,10 @@ async function iniciarSesion() {
     return;
   }
 
+  if (!firebaseInicializado) {
+    await inicializarFirebaseVentas();
+  }
+
   if (!authDisponible || !firebaseAuth) {
     if (error) {
       error.textContent = "Firebase Auth aún no está listo. Revisa la conexión.";
@@ -4317,6 +4365,7 @@ async function iniciarSesion() {
   const email = resolverEmailIngreso(usuario);
 
   try {
+    actualizarIndicadorFirebase("verificando", "Iniciando sesión en Firebase...");
     await firebaseAuth.signInWithEmailAndPassword(email, clave);
     if (error) error.classList.add("hidden");
     const campoClave = document.getElementById("loginClave");
@@ -4328,8 +4377,9 @@ async function iniciarSesion() {
     toggleVerClave();
   } catch (err) {
     console.error("Error al iniciar sesión con Firebase Auth:", err);
+    actualizarIndicadorFirebase("desconectado", obtenerMensajeErrorFirebase(err, "auth"));
     if (error) {
-      error.textContent = "No fue posible iniciar sesión. Verifica el usuario/correo y la contraseña en Firebase Auth.";
+      error.textContent = obtenerMensajeErrorFirebase(err, "auth");
       error.classList.remove("hidden");
     }
   }
