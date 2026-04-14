@@ -1396,7 +1396,7 @@ const ESTADO_VENTA_CANCELADA = "cancelada";
 let sincronizandoVentasPendientes = false;
 let temporizadorSyncVentasPendientes = null;
 const VENTAS_REMOTE_STATE_KEY = "ventasRemoteReadStateV1";
-const VENTAS_REMOTE_RANGE_TTL_MS = 5 * 60 * 1000;
+const VENTAS_REMOTE_RANGE_TTL_MS = 15 * 60 * 1000;
 let ventasRemoteReadState = (() => {
   try {
     return JSON.parse(localStorage.getItem(VENTAS_REMOTE_STATE_KEY) || "{}");
@@ -1421,11 +1421,11 @@ let inventarioUnsubscribe = null;
 let inventarioBebidasEstado = {};
 let inventarioPermisosAvisados = false;
 const CATALOGO_REMOTE_STATE_KEY = 'catalogoRemoteReadStateV1';
-const CATALOGO_REMOTE_TTL_MS = 30 * 60 * 1000;
+const CATALOGO_REMOTE_TTL_MS = 2 * 60 * 60 * 1000;
 const INVENTARIO_REMOTE_STATE_KEY = 'inventarioRemoteReadStateV1';
-const INVENTARIO_REMOTE_TTL_MS = 10 * 60 * 1000;
+const INVENTARIO_REMOTE_TTL_MS = 30 * 60 * 1000;
 const CONTROL_CAJA_REMOTE_STATE_KEY = 'controlCajaRemoteReadStateV1';
-const CONTROL_CAJA_REMOTE_TTL_MS = 15 * 60 * 1000;
+const CONTROL_CAJA_REMOTE_TTL_MS = 30 * 60 * 1000;
 let catalogoRemoteReadState = (() => {
   try {
     return JSON.parse(localStorage.getItem(CATALOGO_REMOTE_STATE_KEY) || '{}');
@@ -2142,7 +2142,9 @@ async function aplicarAjustesInventarioFirestore(ajustes = {}) {
   inventarioPermisosAvisados = false;
   marcarInventarioRemotoLeido();
   registrarHeartbeatFirebase();
-}) {
+}
+
+async function aplicarAjustesInventarioFirestoreLegacy(ajustes = {}) {
   const entradas = Object.entries(ajustes || {});
   if (!entradas.length || !firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) return;
   for (const [clave, ajuste] of entradas) {
@@ -3356,22 +3358,16 @@ function cancelarPausaVentasPorOculto() {
 
 function pausarListenerVentasPorAhorro() {
   cancelarPausaVentasPorOculto();
-  if (typeof ventasUnsubscribe === 'function') {
-    ventasUnsubscribe();
-    ventasUnsubscribe = null;
-    listenerVentasPausadoPorOculto = true;
-  }
+  listenerVentasPausadoPorOculto = false;
 }
 
 function programarPausaVentasPorOculto() {
   cancelarPausaVentasPorOculto();
-  if (!sesionActiva || typeof ventasUnsubscribe !== 'function') return;
-  temporizadorPausaVentasOculto = setTimeout(() => {
-    temporizadorPausaVentasOculto = null;
-    if (document.hidden) {
-      pausarListenerVentasPorAhorro();
-    }
-  }, PAUSA_VENTAS_OCULTO_DELAY_MS);
+}
+
+function esVistaPOSVisible() {
+  const appMain = document.getElementById('appMain');
+  return Boolean(appMain && !appMain.classList.contains('hidden'));
 }
 
 async function refrescarRecursosLivianosSiVencidos() {
@@ -3380,6 +3376,9 @@ async function refrescarRecursosLivianosSiVencidos() {
       cargarInventarioFirestoreUnaVez(false),
       cargarCatalogoFirestoreUnaVez(false, false)
     ]);
+    if (sesionActiva && esVistaPOSVisible()) {
+      await escucharVentasFirestore(false);
+    }
   } catch (error) {
     console.warn('No se pudieron refrescar los recursos livianos desde Firebase:', error);
   }
@@ -3387,17 +3386,12 @@ async function refrescarRecursosLivianosSiVencidos() {
 
 function manejarVisibilidadAhorroLecturas() {
   if (document.hidden) {
-    programarPausaVentasPorOculto();
+    cancelarPausaVentasPorOculto();
     return;
   }
   cancelarPausaVentasPorOculto();
   refrescarRecursosLivianosSiVencidos();
-  if (listenerVentasPausadoPorOculto && sesionActiva && firestoreDisponible && firestoreDb && firebaseAuth?.currentUser) {
-    listenerVentasPausadoPorOculto = false;
-    escucharVentasFirestore();
-  } else {
-    listenerVentasPausadoPorOculto = false;
-  }
+  listenerVentasPausadoPorOculto = false;
 }
 
 function registrarEventosAhorroLecturas() {
@@ -3851,47 +3845,39 @@ async function inicializarFirebaseVentas() {
   }
 }
 
-function escucharVentasFirestore() {
-  if (!firestoreDisponible || !firestoreDb) return;
-  if (typeof ventasUnsubscribe === 'function') ventasUnsubscribe();
+async function escucharVentasFirestore(forzar = false) {
+  if (typeof ventasUnsubscribe === 'function') {
+    ventasUnsubscribe();
+    ventasUnsubscribe = null;
+  }
+  if (!firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) return [];
 
   const diaActual = obtenerFechaLocalISO(new Date());
   diaVentasEscuchando = diaActual;
   listenerVentasPausadoPorOculto = false;
   cancelarPausaVentasPorOculto();
-  let primeraCarga = true;
 
-  ventasUnsubscribe = firestoreDb.collection("ventas")
-    .where("diaClave", "==", diaActual)
-    .onSnapshot(async (snapshot) => {
-      registrarHeartbeatFirebase();
-      const ventasRemotas = ordenarVentasDesc(snapshot.docs.map(doc => normalizarVenta({ _docId: doc.id, ...doc.data() })));
-      reemplazarVentasEnCachePorDia(diaActual, fusionarVentasRangoConPendientes(ventasRemotas, diaActual, sumarDiasISO(diaActual, 1)));
-      marcarRangoVentasLeido(obtenerClaveRangoVentas(diaActual, sumarDiasISO(diaActual, 1)));
-      sincronizarResumenCajaDiaEnSegundoPlano(diaActual).catch(() => {});
+  const rangoInicio = diaActual;
+  const rangoFin = sumarDiasISO(diaActual, 1);
+  const ventasDia = await consultarVentasPorRangoFirestore(rangoInicio, rangoFin, { forzar });
 
-      if (primeraCarga && ventasRemotas.length === 0) {
-        const pendientes = obtenerVentasPendientesSync();
-        const clavesPendientes = new Set(pendientes.map(item => item.venta?._localId).filter(Boolean));
-        const ventasLocales = JSON.parse(localStorage.getItem("ventas") || "[]")
-          .map(normalizarVenta)
-          .filter(venta => obtenerDiaClaveVenta(venta) === diaActual)
-          .filter(venta => !venta._docId && !(venta._localId && clavesPendientes.has(venta._localId)));
-        if (ventasLocales.length > 0) {
-          await migrarVentasLocalesAFirebase(ventasLocales);
-        }
-      }
+  const pendientes = obtenerVentasPendientesSync();
+  const clavesPendientes = new Set(pendientes.map(item => item.venta?._localId).filter(Boolean));
+  const ventasLocalesSinDoc = JSON.parse(localStorage.getItem('ventas') || '[]')
+    .map(normalizarVenta)
+    .filter(venta => obtenerDiaClaveVenta(venta) === diaActual)
+    .filter(venta => !venta._docId && !(venta._localId && clavesPendientes.has(venta._localId)));
 
-      programarSyncVentasPendientes(50);
-      primeraCarga = false;
+  if (ventasDia.length === 0 && ventasLocalesSinDoc.length > 0) {
+    await migrarVentasLocalesAFirebase(ventasLocalesSinDoc);
+    await consultarVentasPorRangoFirestore(rangoInicio, rangoFin, { forzar: true });
+  }
 
-      mostrarVentas();
-      refrescarVistasAnaliticasSiEstanAbiertas();
-      if (document.hidden) programarPausaVentasPorOculto();
-    }, (error) => {
-      console.error("Error al escuchar ventas de Firebase:", error);
-      actualizarIndicadorFirebase("desconectado", "Error al sincronizar ventas del día con Firebase");
-    });
+  sincronizarResumenCajaDiaEnSegundoPlano(diaActual).catch(() => {});
+  programarSyncVentasPendientes(50);
+  mostrarVentas();
+  refrescarVistasAnaliticasSiEstanAbiertas();
+  return obtenerVentasStorage().filter(venta => obtenerDiaClaveVenta(venta) === diaActual);
 }
 
 async function migrarVentasLocalesAFirebase(ventasLocales) {
@@ -5396,6 +5382,8 @@ function volverAlPOS() {
   if (cajaVista) cajaVista.classList.add("hidden");
   if (domiciliosVista) domiciliosVista.classList.add("hidden");
   if (appMain) appMain.classList.remove("hidden");
+  escucharVentasFirestore(false).catch(() => {});
+  refrescarRecursosLivianosSiVencidos();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
