@@ -6278,6 +6278,30 @@ function volverAlPOS() {
     return mezcladas;
   }
 
+  function enriquecerControlesConVentas(controles = [], inicio = '', finExclusive = '') {
+    const mapa = {};
+    (Array.isArray(controles) ? controles : []).forEach(control => {
+      const dia = String(control?.diaClave || '').trim();
+      if (!dia) return;
+      mapa[dia] = normalizarControlCaja(control, dia);
+    });
+
+    const ventasRango = obtenerVentasNormalizadas().filter(venta => {
+      const dia = obtenerDiaClaveVenta(venta);
+      return dia && estaFechaISOEnRango(dia, inicio, finExclusive);
+    });
+
+    const diasConVentas = [...new Set(ventasRango.map(venta => obtenerDiaClaveVenta(venta)).filter(Boolean))];
+    diasConVentas.forEach(dia => {
+      const base = mapa[dia] || normalizarControlCaja({}, dia);
+      const resumen = calcularResumenCajaDia(dia);
+      const esperados = calcularDineroEsperadoCaja(base, resumen);
+      mapa[dia] = construirPayloadControlCaja(base, resumen, esperados);
+    });
+
+    return Object.values(mapa).sort((a, b) => String(b.diaClave || '').localeCompare(String(a.diaClave || '')));
+  }
+
   function construirControlesBaseDelMesHastaHoy(controles = [], hoy = obtenerFechaLocalISO(new Date())) {
     const mapa = {};
     (Array.isArray(controles) ? controles : []).forEach(control => {
@@ -6488,6 +6512,9 @@ function volverAlPOS() {
 
     const inicioMesActual = obtenerInicioMesISO(new Date());
     const finMesActual = obtenerInicioMesSiguienteISO(new Date());
+
+    await asegurarVentasNecesariasParaHistoricos(forzarRemoto);
+
     let controles = await consultarControlCajaPorRangoFirestore(inicioMesActual, finMesActual, { forzar: forzarRemoto });
 
     if (fechaSeleccionada && !estaFechaISOEnRango(fechaSeleccionada, inicioMesActual, finMesActual)) {
@@ -6495,7 +6522,8 @@ function volverAlPOS() {
       controles = obtenerControlesCajaEnCachePorRango(inicioMesActual, finMesActual).concat(obtenerControlesCajaEnCachePorRango(fechaSeleccionada, sumarDiasISO(fechaSeleccionada, 1)));
     }
 
-    const controlesNormalizados = construirControlesBaseDelMesHastaHoy((Array.isArray(controles) ? controles : []).map(control => normalizarControlCaja(control, control?.diaClave || '')), hoy);
+    const controlesConVentas = enriquecerControlesConVentas((Array.isArray(controles) ? controles : []).map(control => normalizarControlCaja(control, control?.diaClave || '')), inicioMesActual, finMesActual);
+    const controlesNormalizados = construirControlesBaseDelMesHastaHoy(controlesConVentas, hoy);
     const controlHoy = controlesNormalizados.find(control => control.diaClave === hoy) || normalizarControlCaja({}, hoy);
     const controlesSemana = controlesNormalizados.filter(control => obtenerClaveSemana(new Date(`${control.diaClave}T12:00:00`)) === semanaActual);
 
