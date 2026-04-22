@@ -1137,18 +1137,18 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
           <p class="text-sm text-gray-500">Hoy</p>
-          <p id="histHoyVentas" class="text-2xl font-bold text-gray-800">0 ventas</p>
-          <p id="histHoyTotal" class="text-sm text-gray-700">$0</p>
+          <p id="histHoyVentas" class="text-2xl font-bold text-gray-800">0 venta(s)</p>
+          <p id="histHoyTotal" class="text-sm text-gray-700">Total del día: $0</p>
         </div>
         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
           <p class="text-sm text-gray-500">Esta semana</p>
-          <p id="histSemanaVentas" class="text-2xl font-bold text-gray-800">0 ventas</p>
-          <p id="histSemanaTotal" class="text-sm text-gray-700">$0</p>
+          <p id="histSemanaTotal" class="text-2xl font-bold text-gray-800">$0</p>
+          <p id="histSemanaVentas" class="text-sm text-gray-700">0 venta(s)</p>
         </div>
         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
           <p class="text-sm text-gray-500">Este mes</p>
-          <p id="histMesVentas" class="text-2xl font-bold text-gray-800">0 ventas</p>
-          <p id="histMesTotal" class="text-sm text-gray-700">$0</p>
+          <p id="histMesTotal" class="text-2xl font-bold text-gray-800">$0</p>
+          <p id="histMesVentas" class="text-sm text-gray-700">0 venta(s)</p>
         </div>
       </div>
 
@@ -1232,12 +1232,14 @@
               <label for="filtroHistoricoFecha" class="block text-sm text-gray-600 mb-1">Fecha a consultar</label>
               <input type="date" id="filtroHistoricoFecha" class="p-2 border border-yellow-300 rounded-lg" />
             </div>
-            <button onclick="verVentasDetalladasPorFecha(true)" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">Ver ventas del día</button>
+            <button onclick="verVentasDetalladasPorFecha(false)" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">Ver ventas del día</button>
             <button onclick="exportarVentasDelDiaHistorico()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">Exportar Excel del día</button>
           </div>
         </div>
 
-        <div id="resumenVentasDiaSeleccionado" class="mb-4 text-sm text-gray-700"></div>
+        <div id="resumenVentasDiaSeleccionado" class="mb-4 text-sm text-gray-700">
+          Selecciona una fecha y presiona <strong>Ver ventas del día</strong> para consultar el detalle.
+        </div>
 
         <div class="overflow-auto border rounded-lg bg-white">
           <table class="min-w-full text-sm">
@@ -2685,6 +2687,11 @@ function calcularEsperadosCierre(control = {}, resumen = {}) {
   const esperadoTotal = redondearPago(esperadoCaja + esperadoTransferencias);
   const diferenciaCaja = control.cierreHora ? redondearPago(Number(control.cierreMonto || 0) - esperadoCaja) : 0;
   return { apertura, esperadoCaja, esperadoTransferencias, esperadoTotal, diferenciaCaja };
+}
+
+
+function calcularDineroEsperadoCaja(control = {}, resumen = {}) {
+  return calcularEsperadosCierre(control, resumen);
 }
 
 function obtenerEstiloDiferenciaCaja(diferencia, tieneCierre = false) {
@@ -4182,7 +4189,7 @@ async function inicializarFirebaseVentas() {
 
     if (firestoreDisponible && firestoreDb?.enablePersistence) {
       try {
-        await firestoreDb.enablePersistence({ synchronizeTabs: true });
+        await firestoreDb.enablePersistence();
       } catch (persistenciaError) {
         const codigo = String(persistenciaError?.code || '');
         if (codigo !== 'failed-precondition' && codigo !== 'unimplemented') {
@@ -6391,6 +6398,27 @@ function volverAlPOS() {
       .join('<br>');
   }
 
+  function limpiarVentasDetalladasHistorico(fechaSeleccionada = '') {
+    const input = document.getElementById('filtroHistoricoFecha');
+    const body = document.getElementById('ventasDiaDetalleBody');
+    const resumen = document.getElementById('resumenVentasDiaSeleccionado');
+    const paginacion = document.getElementById('paginacionVentasDiaDetalle');
+    const fecha = fechaSeleccionada || input?.value || obtenerFechaLocalISO(new Date());
+
+    if (input && !input.value) input.value = fecha;
+    ventasDetalleDiaEstado = { fecha, paginaActual: 1, totalPaginas: 1, cargadasRemotas: 0, agotadoRemoto: false, ultimoCursor: '', cargando: false };
+
+    if (resumen) {
+      resumen.innerHTML = `<strong>Fecha lista para consultar:</strong> ${fecha} &nbsp;|&nbsp; Selecciona <strong>Ver ventas del día</strong> para cargar el detalle.`;
+    }
+    if (body) {
+      body.innerHTML = '<tr><td colspan="10" class="p-3 text-center text-gray-500">Aún no se ha cargado el detalle. Consulta una fecha para ver las ventas del día.</td></tr>';
+    }
+    if (paginacion) {
+      paginacion.innerHTML = '<div class="text-gray-500">Sin consulta detallada cargada todavía.</div>';
+    }
+  }
+
   async function verVentasDetalladasPorFecha(forzarRemoto = false, cargarMas = false) {
     const input = document.getElementById('filtroHistoricoFecha');
     const body = document.getElementById('ventasDiaDetalleBody');
@@ -6542,18 +6570,21 @@ function volverAlPOS() {
       if (el) el.textContent = value;
     };
 
-    setText('histHoyVentas', `${Number(controlHoy.cantidadVentasActivas || controlHoy.cantidadVentas || 0)} pedido(s)${Number(controlHoy.cantidadVentasCanceladas || 0) ? ` · ${Number(controlHoy.cantidadVentasCanceladas || 0)} cancelado(s)` : ''}`);
-    setText('histHoyTotal', `${formatearDinero(Number(controlHoy.totalVentas || 0))} · ${Number(controlHoy.cantidadDomiciliosActivos || controlHoy.domicilios || 0)} domicilio(s)${Number(controlHoy.cantidadDomiciliosCancelados || 0) ? ` / ${Number(controlHoy.cantidadDomiciliosCancelados || 0)} cancelado(s)` : ''} · sin domicilios`);
-    setText('histSemanaVentas', `${ventasSemanaActivas} pedido(s)${ventasSemanaCanceladas ? ` · ${ventasSemanaCanceladas} cancelado(s)` : ''}`);
-    setText('histSemanaTotal', `${formatearDinero(sumar(controlesSemana, item => item.totalVentas))} · ${domiciliosSemanaActivos} domicilio(s)${domiciliosSemanaCancelados ? ` / ${domiciliosSemanaCancelados} cancelado(s)` : ''} · sin domicilios`);
-    setText('histMesVentas', `${ventasMesActivas} pedido(s)${ventasMesCanceladas ? ` · ${ventasMesCanceladas} cancelado(s)` : ''}`);
-    setText('histMesTotal', `${formatearDinero(sumar(controlesNormalizados, item => item.totalVentas))} · ${domiciliosMesActivos} domicilio(s)${domiciliosMesCancelados ? ` / ${domiciliosMesCancelados} cancelado(s)` : ''} · sin domicilios`);
+    const totalSemana = sumar(controlesSemana, item => item.totalVentas);
+    const totalMes = sumar(controlesNormalizados, item => item.totalVentas);
+
+    setText('histHoyVentas', `${Number(controlHoy.cantidadVentasActivas || controlHoy.cantidadVentas || 0)} venta(s) del día${Number(controlHoy.cantidadVentasCanceladas || 0) ? ` · ${Number(controlHoy.cantidadVentasCanceladas || 0)} cancelada(s)` : ''}`);
+    setText('histHoyTotal', `Total del día: ${formatearDinero(Number(controlHoy.totalVentas || 0))} · ${Number(controlHoy.cantidadDomiciliosActivos || controlHoy.domicilios || 0)} domicilio(s)${Number(controlHoy.cantidadDomiciliosCancelados || 0) ? ` / ${Number(controlHoy.cantidadDomiciliosCancelados || 0)} cancelado(s)` : ''}`);
+    setText('histSemanaTotal', formatearDinero(totalSemana));
+    setText('histSemanaVentas', `${ventasSemanaActivas} venta(s)${ventasSemanaCanceladas ? ` · ${ventasSemanaCanceladas} cancelada(s)` : ''} · ${domiciliosSemanaActivos} domicilio(s)${domiciliosSemanaCancelados ? ` / ${domiciliosSemanaCancelados} cancelados` : ''}`);
+    setText('histMesTotal', formatearDinero(totalMes));
+    setText('histMesVentas', `${ventasMesActivas} venta(s)${ventasMesCanceladas ? ` · ${ventasMesCanceladas} cancelada(s)` : ''} · ${domiciliosMesActivos} domicilio(s)${domiciliosMesCancelados ? ` / ${domiciliosMesCancelados} cancelados` : ''}`);
 
     renderHistorico('historicoDiaBody', resumirHistoricoControles(controlesNormalizados, 'dia'), 'No hay cierres/resúmenes registrados por día.', 'dia');
     renderHistorico('historicoSemanaBody', resumirHistoricoControles(controlesNormalizados, 'semana'), 'No hay cierres/resúmenes registrados por semana.', 'semana');
     renderHistorico('historicoMesBody', resumirHistoricoControles(controlesNormalizados, 'mes'), 'No hay cierres/resúmenes registrados por mes.', 'mes');
 
-    await verVentasDetalladasPorFecha(forzarRemoto, false);
+    limpiarVentasDetalladasHistorico(fechaSeleccionada);
     renderTablaCierresCaja(false);
   }
 
