@@ -1129,9 +1129,14 @@
           <p class="text-sm text-gray-500">Resumen completo por día, semana y mes.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button onclick="actualizarHistoricos(true)" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">Actualizar históricos</button>
+          <button onclick="actualizarHistoricosManual()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">Actualizar históricos</button>
           <button onclick="volverAlPOS()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">← Volver al sistema</button>
         </div>
+      </div>
+
+      <div id="histEstadoCarga" class="mb-4 inline-flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
+        <span class="inline-block h-2 w-2 rounded-full bg-blue-500"></span>
+        <span>Listo para consultar.</span>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -5891,6 +5896,77 @@ function mostrarTablaHistorico(tipo = 'dia') {
   });
 }
 
+function ejecutarEnSegundoPlano(tarea, delay = 16, timeout = 800) {
+  const job = () => {
+    try {
+      const posiblePromesa = tarea?.();
+      if (posiblePromesa && typeof posiblePromesa.catch === 'function') {
+        posiblePromesa.catch(error => console.warn('Tarea diferida con error:', error));
+      }
+    } catch (error) {
+      console.warn('No se pudo ejecutar la tarea diferida:', error);
+    }
+  };
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    return window.requestIdleCallback(job, { timeout });
+  }
+  return window.setTimeout(job, delay);
+}
+
+function actualizarEstadoCargaHistoricos(mensaje = 'Listo para consultar.', tono = 'neutral') {
+  const tarjeta = document.getElementById('histEstadoCarga');
+  if (!tarjeta) return;
+  const estilos = {
+    neutral: ['border-blue-100', 'bg-blue-50', 'text-blue-700', 'bg-blue-500'],
+    cargando: ['border-amber-100', 'bg-amber-50', 'text-amber-700', 'bg-amber-500'],
+    listo: ['border-emerald-100', 'bg-emerald-50', 'text-emerald-700', 'bg-emerald-500'],
+    error: ['border-red-100', 'bg-red-50', 'text-red-700', 'bg-red-500']
+  };
+  const [border, bg, textColor, dot] = estilos[tono] || estilos.neutral;
+  tarjeta.className = `mb-4 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${border} ${bg} ${textColor}`;
+  tarjeta.innerHTML = `<span class="inline-block h-2 w-2 rounded-full ${dot}"></span><span>${mensaje}</span>`;
+}
+
+let historicosRefreshToken = 0;
+let cargaInicialPesadaProgramada = false;
+
+function programarCargaInicialPesada() {
+  if (cargaInicialPesadaProgramada) return;
+  cargaInicialPesadaProgramada = true;
+  ejecutarEnSegundoPlano(async () => {
+    await inicializarFirebaseVentas();
+    await renderControlCajaDiaActual(false);
+    await renderTablaCierresCaja(false);
+  }, 60, 1200);
+}
+
+async function actualizarHistoricosManual() {
+  actualizarEstadoCargaHistoricos('Actualizando históricos desde Firebase...', 'cargando');
+  try {
+    await actualizarHistoricos(true, { soloCache: false });
+    actualizarEstadoCargaHistoricos('Históricos actualizados.', 'listo');
+  } catch (error) {
+    console.error('No se pudieron actualizar los históricos manualmente:', error);
+    actualizarEstadoCargaHistoricos('No se pudo actualizar ahora. Se muestran datos guardados.', 'error');
+  }
+}
+
+function refrescarHistoricosEnSegundoPlano(forzarRemoto = false) {
+  const token = ++historicosRefreshToken;
+  actualizarEstadoCargaHistoricos('Cargando últimos datos sin bloquear la vista...', 'cargando');
+  ejecutarEnSegundoPlano(async () => {
+    try {
+      await actualizarHistoricos(forzarRemoto, { soloCache: false });
+      if (token !== historicosRefreshToken) return;
+      actualizarEstadoCargaHistoricos('Datos actualizados.', 'listo');
+    } catch (error) {
+      console.error('No se pudieron refrescar los históricos en segundo plano:', error);
+      if (token !== historicosRefreshToken) return;
+      actualizarEstadoCargaHistoricos('Se muestran datos guardados. Reintenta actualizar.', 'error');
+    }
+  }, 80, 1500);
+}
+
 async function abrirHistoricos() {
   if (!verificarAcceso(["admin", "administrador"])) return;
   const appMain = document.getElementById("appMain");
@@ -5901,7 +5977,10 @@ async function abrirHistoricos() {
   if (cajaVista) cajaVista.classList.add("hidden");
   if (domiciliosVista) domiciliosVista.classList.add("hidden");
   if (historicosVista) historicosVista.classList.remove("hidden");
-  await actualizarHistoricos();
+
+  actualizarEstadoCargaHistoricos('Mostrando datos guardados del equipo...', 'neutral');
+  await actualizarHistoricos(false, { soloCache: true });
+  refrescarHistoricosEnSegundoPlano(false);
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -5962,9 +6041,11 @@ function volverAlPOS() {
         });
       }
       actualizarCampoCostoDomicilio();
-      await inicializarFirebaseVentas();
-      await renderControlCajaDiaActual(true);
-      renderTablaCierresCaja(false);
+
+      renderControlCajaDiaActual(false).catch(() => {});
+      renderTablaCierresCaja(false).catch(() => {});
+      programarCargaInicialPesada();
+
       document.querySelectorAll('#modalAperturaCaja, #modalCierreCaja, #modalDineroEsperado, #modalPagoMixto').forEach(modal => {
         modal?.addEventListener('click', (event) => {
           if (event.target === modal) cerrarModalCaja(modal.id);
@@ -6133,7 +6214,8 @@ function volverAlPOS() {
     const historicosVista = document.getElementById('historicosVista');
     const domiciliosVista = document.getElementById('domiciliosVista');
     if (historicosVista && !historicosVista.classList.contains('hidden')) {
-      actualizarHistoricos();
+      actualizarHistoricos(false, { soloCache: true });
+      refrescarHistoricosEnSegundoPlano(false);
     }
     if (domiciliosVista && !domiciliosVista.classList.contains('hidden')) {
       asegurarVentasMesActualCargadas().finally(() => actualizarDomiciliosVista());
@@ -6340,7 +6422,7 @@ function volverAlPOS() {
   function cambiarPaginaHistorico(tipo = 'dia', delta = 0) {
     const actual = Number(historicoPaginacionEstado?.[tipo] || 1);
     historicoPaginacionEstado = { ...(historicoPaginacionEstado || {}), [tipo]: Math.max(1, actual + Number(delta || 0)) };
-    actualizarHistoricos(false);
+    actualizarHistoricos(false, { soloCache: true });
   }
 
   function renderHistorico(bodyId, filas, etiquetaVacia, tipo = 'dia') {
@@ -6530,7 +6612,8 @@ function volverAlPOS() {
     await exportarVentasAExcel(ventas, `Ventas_${fechaSeleccionada}.xlsx`, `Ventas ${fechaSeleccionada}`);
   }
 
-  async function actualizarHistoricos(forzarRemoto = false) {
+  async function actualizarHistoricos(forzarRemoto = false, opciones = {}) {
+    const { soloCache = false } = opciones || {};
     const hoy = obtenerFechaLocalISO(new Date());
     const ahora = new Date();
     const semanaActual = obtenerClaveSemana(ahora);
@@ -6541,16 +6624,28 @@ function volverAlPOS() {
     const inicioMesActual = obtenerInicioMesISO(new Date());
     const finMesActual = obtenerInicioMesSiguienteISO(new Date());
 
-    await asegurarVentasNecesariasParaHistoricos(forzarRemoto);
+    let controles = [];
 
-    let controles = await consultarControlCajaPorRangoFirestore(inicioMesActual, finMesActual, { forzar: forzarRemoto });
-
-    if (fechaSeleccionada && !estaFechaISOEnRango(fechaSeleccionada, inicioMesActual, finMesActual)) {
-      await consultarControlCajaPorRangoFirestore(fechaSeleccionada, sumarDiasISO(fechaSeleccionada, 1), { forzar: forzarRemoto });
-      controles = obtenerControlesCajaEnCachePorRango(inicioMesActual, finMesActual).concat(obtenerControlesCajaEnCachePorRango(fechaSeleccionada, sumarDiasISO(fechaSeleccionada, 1)));
+    if (soloCache) {
+      controles = obtenerControlesCajaEnCachePorRango(inicioMesActual, finMesActual);
+      if (fechaSeleccionada && !estaFechaISOEnRango(fechaSeleccionada, inicioMesActual, finMesActual)) {
+        controles = controles.concat(obtenerControlesCajaEnCachePorRango(fechaSeleccionada, sumarDiasISO(fechaSeleccionada, 1)));
+      }
+    } else {
+      await asegurarVentasNecesariasParaHistoricos(forzarRemoto);
+      controles = await consultarControlCajaPorRangoFirestore(inicioMesActual, finMesActual, { forzar: forzarRemoto });
+      if (fechaSeleccionada && !estaFechaISOEnRango(fechaSeleccionada, inicioMesActual, finMesActual)) {
+        await consultarControlCajaPorRangoFirestore(fechaSeleccionada, sumarDiasISO(fechaSeleccionada, 1), { forzar: forzarRemoto });
+        controles = obtenerControlesCajaEnCachePorRango(inicioMesActual, finMesActual)
+          .concat(obtenerControlesCajaEnCachePorRango(fechaSeleccionada, sumarDiasISO(fechaSeleccionada, 1)));
+      }
     }
 
-    const controlesConVentas = enriquecerControlesConVentas((Array.isArray(controles) ? controles : []).map(control => normalizarControlCaja(control, control?.diaClave || '')), inicioMesActual, finMesActual);
+    const controlesConVentas = enriquecerControlesConVentas(
+      (Array.isArray(controles) ? controles : []).map(control => normalizarControlCaja(control, control?.diaClave || '')),
+      inicioMesActual,
+      finMesActual
+    );
     const controlesNormalizados = construirControlesBaseDelMesHastaHoy(controlesConVentas, hoy);
     const controlHoy = controlesNormalizados.find(control => control.diaClave === hoy) || normalizarControlCaja({}, hoy);
     const controlesSemana = controlesNormalizados.filter(control => obtenerClaveSemana(new Date(`${control.diaClave}T12:00:00`)) === semanaActual);
@@ -6585,8 +6680,11 @@ function volverAlPOS() {
     renderHistorico('historicoMesBody', resumirHistoricoControles(controlesNormalizados, 'mes'), 'No hay cierres/resúmenes registrados por mes.', 'mes');
 
     limpiarVentasDetalladasHistorico(fechaSeleccionada);
-    renderTablaCierresCaja(false);
+    if (!soloCache) {
+      renderTablaCierresCaja(false);
+    }
   }
+
 
   
   function actualizarDomiciliosVista() {
@@ -6753,6 +6851,7 @@ window.addEventListener('DOMContentLoaded', () => {
   cargarCatalogoProductos();
   aplicarPermisosPorRol();
   mostrarTablaHistorico('dia');
+  programarCargaInicialPesada();
 
   const modalEditor = document.getElementById('modalEditorCatalogo');
   if (modalEditor) {
