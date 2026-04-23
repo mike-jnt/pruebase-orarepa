@@ -3257,6 +3257,26 @@ async function borrarVentaEnFirebase(docId) {
   await firestoreDb.collection("ventas").doc(docId).delete();
 }
 
+function eliminarVentaDeCacheLocal(venta = {}) {
+  const ventasActuales = obtenerVentasStorage();
+  const ventasRestantes = ventasActuales.filter(item => {
+    const coincideDoc = venta._docId && item._docId === venta._docId;
+    const coincideLocal = venta._localId && item._localId === venta._localId;
+    return !(coincideDoc || coincideLocal);
+  });
+  guardarVentasEnCache(ordenarVentasDesc(ventasRestantes));
+  return ventasRestantes;
+}
+
+function actualizarReferenciaUltimaVentaTrasEliminar() {
+  const ventasRestantes = ordenarVentasDesc(obtenerVentasStorage());
+  if (ventasRestantes.length) {
+    guardarReferenciaUltimaVenta(ventasRestantes[0]);
+  } else {
+    localStorage.removeItem(ULTIMA_VENTA_GUARDADA_KEY);
+  }
+}
+
 
 function toggleVerClave() {
   const input = document.getElementById("loginClave");
@@ -3926,6 +3946,7 @@ function cancelarPedidoActual() {
       <button onclick="imprimirVentaCocina(${i})" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">👨‍🍳 Cocina</button>
       ${ventaCancelada ? `<span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-700">Cancelada</span>` : (tieneAccesoGestion() ? `<button onclick="marcarVentaComoCancelada(${i})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">❌ Cancelar</button>` : "")}
       ${esAdmin() ? `<button onclick="editarVenta(${i})" class="bg-yellow-600 text-white px-2 py-1 rounded text-xs">📝 Editar</button>` : ""}
+      ${esAdmin() ? `<button onclick="eliminarVentaPermanentemente(${i})" class="bg-red-800 text-white px-2 py-1 rounded text-xs">🗑️ Eliminar</button>` : ""}
     `;
 
     return `
@@ -4005,6 +4026,7 @@ function cancelarPedidoActual() {
     if (esAdmin()) {
       botonesAccion += `
         <button onclick="editarVenta(${i})" class="bg-yellow-600 text-white px-3 py-2 rounded-lg text-sm font-semibold w-full mt-2">📝 Editar</button>
+        <button onclick="eliminarVentaPermanentemente(${i})" class="bg-red-800 text-white px-3 py-2 rounded-lg text-sm font-semibold w-full mt-2">🗑️ Eliminar</button>
       `;
     }
 
@@ -4567,6 +4589,57 @@ function imprimirVentaCocina(index) {
     generarPlantillaComanda(venta, venta.comanda ?? venta.recibo ?? (index + 1)),
     'Pedido Cocina'
   );
+}
+
+async function eliminarVentaPermanentemente(index) {
+  if (!verificarAcceso(["admin"])) return;
+  const ventas = obtenerVentasStorage();
+  const venta = ventas[index];
+  if (!venta) return alert("Venta no encontrada.");
+
+  const numeroVenta = venta.comanda ?? venta.recibo ?? (index + 1);
+  const tieneRegistroRemoto = Boolean(venta._docId);
+
+  if (tieneRegistroRemoto && (!firestoreDisponible || !firestoreDb)) {
+    alert("No se puede eliminar en este momento porque no hay conexión con la base de datos.");
+    return;
+  }
+
+  if (!confirm(`¿Eliminar definitivamente la venta #${numeroVenta}? Esta acción la borrará del local y de la base de datos.`)) {
+    return;
+  }
+
+  try {
+    if (tieneRegistroRemoto) {
+      await borrarVentaEnFirebase(venta._docId);
+    }
+
+    await sincronizarInventarioBebidasPorCambio(null, venta);
+    eliminarVentaDeCacheLocal(venta);
+    quitarVentaPendienteSync(venta._localId || venta._docId || "");
+    actualizarReferenciaUltimaVentaTrasEliminar();
+
+    const esVentaEnEdicion =
+      (ventaDocIdEnEdicion && venta._docId && ventaDocIdEnEdicion === venta._docId) ||
+      (ventaOriginalEnEdicion?._localId && venta._localId && ventaOriginalEnEdicion._localId === venta._localId);
+
+    if (esVentaEnEdicion) {
+      limpiarContextoEdicionVenta();
+      limpiarPedido();
+    }
+
+    alert("Venta eliminada definitivamente.");
+    mostrarVentas();
+    renderControlCajaDiaActual();
+    const resumen = document.getElementById("resumenProductos");
+    if (resumen && !resumen.classList.contains("hidden")) {
+      generarResumenProductos();
+    }
+    refrescarVistasAnaliticasSiEstanAbiertas();
+  } catch (error) {
+    console.error("Error al eliminar la venta:", error);
+    alert("No se pudo eliminar la venta.");
+  }
 }
 
 async function marcarVentaComoCancelada(index) {
