@@ -434,21 +434,6 @@
   }
 </style>
 
-
-<style>
-  .proceso-venta-card {
-    transition: opacity 0.25s ease, transform 0.25s ease;
-  }
-  .proceso-venta-card.hidden {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  .proceso-venta-card:not(.hidden) {
-    opacity: 1;
-    transform: translateY(0);
-  }
-</style>
-
 </head>
 
 <body class="bg-yellow-50 font-sans">
@@ -618,18 +603,6 @@
 
   <!-- Sección Productos -->
   <main id="appMain" class="p-4 md:p-6">
-    <div class="sticky top-20 z-30 mb-4 flex justify-end">
-      <div id="procesoVentaCard" class="proceso-venta-card hidden w-full max-w-sm rounded-2xl border border-yellow-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm">
-        <div class="flex items-start gap-3">
-          <div id="procesoVentaIcono" class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">⏳</div>
-          <div class="min-w-0 flex-1">
-            <p id="procesoVentaTitulo" class="text-sm font-bold text-gray-800">Estado del proceso</p>
-            <p id="procesoVentaDetalle" class="mt-1 text-xs leading-5 text-gray-500">Aquí verás cuándo se abre el recibo y cuándo termina la sincronización.</p>
-          </div>
-          <button type="button" onclick="ocultarTarjetaProcesoVenta()" class="rounded-full bg-white px-2 py-1 text-xs font-bold text-gray-400 hover:bg-gray-100 hover:text-gray-600">✕</button>
-        </div>
-      </div>
-    </div>
     <div class="md:hidden flex flex-col gap-4 mb-4">
       <div class="flex items-center justify-between gap-3">
         <h2 class="text-2xl font-bold text-gray-700">Nueva venta</h2>
@@ -984,12 +957,8 @@
                 <th class="p-2 border">Apertura</th>
                 <th class="p-2 border">Cierre</th>
                 <th class="p-2 border">Efectivo sistema</th>
-                <th class="p-2 border">Transferencias digitales</th>
-                <th class="p-2 border">Ajuste domicilios digitales</th>
-                <th class="p-2 border">Esperado caja</th>
-                <th class="p-2 border">Esperado transferencias</th>
-                <th class="p-2 border">Esperado total</th>
-                <th class="p-2 border">Diferencia caja</th>
+                <th class="p-2 border">Dinero esperado</th>
+                <th class="p-2 border">Diferencia</th>
                 <th class="p-2 border">Abrió</th>
                 <th class="p-2 border">Cerró</th>
                 <th class="p-2 border">Acciones</th>
@@ -1129,101 +1098,80 @@
           <p class="text-sm text-gray-500">Resumen completo por día, semana y mes.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button onclick="actualizarHistoricosManual()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">Actualizar históricos</button>
+          <button onclick="actualizarHistoricos()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">Actualizar históricos</button>
           <button onclick="volverAlPOS()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">← Volver al sistema</button>
         </div>
-      </div>
-
-      <div id="histEstadoCarga" class="mb-4 inline-flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
-        <span class="inline-block h-2 w-2 rounded-full bg-blue-500"></span>
-        <span>Listo para consultar.</span>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
           <p class="text-sm text-gray-500">Hoy</p>
-          <p id="histHoyVentas" class="text-2xl font-bold text-gray-800">0 venta(s)</p>
-          <p id="histHoyTotal" class="text-sm text-gray-700">Total del día: $0</p>
+          <p id="histHoyVentas" class="text-2xl font-bold text-gray-800">0 ventas</p>
+          <p id="histHoyTotal" class="text-sm text-gray-700">$0</p>
         </div>
         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
           <p class="text-sm text-gray-500">Esta semana</p>
-          <p id="histSemanaTotal" class="text-2xl font-bold text-gray-800">$0</p>
-          <p id="histSemanaVentas" class="text-sm text-gray-700">0 venta(s)</p>
+          <p id="histSemanaVentas" class="text-2xl font-bold text-gray-800">0 ventas</p>
+          <p id="histSemanaTotal" class="text-sm text-gray-700">$0</p>
         </div>
         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
           <p class="text-sm text-gray-500">Este mes</p>
-          <p id="histMesTotal" class="text-2xl font-bold text-gray-800">$0</p>
-          <p id="histMesVentas" class="text-sm text-gray-700">0 venta(s)</p>
+          <p id="histMesVentas" class="text-2xl font-bold text-gray-800">0 ventas</p>
+          <p id="histMesTotal" class="text-sm text-gray-700">$0</p>
         </div>
       </div>
 
-      <div class="mb-4 flex flex-wrap gap-2">
-        <button type="button" id="btnHistDia" onclick="mostrarTablaHistorico('dia')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-semibold">Histórico por día</button>
-        <button type="button" id="btnHistSemana" onclick="mostrarTablaHistorico('semana')" class="bg-white border border-yellow-300 text-yellow-700 px-4 py-2 rounded-lg font-semibold">Histórico por semana</button>
-        <button type="button" id="btnHistMes" onclick="mostrarTablaHistorico('mes')" class="bg-white border border-yellow-300 text-yellow-700 px-4 py-2 rounded-lg font-semibold">Histórico por mes</button>
-      </div>
-
-      <div id="panelHistoricoDia" class="mb-8">
-        <h4 class="font-semibold mb-2">Histórico por día</h4>
-        <div class="overflow-auto border rounded-lg">
-          <table class="min-w-full text-sm">
-            <thead class="bg-yellow-100">
-              <tr>
-                <th class="p-2 border">Fecha</th>
-                <th class="p-2 border">Pedidos</th>
-                <th class="p-2 border">Domicilios</th>
-                <th class="p-2 border">Efectivo</th>
-                <th class="p-2 border">Transferencias</th>
-                <th class="p-2 border">Ajuste domicilios digitales</th>
-                <th class="p-2 border">Total</th>
-              </tr>
-            </thead>
-            <tbody id="historicoDiaBody"></tbody>
-          </table>
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+        <div>
+          <h4 class="font-semibold mb-2">Histórico por día</h4>
+          <div class="overflow-auto border rounded-lg">
+            <table class="min-w-full text-sm">
+              <thead class="bg-yellow-100">
+                <tr>
+                  <th class="p-2 border">Fecha</th>
+                  <th class="p-2 border">Pedidos</th>
+                  <th class="p-2 border">Domicilios</th>
+                  <th class="p-2 border">Total</th>
+                </tr>
+              </thead>
+              <tbody id="historicoDiaBody"></tbody>
+            </table>
+          </div>
         </div>
-        <div id="paginacionHistoricoDia" class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm"></div>
-      </div>
 
-      <div id="panelHistoricoSemana" class="mb-8 hidden">
-        <h4 class="font-semibold mb-2">Histórico por semana</h4>
-        <div class="overflow-auto border rounded-lg">
-          <table class="min-w-full text-sm">
-            <thead class="bg-yellow-100">
-              <tr>
-                <th class="p-2 border">Semana</th>
-                <th class="p-2 border">Pedidos</th>
-                <th class="p-2 border">Domicilios</th>
-                <th class="p-2 border">Efectivo</th>
-                <th class="p-2 border">Transferencias</th>
-                <th class="p-2 border">Ajuste domicilios digitales</th>
-                <th class="p-2 border">Total</th>
-              </tr>
-            </thead>
-            <tbody id="historicoSemanaBody"></tbody>
-          </table>
+        <div>
+          <h4 class="font-semibold mb-2">Histórico por semana</h4>
+          <div class="overflow-auto border rounded-lg">
+            <table class="min-w-full text-sm">
+              <thead class="bg-yellow-100">
+                <tr>
+                  <th class="p-2 border">Semana</th>
+                  <th class="p-2 border">Pedidos</th>
+                  <th class="p-2 border">Domicilios</th>
+                  <th class="p-2 border">Total</th>
+                </tr>
+              </thead>
+              <tbody id="historicoSemanaBody"></tbody>
+            </table>
+          </div>
         </div>
-        <div id="paginacionHistoricoSemana" class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm"></div>
-      </div>
 
-      <div id="panelHistoricoMes" class="mb-8 hidden">
-        <h4 class="font-semibold mb-2">Histórico por mes</h4>
-        <div class="overflow-auto border rounded-lg">
-          <table class="min-w-full text-sm">
-            <thead class="bg-yellow-100">
-              <tr>
-                <th class="p-2 border">Mes</th>
-                <th class="p-2 border">Pedidos</th>
-                <th class="p-2 border">Domicilios</th>
-                <th class="p-2 border">Efectivo</th>
-                <th class="p-2 border">Transferencias</th>
-                <th class="p-2 border">Ajuste domicilios digitales</th>
-                <th class="p-2 border">Total</th>
-              </tr>
-            </thead>
-            <tbody id="historicoMesBody"></tbody>
-          </table>
+        <div>
+          <h4 class="font-semibold mb-2">Histórico por mes</h4>
+          <div class="overflow-auto border rounded-lg">
+            <table class="min-w-full text-sm">
+              <thead class="bg-yellow-100">
+                <tr>
+                  <th class="p-2 border">Mes</th>
+                  <th class="p-2 border">Pedidos</th>
+                  <th class="p-2 border">Domicilios</th>
+                  <th class="p-2 border">Total</th>
+                </tr>
+              </thead>
+              <tbody id="historicoMesBody"></tbody>
+            </table>
+          </div>
         </div>
-        <div id="paginacionHistoricoMes" class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm"></div>
       </div>
 
       <div class="border border-yellow-200 rounded-xl p-4 bg-yellow-50">
@@ -1237,14 +1185,12 @@
               <label for="filtroHistoricoFecha" class="block text-sm text-gray-600 mb-1">Fecha a consultar</label>
               <input type="date" id="filtroHistoricoFecha" class="p-2 border border-yellow-300 rounded-lg" />
             </div>
-            <button onclick="verVentasDetalladasPorFecha(false)" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">Ver ventas del día</button>
+            <button onclick="verVentasDetalladasPorFecha()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">Ver ventas del día</button>
             <button onclick="exportarVentasDelDiaHistorico()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">Exportar Excel del día</button>
           </div>
         </div>
 
-        <div id="resumenVentasDiaSeleccionado" class="mb-4 text-sm text-gray-700">
-          Selecciona una fecha y presiona <strong>Ver ventas del día</strong> para consultar el detalle.
-        </div>
+        <div id="resumenVentasDiaSeleccionado" class="mb-4 text-sm text-gray-700"></div>
 
         <div class="overflow-auto border rounded-lg bg-white">
           <table class="min-w-full text-sm">
@@ -1265,7 +1211,6 @@
             <tbody id="ventasDiaDetalleBody"></tbody>
           </table>
         </div>
-        <div id="paginacionVentasDiaDetalle" class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm"></div>
       </div>
 
     </div>
@@ -1280,7 +1225,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
           <button onclick="volverAlPOS()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg">← Volver al POS</button>
-          <button onclick="asegurarVentasMesActualCargadas(true).finally(() => actualizarDomiciliosVista())" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">Actualizar domicilios</button>
+          <button onclick="actualizarDomiciliosVista()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">Actualizar domicilios</button>
         </div>
       </div>
 
@@ -1423,44 +1368,16 @@ let firestoreDb = null;
 let firestoreDisponible = false;
 let authDisponible = false;
 let ventasUnsubscribe = null;
-let controlCajaUnsubscribe = null;
 let firebaseInicializado = false;
 let firebaseConexionEstado = "desconectado";
 let ultimoHeartbeatFirebase = 0;
 let monitorFirebaseInterval = null;
 const ULTIMA_VENTA_GUARDADA_KEY = "ultimaVentaGuardada";
 const VENTAS_PENDIENTES_SYNC_KEY = "ventasPendientesSync";
-const VENTAS_TEMP_SYNC_STORAGE_KEY = "ventasTemporalSyncV1";
 const ESTADO_VENTA_ACTIVA = "activa";
 const ESTADO_VENTA_CANCELADA = "cancelada";
 let sincronizandoVentasPendientes = false;
-let temporizadorTarjetaProcesoVenta = null;
-let ventaPendienteAvisoSyncLocalId = "";
 let temporizadorSyncVentasPendientes = null;
-const VENTAS_REMOTE_STATE_KEY = "ventasRemoteReadStateV1";
-const VENTAS_REMOTE_RANGE_TTL_MS = 15 * 60 * 1000;
-const HISTORICO_PAGE_SIZE = 10;
-const DETALLE_VENTAS_PAGE_SIZE = 20;
-const VENTAS_DIA_DETALLE_CACHE_KEY = "ventasDetalleHistoricoCacheV1";
-const VENTAS_DIA_DETALLE_CACHE_TTL_MS = 30 * 60 * 1000;
-let ventasRemoteReadState = (() => {
-  try {
-    return JSON.parse(localStorage.getItem(VENTAS_REMOTE_STATE_KEY) || "{}");
-  } catch (error) {
-    return {};
-  }
-})();
-let diaVentasEscuchando = "";
-let diaControlCajaEscuchando = "";
-let historicoPaginacionEstado = { dia: 1, semana: 1, mes: 1 };
-let ventasDetalleHistoricoCache = (() => {
-  try {
-    return JSON.parse(localStorage.getItem(VENTAS_DIA_DETALLE_CACHE_KEY) || "{}");
-  } catch (error) {
-    return {};
-  }
-})();
-let ventasDetalleDiaEstado = { fecha: "", paginaActual: 1, totalPaginas: 1, cargadasRemotas: 0, agotadoRemoto: false, ultimoCursor: "", cargando: false };
 const CONTROL_CAJA_STORAGE_KEY = "controlCajaPorDia";
 let controlCajaCache = JSON.parse(localStorage.getItem(CONTROL_CAJA_STORAGE_KEY) || "{}");
 let controlCajaFirebasePermisosDisponibles = true;
@@ -1476,37 +1393,6 @@ const STOCK_BEBIDA_BAJO_UMBRAL = 5;
 let inventarioUnsubscribe = null;
 let inventarioBebidasEstado = {};
 let inventarioPermisosAvisados = false;
-const CATALOGO_REMOTE_STATE_KEY = 'catalogoRemoteReadStateV2';
-const CATALOGO_REMOTE_TTL_MS = 12 * 60 * 60 * 1000;
-const INVENTARIO_REMOTE_STATE_KEY = 'inventarioRemoteReadStateV1';
-const INVENTARIO_REMOTE_TTL_MS = 30 * 60 * 1000;
-const CONTROL_CAJA_REMOTE_STATE_KEY = 'controlCajaRemoteReadStateV1';
-const CONTROL_CAJA_REMOTE_TTL_MS = 30 * 60 * 1000;
-let catalogoRemoteReadState = (() => {
-  try {
-    return JSON.parse(localStorage.getItem(CATALOGO_REMOTE_STATE_KEY) || '{}');
-  } catch (error) {
-    return {};
-  }
-})();
-let inventarioRemoteReadState = (() => {
-  try {
-    return JSON.parse(localStorage.getItem(INVENTARIO_REMOTE_STATE_KEY) || '{}');
-  } catch (error) {
-    return {};
-  }
-})();
-let controlCajaRemoteReadState = (() => {
-  try {
-    return JSON.parse(localStorage.getItem(CONTROL_CAJA_REMOTE_STATE_KEY) || '{}');
-  } catch (error) {
-    return {};
-  }
-})();
-let temporizadorPausaVentasOculto = null;
-let listenerVentasPausadoPorOculto = false;
-const PAUSA_VENTAS_OCULTO_DELAY_MS = 90 * 1000;
-let ahorroLecturasEventosRegistrados = false;
 const CATALOGO_PRODUCTOS_STORAGE_KEY = 'senor_arepa_catalogo_productos_v2';
 const DEFINICIONES_CATALOGO = {
   comida: {
@@ -1562,85 +1448,12 @@ function actualizarEstadoCatalogoSync(mensaje = 'Catálogo cargado en modo local
   el.textContent = mensaje;
 }
 
-function obtenerCatalogoLimpioParaStorage(origen = catalogoProductos) {
-  const limpio = normalizarCatalogoProductos(origen);
+function prepararPayloadCatalogoFirestore() {
+  const limpio = normalizarCatalogoProductos(catalogoProductos);
   return {
     comida: (limpio.comida || []).map(item => ({ id: item.id, nombre: String(item.nombre || '').trim(), precio: Number(item.precio || 0), icono: item.icono || DEFINICIONES_CATALOGO.comida.iconoDefecto })),
     adiciones: (limpio.adiciones || []).map(item => ({ id: item.id, nombre: String(item.nombre || '').trim(), precio: Number(item.precio || 0), icono: item.icono || DEFINICIONES_CATALOGO.adiciones.iconoDefecto })),
-    bebidas: (limpio.bebidas || []).map(item => ({ id: item.id, nombre: String(item.nombre || '').trim(), precio: Number(item.precio || 0), icono: item.icono || DEFINICIONES_CATALOGO.bebidas.iconoDefecto }))
-  };
-}
-
-function calcularHashTextoSimple(texto = '') {
-  const contenido = String(texto || '');
-  let hash = 0;
-  for (let i = 0; i < contenido.length; i += 1) {
-    hash = ((hash << 5) - hash) + contenido.charCodeAt(i);
-    hash |= 0;
-  }
-  return `c${Math.abs(hash)}`;
-}
-
-function obtenerChecksumCatalogo(origen = catalogoProductos) {
-  return calcularHashTextoSimple(JSON.stringify(obtenerCatalogoLimpioParaStorage(origen)));
-}
-
-function obtenerTotalProductosCatalogo(origen = catalogoProductos) {
-  const limpio = obtenerCatalogoLimpioParaStorage(origen);
-  return Object.values(limpio).reduce((total, lista) => total + (Array.isArray(lista) ? lista.length : 0), 0);
-}
-
-function catalogoLocalTieneContenido(origen = catalogoProductos) {
-  const limpio = obtenerCatalogoLimpioParaStorage(origen);
-  return Object.values(limpio).some(lista => Array.isArray(lista) && lista.length > 0);
-}
-
-function actualizarMetaCatalogoLocal(parcial = {}) {
-  catalogoRemoteReadState = { ...(catalogoRemoteReadState || {}), ...parcial };
-  guardarEstadoLecturasCatalogoRemoto();
-}
-
-function obtenerMillisDesdeFechaFlexible(valor) {
-  if (!valor) return 0;
-  if (typeof valor === 'number' && Number.isFinite(valor)) return valor;
-  if (valor instanceof Date) return valor.getTime();
-  if (typeof valor?.toMillis === 'function') {
-    try { return Number(valor.toMillis()) || 0; } catch (error) { return 0; }
-  }
-  if (typeof valor?.seconds === 'number') {
-    return (Number(valor.seconds) * 1000) + Math.round(Number(valor.nanoseconds || 0) / 1000000);
-  }
-  const convertido = new Date(valor).getTime();
-  return Number.isFinite(convertido) ? convertido : 0;
-}
-
-function marcarCatalogoLocalPendiente() {
-  actualizarMetaCatalogoLocal({
-    dirty: true,
-    localChecksum: obtenerChecksumCatalogo(catalogoProductos),
-    localUpdatedAt: Date.now(),
-    totalProductos: obtenerTotalProductosCatalogo(catalogoProductos)
-  });
-}
-
-function marcarCatalogoLocalSincronizado(extra = {}) {
-  actualizarMetaCatalogoLocal({
-    dirty: false,
-    localChecksum: obtenerChecksumCatalogo(catalogoProductos),
-    localUpdatedAt: Date.now(),
-    totalProductos: obtenerTotalProductosCatalogo(catalogoProductos),
-    ...extra
-  });
-}
-
-function prepararPayloadCatalogoFirestore() {
-  const limpio = obtenerCatalogoLimpioParaStorage(catalogoProductos);
-  const checksum = obtenerChecksumCatalogo(limpio);
-  return {
-    ...limpio,
-    checksum,
-    totalProductos: obtenerTotalProductosCatalogo(limpio),
-    schemaVersion: 2,
+    bebidas: (limpio.bebidas || []).map(item => ({ id: item.id, nombre: String(item.nombre || '').trim(), precio: Number(item.precio || 0), icono: item.icono || DEFINICIONES_CATALOGO.bebidas.iconoDefecto })),
     updatedAt: window.firebase?.firestore?.FieldValue?.serverTimestamp ? window.firebase.firestore.FieldValue.serverTimestamp() : new Date(),
     updatedBy: String(localStorage.getItem('usuarioEmailActual') || '')
   };
@@ -1654,18 +1467,14 @@ async function guardarCatalogoProductosRemoto(mostrarEstado = true) {
   if (!ref) {
     throw new Error('Firebase no está disponible en este momento.');
   }
-  const payload = prepararPayloadCatalogoFirestore();
   catalogoGuardandoRemoto = true;
   if (mostrarEstado) actualizarEstadoCatalogoSync('Guardando catálogo en Firebase...', 'info');
   try {
-    await ref.set(payload);
+    await ref.set(prepararPayloadCatalogoFirestore(), { merge: true });
     registrarHeartbeatFirebase();
     catalogoFirestorePermisosDisponibles = true;
-    marcarCatalogoRemotoLeido(payload.checksum, Date.now());
-    marcarCatalogoLocalSincronizado({ remoteChecksum: payload.checksum, remoteUpdatedAt: Date.now() });
     if (mostrarEstado) actualizarEstadoCatalogoSync('Catálogo sincronizado con Firebase.', 'ok');
   } catch (error) {
-    marcarCatalogoLocalPendiente();
     if (String(error?.message || '').toLowerCase().includes('missing or insufficient permissions')) {
       catalogoFirestorePermisosDisponibles = false;
       actualizarEstadoCatalogoSync('Sin permisos en Firebase para el catálogo. Se guardó solo en este equipo.', 'warn');
@@ -1679,12 +1488,18 @@ async function guardarCatalogoProductosRemoto(mostrarEstado = true) {
 }
 
 async function sembrarCatalogoRemotoSiNoExiste() {
-  if (catalogoRemoteReadState?.dirty) {
-    try {
+  if (!tienePermisoGestionCatalogoRemoto()) return;
+  const ref = obtenerRefCatalogoFirestore();
+  if (!ref) return;
+  try {
+    const doc = await ref.get();
+    registrarHeartbeatFirebase();
+    if (!doc.exists) {
       await guardarCatalogoProductosRemoto(false);
-    } catch (error) {
-      console.warn('El catálogo quedó pendiente de sincronización remota:', error);
+      actualizarEstadoCatalogoSync('Catálogo base publicado en Firebase.', 'ok');
     }
+  } catch (error) {
+    console.error('No se pudo sembrar el catálogo remoto:', error);
   }
 }
 
@@ -1693,93 +1508,40 @@ function aplicarCatalogoRemoto(data = null, origen = 'firebase') {
   const tieneItems = Object.values(remoto).some(lista => Array.isArray(lista) && lista.length);
   if (!tieneItems) return false;
   catalogoProductos = remoto;
-  guardarCatalogoProductosLocal({ marcarSincronizado: true });
-  const checksum = data?.checksum || obtenerChecksumCatalogo(remoto);
-  const updatedAt = obtenerMillisDesdeFechaFlexible(data?.updatedAt) || Date.now();
-  marcarCatalogoRemotoLeido(checksum, updatedAt);
+  guardarCatalogoProductosLocal();
   renderizarCatalogoProductosUI();
   actualizarEstadoCatalogoSync(origen === 'firebase' ? 'Catálogo sincronizado desde Firebase.' : 'Catálogo actualizado.', 'ok');
   return true;
 }
 
-function debeConsultarCatalogoRemoto(forzar = false) {
-  if (forzar) return true;
-  if (catalogoRemoteReadState?.dirty) return false;
-  if (!catalogoLocalTieneContenido(catalogoProductos)) return true;
-  return !catalogoRemotoLeidoRecientemente();
-}
-
-async function sincronizarCatalogoPendienteSiHaceFalta() {
-  if (!catalogoRemoteReadState?.dirty) return false;
-  if (!tienePermisoGestionCatalogoRemoto() || !firestoreDisponible || !firestoreDb) return false;
-  try {
-    await guardarCatalogoProductosRemoto(false);
-    actualizarEstadoCatalogoSync('Catálogo local pendiente sincronizado con Firebase.', 'ok');
-    return true;
-  } catch (error) {
-    console.warn('No se pudo sincronizar el catálogo pendiente:', error);
-    return false;
-  }
-}
-
-async function cargarCatalogoFirestoreUnaVez(forzar = false, sembrarSiNoExiste = false) {
+function escucharCatalogoFirestore() {
   if (!firestoreDisponible || !firestoreDb) {
     actualizarEstadoCatalogoSync('Catálogo en modo local. Firebase no disponible.', 'warn');
-    return false;
+    return;
   }
-  if (catalogoRemoteReadState?.dirty) {
-    actualizarEstadoCatalogoSync('Hay cambios locales pendientes por subir. Se evita leer Firebase para no pisarlos.', 'warn');
-    if (sembrarSiNoExiste) await sincronizarCatalogoPendienteSiHaceFalta();
-    return false;
-  }
-  const ref = obtenerRefCatalogoFirestore();
-  if (!ref) return false;
-  if (!debeConsultarCatalogoRemoto(forzar)) {
-    actualizarEstadoCatalogoSync('Catálogo cargado desde caché local para ahorrar lecturas.', 'info');
-    return true;
-  }
-  try {
-    const doc = await ref.get();
-    registrarHeartbeatFirebase();
-    catalogoFirestorePermisosDisponibles = true;
-    const data = doc.exists ? (doc.data() || {}) : null;
-    const checksumRemoto = data?.checksum || obtenerChecksumCatalogo(data || {});
-    const updatedAtRemoto = obtenerMillisDesdeFechaFlexible(data?.updatedAt) || Date.now();
-    marcarCatalogoRemotoLeido(checksumRemoto, updatedAtRemoto);
-    if (!doc.exists) {
-      actualizarEstadoCatalogoSync('Firebase no tenía catálogo publicado. Se mantiene la copia local.', 'warn');
-      if (sembrarSiNoExiste) {
-        await sincronizarCatalogoPendienteSiHaceFalta();
-      }
-      return false;
-    }
-
-    const checksumLocal = obtenerChecksumCatalogo(catalogoProductos);
-    if (!forzar && catalogoLocalTieneContenido(catalogoProductos) && checksumLocal === checksumRemoto) {
-      marcarCatalogoLocalSincronizado({ remoteChecksum: checksumRemoto, remoteUpdatedAt: updatedAtRemoto });
-      actualizarEstadoCatalogoSync('Catálogo local vigente. No se reemplazó ni se hicieron lecturas extra.', 'info');
-      return true;
-    }
-
-    return aplicarCatalogoRemoto(data, 'firebase');
-  } catch (error) {
-    console.error('Error al cargar el catálogo desde Firebase:', error);
-    if (String(error?.message || '').toLowerCase().includes('missing or insufficient permissions')) {
-      catalogoFirestorePermisosDisponibles = false;
-      actualizarEstadoCatalogoSync('Firebase no tiene permisos para leer el catálogo. Se usa la copia local.', 'warn');
-    } else {
-      actualizarEstadoCatalogoSync('No se pudo consultar el catálogo remoto. Se usa la copia local.', 'warn');
-    }
-    return false;
-  }
-}
-
-function escucharCatalogoFirestore() {
   if (typeof catalogoUnsubscribe === 'function') {
     catalogoUnsubscribe();
     catalogoUnsubscribe = null;
   }
-  return cargarCatalogoFirestoreUnaVez(false, false);
+  const ref = obtenerRefCatalogoFirestore();
+  if (!ref) return;
+  catalogoUnsubscribe = ref.onSnapshot(async (doc) => {
+    registrarHeartbeatFirebase();
+    catalogoFirestorePermisosDisponibles = true;
+    const aplicado = aplicarCatalogoRemoto(doc.exists ? doc.data() : null, 'firebase');
+    if (!aplicado) {
+      actualizarEstadoCatalogoSync('Catálogo remoto vacío. Usando copia local por ahora.', 'warn');
+      await sembrarCatalogoRemotoSiNoExiste();
+    }
+  }, (error) => {
+    console.error('Error al escuchar el catálogo desde Firebase:', error);
+    if (String(error?.message || '').toLowerCase().includes('missing or insufficient permissions')) {
+      catalogoFirestorePermisosDisponibles = false;
+      actualizarEstadoCatalogoSync('Firebase no tiene permisos para leer el catálogo. Se usa la copia local.', 'warn');
+    } else {
+      actualizarEstadoCatalogoSync('No se pudo sincronizar el catálogo. Se usa la copia local.', 'error');
+    }
+  });
 }
 
 function clonarJSON(data) {
@@ -1846,19 +1608,9 @@ function extraerCatalogoBaseDesdeDOM() {
   return salida;
 }
 
-function guardarCatalogoProductosLocal(opciones = {}) {
+function guardarCatalogoProductosLocal() {
   try {
-    localStorage.setItem(CATALOGO_PRODUCTOS_STORAGE_KEY, JSON.stringify(obtenerCatalogoLimpioParaStorage(catalogoProductos)));
-    if (opciones?.marcarDirty) {
-      marcarCatalogoLocalPendiente();
-    } else if (opciones?.marcarSincronizado) {
-      marcarCatalogoLocalSincronizado();
-    } else {
-      actualizarMetaCatalogoLocal({
-        localChecksum: obtenerChecksumCatalogo(catalogoProductos),
-        totalProductos: obtenerTotalProductosCatalogo(catalogoProductos)
-      });
-    }
+    localStorage.setItem(CATALOGO_PRODUCTOS_STORAGE_KEY, JSON.stringify(catalogoProductos));
   } catch (error) {
     console.error('No se pudo guardar el catálogo de productos:', error);
   }
@@ -1875,11 +1627,7 @@ function cargarCatalogoProductos() {
   catalogoProductos = normalizarCatalogoProductos(guardado || catalogoBaseProductos);
   guardarCatalogoProductosLocal();
   renderizarCatalogoProductosUI();
-  if (catalogoRemoteReadState?.dirty) {
-    actualizarEstadoCatalogoSync('Catálogo cargado desde este equipo. Tiene cambios pendientes por subir a Firebase.', 'warn');
-  } else {
-    actualizarEstadoCatalogoSync('Catálogo cargado desde este equipo. Esperando sincronización eficiente...', 'info');
-  }
+  actualizarEstadoCatalogoSync('Catálogo cargado desde este equipo. Esperando sincronización...', 'info');
 }
 
 function obtenerEtiquetaBotonProducto(producto, categoriaId) {
@@ -2059,7 +1807,7 @@ async function guardarCatalogoDesdeEditor() {
     return;
   }
   catalogoProductos = normalizarCatalogoProductos(catalogoProductos);
-  guardarCatalogoProductosLocal({ marcarDirty: true });
+  guardarCatalogoProductosLocal();
   renderizarCatalogoProductosUI();
 
   let mensajeFinal = 'Catálogo actualizado correctamente en este equipo.';
@@ -2084,7 +1832,7 @@ async function restablecerCatalogoBase() {
   if (!confirm('¿Seguro que quieres volver al menú base original?')) return;
   catalogoProductos = clonarJSON(catalogoBaseProductos || { comida: [], adiciones: [], bebidas: [] });
   catalogoProductos = normalizarCatalogoProductos(catalogoProductos);
-  guardarCatalogoProductosLocal({ marcarDirty: true });
+  guardarCatalogoProductosLocal();
   renderizarCatalogoProductosUI();
   renderizarEditorCatalogo();
   if (tienePermisoGestionCatalogoRemoto() && firestoreDisponible && firestoreDb) {
@@ -2182,42 +1930,31 @@ function actualizarAlertasStockBebidas(origen = null) {
   });
 }
 
-async function cargarInventarioFirestoreUnaVez(forzar = false) {
-  if (!firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) {
-    inventarioBebidasEstado = obtenerMapaInventarioLocal();
-    actualizarAlertasStockBebidas(inventarioBebidasEstado);
-    return obtenerInventarioArrayLocal();
+function escucharInventarioFirestore() {
+  if (!firestoreDisponible || !firestoreDb) {
+    actualizarAlertasStockBebidas();
+    return;
   }
-  if (!forzar && inventarioRemotoLeidoRecientemente()) {
-    inventarioBebidasEstado = obtenerMapaInventarioLocal();
-    actualizarAlertasStockBebidas(inventarioBebidasEstado);
-    return obtenerInventarioArrayLocal();
-  }
-  try {
-    const snapshot = await firestoreDb.collection(INVENTARIO_COLLECTION).get();
+  if (typeof inventarioUnsubscribe === 'function') inventarioUnsubscribe();
+
+  inventarioUnsubscribe = firestoreDb.collection(INVENTARIO_COLLECTION).onSnapshot((snapshot) => {
     inventarioPermisosAvisados = false;
     const items = snapshot.docs.map(doc => ({ _docId: doc.id, ...doc.data() }));
-    guardarInventarioArrayLocal(items);
-    marcarInventarioRemotoLeido();
-    registrarHeartbeatFirebase();
-    return items;
-  } catch (error) {
+    inventarioBebidasEstado = obtenerMapaInventarioDesdeArray(items);
+    try {
+      localStorage.setItem(INVENTARIO_STORAGE_KEY, JSON.stringify(items));
+    } catch (error) {
+      console.error("No se pudo actualizar el inventario local desde Firebase:", error);
+    }
+    actualizarAlertasStockBebidas(inventarioBebidasEstado);
+  }, (error) => {
     if (!inventarioPermisosAvisados) {
-      console.error('No se pudo cargar el inventario de bebidas desde Firebase:', error);
+      console.error("No se pudo sincronizar el inventario de bebidas desde Firebase:", error);
       inventarioPermisosAvisados = true;
     }
     inventarioBebidasEstado = obtenerMapaInventarioLocal();
     actualizarAlertasStockBebidas(inventarioBebidasEstado);
-    return obtenerInventarioArrayLocal();
-  }
-}
-
-function escucharInventarioFirestore() {
-  if (typeof inventarioUnsubscribe === 'function') {
-    inventarioUnsubscribe();
-    inventarioUnsubscribe = null;
-  }
-  return cargarInventarioFirestoreUnaVez(false);
+  });
 }
 
 let PRODUCTOS_BEBIDA_INVENTARIO = new Set();
@@ -2283,48 +2020,6 @@ function aplicarAjustesInventarioLocal(ajustes = {}) {
 }
 
 async function aplicarAjustesInventarioFirestore(ajustes = {}) {
-  const entradas = Object.entries(ajustes || {}).filter(([, ajuste]) => Number(ajuste?.cantidad || 0) !== 0);
-  if (!entradas.length || !firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) return;
-
-  let inventarioLocal = obtenerInventarioArrayLocal();
-  let mapaLocal = new Map(inventarioLocal.map(item => [normalizarClaveInventario(item?.nombreNormalizado || item?.nombre || ''), item]));
-
-  const faltantes = entradas.filter(([clave]) => !String(mapaLocal.get(clave)?._docId || '').trim());
-  if (faltantes.length) {
-    await cargarInventarioFirestoreUnaVez(true);
-    inventarioLocal = obtenerInventarioArrayLocal();
-    mapaLocal = new Map(inventarioLocal.map(item => [normalizarClaveInventario(item?.nombreNormalizado || item?.nombre || ''), item]));
-  }
-
-  const batch = firestoreDb.batch();
-  let tieneCambios = false;
-  const fecha = obtenerFechaLocalISO(new Date());
-
-  for (const [clave, ajuste] of entradas) {
-    const itemLocal = mapaLocal.get(clave);
-    const docId = String(itemLocal?._docId || '').trim();
-    if (!docId) {
-      console.warn(`No se encontró _docId local para ajustar inventario de ${ajuste?.nombre || clave}.`);
-      continue;
-    }
-    const delta = Number(ajuste?.cantidad || 0);
-    if (!delta) continue;
-    const ref = firestoreDb.collection(INVENTARIO_COLLECTION).doc(docId);
-    batch.set(ref, {
-      cantidad: firebase.firestore.FieldValue.increment(delta),
-      fecha
-    }, { merge: true });
-    tieneCambios = true;
-  }
-
-  if (!tieneCambios) return;
-  await batch.commit();
-  inventarioPermisosAvisados = false;
-  marcarInventarioRemotoLeido();
-  registrarHeartbeatFirebase();
-}
-
-async function aplicarAjustesInventarioFirestoreLegacy(ajustes = {}) {
   const entradas = Object.entries(ajustes || {});
   if (!entradas.length || !firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) return;
   for (const [clave, ajuste] of entradas) {
@@ -2406,28 +2101,6 @@ function obtenerBadgeEstadoVenta(venta = {}) {
     : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">Activa</span>';
 }
 
-function obtenerEstadoSyncVenta(venta = {}) {
-  if (esVentaCancelada(venta)) return 'cancelada';
-  if (String(venta?._syncEstado || '').toLowerCase() === 'pendiente') return 'pendiente';
-  if (venta?._docId) return 'sincronizado';
-  if (!firestoreDisponible) return 'local';
-  return 'sincronizado';
-}
-
-function obtenerBadgeSyncVenta(venta = {}) {
-  const estadoSync = obtenerEstadoSyncVenta(venta);
-  if (estadoSync === 'pendiente') {
-    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">Sync pendiente</span>';
-  }
-  if (estadoSync === 'local') {
-    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Guardada local</span>';
-  }
-  if (estadoSync === 'sincronizado') {
-    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-700">Sincronizada</span>';
-  }
-  return '';
-}
-
 function limpiarContextoEdicionVenta() {
   comandaEnEdicion = null;
   reciboEnEdicion = null;
@@ -2480,27 +2153,7 @@ function normalizarControlCaja(control = {}, diaClave = "") {
     cierreMonto: Number(control.cierreMonto || 0),
     cierreHora: control.cierreHora || "",
     cierreUsuario: control.cierreUsuario || "",
-    cierreObservaciones: control.cierreObservaciones || "",
-    cantidadVentas: Number(control.cantidadVentas || 0),
-    cantidadVentasActivas: Number(control.cantidadVentasActivas || control.cantidadVentas || 0),
-    cantidadVentasCanceladas: Number(control.cantidadVentasCanceladas || 0),
-    domicilios: Number(control.domicilios || 0),
-    cantidadDomiciliosActivos: Number(control.cantidadDomiciliosActivos || control.domicilios || 0),
-    cantidadDomiciliosCancelados: Number(control.cantidadDomiciliosCancelados || 0),
-    totalVentas: Number(control.totalVentas || 0),
-    totalCobrado: Number(control.totalCobrado || 0),
-    totalDomicilios: Number(control.totalDomicilios || 0),
-    totalEfectivoBruto: Number(control.totalEfectivoBruto || 0),
-    ajusteDomiciliosEfectivo: Number(control.ajusteDomiciliosEfectivo || 0),
-    totalEfectivoSistema: Number(control.totalEfectivoSistema || 0),
-    totalDigitalBruto: Number(control.totalDigitalBruto || 0),
-    ajusteDomiciliosDigitales: Number(control.ajusteDomiciliosDigitales || 0),
-    totalTransferenciasDigitales: Number(control.totalTransferenciasDigitales || 0),
-    esperadoCaja: Number(control.esperadoCaja || 0),
-    esperadoTransferencias: Number(control.esperadoTransferencias || 0),
-    esperadoTotal: Number(control.esperadoTotal || 0),
-    diferenciaCaja: Number(control.diferenciaCaja || 0),
-    ultimaActualizacionResumen: control.ultimaActualizacionResumen || ""
+    cierreObservaciones: control.cierreObservaciones || ""
   };
 }
 
@@ -2530,20 +2183,6 @@ function desactivarFirebaseCajaPorPermisos(error) {
   console.warn("Control de caja funcionando en modo local. Firebase no tiene permisos para la colección controlCaja.", error);
 }
 
-function obtenerAjusteDomicilioEfectivoVenta(venta = {}) {
-  if (!esPedidoDomicilio(venta)) return 0;
-  const valorDomicilio = Number(venta?.costoDomicilio || 0);
-  if (!Number.isFinite(valorDomicilio) || valorDomicilio <= 0) return 0;
-  return redondearPago(Math.min(valorDomicilio, obtenerValorPagoPorMedio(venta, 'efectivo')));
-}
-
-function obtenerAjusteDomicilioTransferenciaVenta(venta = {}) {
-  if (!esPedidoDomicilio(venta)) return 0;
-  const valorDomicilio = Number(venta?.costoDomicilio || 0);
-  if (!Number.isFinite(valorDomicilio) || valorDomicilio <= 0) return 0;
-  return redondearPago(Math.min(valorDomicilio, obtenerTotalOtrosMediosVenta(venta)));
-}
-
 async function obtenerControlCajaDia(diaClave, forzarRemoto = false) {
   const local = obtenerControlCajaLocal(diaClave);
   if (!forzarRemoto && ((local.aperturaHora || local.cierreHora) || !firestoreDisponible || !firestoreDb)) {
@@ -2566,46 +2205,8 @@ async function obtenerControlCajaDia(diaClave, forzarRemoto = false) {
   return local;
 }
 
-function construirPayloadControlCaja(control = {}, resumen = null, esperados = null) {
-  const controlBase = normalizarControlCaja(control, control?.diaClave || '');
-  const resumenCaja = resumen || calcularResumenCajaDia(controlBase.diaClave);
-  const esperadosCaja = esperados || calcularEsperadosCierre(controlBase, resumenCaja);
-  const ventasDiaTodas = obtenerVentasNormalizadas().filter(v => v.diaClave === controlBase.diaClave);
-  const ventasDiaActivas = filtrarVentasActivas(ventasDiaTodas);
-  const canceladasDia = Math.max(0, ventasDiaTodas.length - ventasDiaActivas.length);
-  const domiciliosActivosDia = ventasDiaActivas.filter(v => esPedidoDomicilio(v)).length;
-  const domiciliosCanceladosDia = ventasDiaTodas.filter(v => esVentaCancelada(v) && esPedidoDomicilio(v)).length;
-  return normalizarControlCaja({
-    ...controlBase,
-    diaClave: controlBase.diaClave,
-    cantidadVentas: Number(resumenCaja.cantidadVentas || 0),
-    cantidadVentasActivas: Number(resumenCaja.cantidadVentas || 0),
-    cantidadVentasCanceladas: Number(canceladasDia || 0),
-    domicilios: Number(resumenCaja.domicilios || 0),
-    cantidadDomiciliosActivos: Number(domiciliosActivosDia || resumenCaja.domicilios || 0),
-    cantidadDomiciliosCancelados: Number(domiciliosCanceladosDia || 0),
-    totalVentas: Number(resumenCaja.totalVentas || 0),
-    totalCobrado: Number(resumenCaja.totalCobrado || 0),
-    totalDomicilios: Number(resumenCaja.totalDomicilios || 0),
-    totalEfectivoBruto: Number(resumenCaja.totalEfectivoBruto || 0),
-    ajusteDomiciliosEfectivo: Number(resumenCaja.ajusteDomiciliosEfectivo || 0),
-    totalEfectivoSistema: Number(resumenCaja.totalEfectivoSistema || 0),
-    totalDigitalBruto: Number(resumenCaja.totalDigitalBruto || 0),
-    ajusteDomiciliosDigitales: Number(resumenCaja.ajusteDomiciliosDigitales || 0),
-    totalTransferenciasDigitales: Number(resumenCaja.totalTransferenciasDigitales || 0),
-    esperadoCaja: Number(esperadosCaja.esperadoCaja || 0),
-    esperadoTransferencias: Number(esperadosCaja.esperadoTransferencias || 0),
-    esperadoTotal: Number(esperadosCaja.esperadoTotal || 0),
-    diferenciaCaja: Number(esperadosCaja.diferenciaCaja || 0),
-    ultimaActualizacionResumen: new Date().toISOString()
-  }, controlBase.diaClave);
-}
-
 async function guardarControlCajaDia(diaClave, payload = {}) {
-  const base = normalizarControlCaja({ ...payload, diaClave }, diaClave);
-  const resumen = calcularResumenCajaDia(diaClave);
-  const esperados = calcularEsperadosCierre(base, resumen);
-  const control = construirPayloadControlCaja(base, resumen, esperados);
+  const control = normalizarControlCaja({ ...payload, diaClave }, diaClave);
   guardarControlCajaEnCache(control);
   if (firestoreDisponible && firestoreDb && controlCajaFirebasePermisosDisponibles) {
     try {
@@ -2623,95 +2224,29 @@ async function guardarControlCajaDia(diaClave, payload = {}) {
   return control;
 }
 
-async function sincronizarResumenCajaDiaEnSegundoPlano(diaClave) {
-  if (!diaClave) return null;
-  const controlActual = obtenerControlCajaLocal(diaClave);
-  const resumen = calcularResumenCajaDia(diaClave);
-  const esperados = calcularEsperadosCierre(controlActual, resumen);
-  const payload = construirPayloadControlCaja({ ...controlActual, diaClave }, resumen, esperados);
-  guardarControlCajaEnCache(payload);
-  if (firestoreDisponible && firestoreDb && controlCajaFirebasePermisosDisponibles) {
-    try {
-      await firestoreDb.collection("controlCaja").doc(diaClave).set(payload, { merge: true });
-      controlCajaFirebasePermisosDisponibles = true;
-      registrarHeartbeatFirebase();
-    } catch (error) {
-      if (esErrorPermisoFirestore(error)) {
-        desactivarFirebaseCajaPorPermisos(error);
-      } else {
-        console.error("No se pudo sincronizar el resumen de caja en Firebase:", error);
-      }
-    }
-  }
-  return payload;
-}
-
 function obtenerVentasActivasDelDia(diaClave) {
   return filtrarVentasActivas(obtenerVentasNormalizadas().filter(v => v.diaClave === diaClave));
 }
 
 function calcularResumenCajaDia(diaClave) {
   const ventasActivas = obtenerVentasActivasDelDia(diaClave);
-  const totalVentas = redondearPago(ventasActivas.reduce((acc, venta) => acc + obtenerIngresoRealVenta(venta), 0));
-  const totalCobrado = redondearPago(ventasActivas.reduce((acc, venta) => acc + obtenerTotalCobradoVenta(venta), 0));
-  const totalDomicilios = redondearPago(ventasActivas.reduce((acc, venta) => acc + obtenerValorDomicilio(venta), 0));
-  const totalEfectivoBruto = redondearPago(ventasActivas.reduce((acc, venta) => acc + obtenerValorPagoPorMedio(venta, 'efectivo'), 0));
-  const ajusteDomiciliosEfectivo = redondearPago(ventasActivas.reduce((acc, venta) => acc + obtenerAjusteDomicilioEfectivoVenta(venta), 0));
-  const totalEfectivoSistema = redondearPago(Math.max(0, totalEfectivoBruto - ajusteDomiciliosEfectivo));
-  const totalDigitalBruto = redondearPago(ventasActivas.reduce((acc, venta) => acc + obtenerTotalOtrosMediosVenta(venta), 0));
-  const ajusteDomiciliosDigitales = redondearPago(ventasActivas.reduce((acc, venta) => acc + obtenerAjusteDomicilioTransferenciaVenta(venta), 0));
-  const totalTransferenciasDigitales = redondearPago(Math.max(0, totalDigitalBruto - ajusteDomiciliosDigitales));
+  const totalVentas = ventasActivas.reduce((acc, venta) => acc + obtenerIngresoRealVenta(venta), 0);
+  const totalCobrado = ventasActivas.reduce((acc, venta) => acc + obtenerTotalCobradoVenta(venta), 0);
+  const totalEfectivo = ventasActivas.reduce((acc, venta) => acc + obtenerValorPagoPorMedio(venta, "efectivo"), 0);
+  const totalOtrosMedios = ventasActivas.reduce((acc, venta) => acc + obtenerTotalOtrosMediosVenta(venta), 0);
   const domicilios = ventasActivas.filter(venta => esPedidoDomicilio(venta)).length;
+  const efectivoNetoSistema = totalEfectivo;
   return {
     cantidadVentas: ventasActivas.length,
     totalVentas,
     totalCobrado,
-    totalDomicilios,
+    totalEfectivo,
+    totalOtrosMedios,
     domicilios,
-    totalEfectivoBruto,
-    ajusteDomiciliosEfectivo,
-    totalEfectivoSistema,
-    totalEfectivo: totalEfectivoSistema,
-    totalDigitalBruto,
-    totalOtrosMedios: totalDigitalBruto,
-    ajusteDomiciliosDigitales,
-    ajusteDomiciliosTransferencia: ajusteDomiciliosDigitales,
-    totalTransferenciasDigitales,
-    totalTransferenciasNetas: totalTransferenciasDigitales,
-    efectivoNetoSistema: totalEfectivoSistema,
-    montoEsperadoCaja: totalEfectivoSistema,
-    montoEsperadoTransferencias: totalTransferenciasDigitales,
-    montoEsperadoTotal: redondearPago(totalEfectivoSistema + totalTransferenciasDigitales)
+    ajusteDomiciliosTransferencia: 0,
+    efectivoNetoSistema,
+    montoEsperado: efectivoNetoSistema
   };
-}
-
-function calcularEsperadosCierre(control = {}, resumen = {}) {
-  const apertura = redondearPago(Number(control.aperturaMonto || 0));
-  const esperadoCaja = redondearPago(apertura + Number(resumen.totalEfectivoSistema || resumen.totalEfectivo || 0));
-  const esperadoTransferencias = redondearPago(Number(resumen.totalTransferenciasDigitales || resumen.totalTransferenciasNetas || 0));
-  const esperadoTotal = redondearPago(esperadoCaja + esperadoTransferencias);
-  const diferenciaCaja = control.cierreHora ? redondearPago(Number(control.cierreMonto || 0) - esperadoCaja) : 0;
-  return { apertura, esperadoCaja, esperadoTransferencias, esperadoTotal, diferenciaCaja };
-}
-
-
-function calcularDineroEsperadoCaja(control = {}, resumen = {}) {
-  return calcularEsperadosCierre(control, resumen);
-}
-
-function obtenerEstiloDiferenciaCaja(diferencia, tieneCierre = false) {
-  if (!tieneCierre) return { card: 'border-gray-200 bg-gray-50', text: 'text-gray-700' };
-  return Number(diferencia || 0) < 0
-    ? { card: 'border-red-100 bg-red-50', text: 'text-red-700' }
-    : { card: 'border-green-100 bg-green-50', text: 'text-green-700' };
-}
-
-function formatearDiferenciaCaja(diferencia) {
-  const valor = redondearPago(Number(diferencia || 0));
-  const abs = formatearCOP(Math.abs(valor));
-  if (valor > 0) return `+${abs}`;
-  if (valor < 0) return `-${abs}`;
-  return formatearCOP(0);
 }
 
 function actualizarTarjetasEstadoCaja(control = {}, resumen = {}) {
@@ -2746,10 +2281,12 @@ function actualizarTarjetasEstadoCaja(control = {}, resumen = {}) {
   `).join('');
 }
 
-function renderControlCajaUI(control = {}, diaClave = obtenerFechaLocalISO(new Date())) {
-  const controlNormalizado = normalizarControlCaja(control, diaClave);
+async function renderControlCajaDiaActual(forzarRemoto = false) {
+  const diaClave = obtenerFechaLocalISO(new Date());
+  const control = await obtenerControlCajaDia(diaClave, forzarRemoto);
   const resumen = calcularResumenCajaDia(diaClave);
-  const esperados = calcularEsperadosCierre(controlNormalizado, resumen);
+  const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
+  const diferencia = control.cierreHora ? Number(control.cierreMonto || 0) - esperado : 0;
 
   const aperturaEstadoTexto = document.getElementById('aperturaCajaEstadoTexto');
   const cierreEstadoTexto = document.getElementById('cierreCajaEstadoTexto');
@@ -2763,33 +2300,41 @@ function renderControlCajaUI(control = {}, diaClave = obtenerFechaLocalISO(new D
   const inputCierre = document.getElementById('cierreCajaMonto');
   const inputObs = document.getElementById('cierreCajaObservaciones');
 
-  if (aperturaEstadoTexto) aperturaEstadoTexto.textContent = controlNormalizado.aperturaHora ? `Registrada: ${formatearCOP(controlNormalizado.aperturaMonto)}` : 'Haz clic para registrar apertura';
-  if (cierreEstadoTexto) cierreEstadoTexto.textContent = controlNormalizado.cierreHora ? `Registrado: ${formatearCOP(controlNormalizado.cierreMonto)}` : 'Haz clic para registrar cierre';
-  if (dineroEsperadoResumenTexto) {
-    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperados.esperadoCaja)} en caja · ${formatearCOP(esperados.esperadoTransferencias)} en transferencias · total ${formatearCOP(esperados.esperadoTotal)}${controlNormalizado.cierreHora ? ` · diferencia caja ${formatearDiferenciaCaja(esperados.diferenciaCaja)}` : ''}`;
+  if (aperturaEstadoTexto) {
+    aperturaEstadoTexto.textContent = control.aperturaHora
+      ? `Registrada: ${formatearCOP(control.aperturaMonto)}`
+      : 'Haz clic para registrar apertura';
   }
-  if (aperturaInfoModal) aperturaInfoModal.textContent = controlNormalizado.aperturaHora ? `Registrada el ${formatearFechaHoraColombia(controlNormalizado.aperturaHora)} por ${controlNormalizado.aperturaUsuario || 'Sin usuario'}` : 'Aún no registrada para hoy.';
-  if (cierreInfoModal) cierreInfoModal.textContent = controlNormalizado.cierreHora ? `Registrado el ${formatearFechaHoraColombia(controlNormalizado.cierreHora)} por ${controlNormalizado.cierreUsuario || 'Sin usuario'}` : 'Aún no registrado para hoy. El cierre se compara contra el dinero esperado en caja; las transferencias se informan aparte.';
-  if (btnApertura) btnApertura.textContent = controlNormalizado.aperturaHora ? 'Actualizar apertura' : 'Guardar apertura';
-  if (btnCierre) btnCierre.textContent = controlNormalizado.cierreHora ? 'Actualizar cierre' : 'Guardar cierre';
+  if (cierreEstadoTexto) {
+    cierreEstadoTexto.textContent = control.cierreHora
+      ? `Registrado: ${formatearCOP(control.cierreMonto)}`
+      : 'Haz clic para registrar cierre';
+  }
+  if (dineroEsperadoResumenTexto) {
+    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperado)} · efectivo recibido ${formatearCOP(resumen.totalEfectivo || 0)} · ${control.cierreHora ? `diferencia ${formatearCOP(diferencia)}` : 'ver detalle completo'}`;
+  }
+
+  if (aperturaInfoModal) aperturaInfoModal.textContent = control.aperturaHora
+    ? `Registrada el ${formatearFechaHoraColombia(control.aperturaHora)} por ${control.aperturaUsuario || 'Sin usuario'}`
+    : 'Aún no registrada para hoy.';
+
+  if (cierreInfoModal) cierreInfoModal.textContent = control.cierreHora
+    ? `Registrado el ${formatearFechaHoraColombia(control.cierreHora)} por ${control.cierreUsuario || 'Sin usuario'}`
+    : 'Aún no registrado para hoy.';
+
+  if (btnApertura) btnApertura.textContent = control.aperturaHora ? 'Actualizar apertura' : 'Guardar apertura';
+  if (btnCierre) btnCierre.textContent = control.cierreHora ? 'Actualizar cierre' : 'Guardar cierre';
   if (btnEliminarCierreActual) {
-    const mostrar = esAdmin() && Boolean(controlNormalizado.cierreHora);
+    const mostrar = esAdmin() && Boolean(control.cierreHora);
     btnEliminarCierreActual.classList.toggle('hidden', !mostrar);
     btnEliminarCierreActual.style.display = mostrar ? '' : 'none';
   }
-  if (inputApertura && document.activeElement !== inputApertura) inputApertura.value = controlNormalizado.aperturaMonto ? String(controlNormalizado.aperturaMonto) : '';
-  if (inputCierre && document.activeElement !== inputCierre) inputCierre.value = controlNormalizado.cierreMonto ? String(controlNormalizado.cierreMonto) : '';
-  if (inputObs && document.activeElement !== inputObs) inputObs.value = controlNormalizado.cierreObservaciones || '';
+  if (inputApertura && document.activeElement !== inputApertura) inputApertura.value = control.aperturaMonto ? String(control.aperturaMonto) : '';
+  if (inputCierre && document.activeElement !== inputCierre) inputCierre.value = control.cierreMonto ? String(control.cierreMonto) : '';
+  if (inputObs && document.activeElement !== inputObs) inputObs.value = control.cierreObservaciones || '';
 
-  renderContenidoModalDineroEsperado(controlNormalizado, resumen);
-  actualizarTarjetasEstadoCaja(controlNormalizado, resumen);
-}
-
-async function renderControlCajaDiaActual(forzarRemoto = false) {
-  const diaClave = obtenerFechaLocalISO(new Date());
-  const control = await obtenerControlCajaDia(diaClave, forzarRemoto);
-  sincronizarResumenCajaDiaEnSegundoPlano(diaClave).catch(() => {});
-  renderControlCajaUI(control, diaClave);
+  renderContenidoModalDineroEsperado(control, resumen);
+  actualizarTarjetasEstadoCaja(control, resumen);
 }
 
 function abrirModalCaja(id) {
@@ -2829,56 +2374,42 @@ async function abrirModalDineroEsperado() {
 function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
   const contenedor = document.getElementById('contenidoModalDineroEsperado');
   if (!contenedor) return;
-  const esperados = calcularEsperadosCierre(control, resumen);
-  const estiloDiferencia = obtenerEstiloDiferenciaCaja(esperados.diferenciaCaja, Boolean(control.cierreHora));
+  const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
+  const diferencia = control.cierreHora ? Number(control.cierreMonto || 0) - esperado : 0;
   contenedor.innerHTML = `
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Apertura</p>
         <p class="text-xl font-extrabold text-gray-800 mt-1">${control.aperturaHora ? formatearCOP(control.aperturaMonto) : 'Sin registro'}</p>
         <p class="text-xs text-gray-500 mt-1">${control.aperturaHora ? `${formatearFechaHoraColombia(control.aperturaHora)} · ${control.aperturaUsuario || 'Sin usuario'}` : 'Primero registra la apertura'}</p>
       </div>
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo sistema</p>
-        <p class="text-xl font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivoSistema || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">Ventas en efectivo sin contar domicilios cobrados en efectivo</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo recibido</p>
+        <p class="text-xl font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivo || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">Incluye ventas en efectivo y la parte en efectivo de pagos mixtos</p>
       </div>
       <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Transferencias digitales</p>
-        <p class="text-xl font-extrabold text-amber-700 mt-1">${formatearCOP(resumen.totalTransferenciasDigitales || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">QR, Bre-B, daviplata, nequi y otros medios digitales</p>
-      </div>
-      <div class="rounded-xl border border-rose-100 bg-rose-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Ajuste domicilios digitales</p>
-        <p class="text-xl font-extrabold text-rose-700 mt-1">${formatearCOP(resumen.ajusteDomiciliosDigitales || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">Solo se descuenta del bloque digital el valor del domicilio</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Otros medios</p>
+        <p class="text-xl font-extrabold text-amber-700 mt-1">${formatearCOP(resumen.totalOtrosMedios || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">Transferencias, QR, Bre-B, daviplata, nequi y la parte no en efectivo de pagos mixtos</p>
       </div>
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Esperado en caja</p>
-        <p class="text-xl font-extrabold text-blue-700 mt-1">${formatearCOP(esperados.esperadoCaja)}</p>
-        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo sistema</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Dinero esperado</p>
+        <p class="text-xl font-extrabold text-blue-700 mt-1">${formatearCOP(esperado)}</p>
+        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo recibido en caja</p>
       </div>
-      <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Esperado en transferencias</p>
-        <p class="text-xl font-extrabold text-amber-700 mt-1">${formatearCOP(esperados.esperadoTransferencias)}</p>
-        <p class="text-xs text-gray-500 mt-1">Total digital neto después del ajuste</p>
-      </div>
-      <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Esperado total</p>
-        <p class="text-xl font-extrabold text-indigo-700 mt-1">${formatearCOP(esperados.esperadoTotal)}</p>
-        <p class="text-xs text-gray-500 mt-1">Caja + transferencias</p>
-      </div>
-      <div class="rounded-xl border ${estiloDiferencia.card} p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Diferencia de caja</p>
-        <p class="text-xl font-extrabold mt-1 ${estiloDiferencia.text}">${control.cierreHora ? formatearDiferenciaCaja(esperados.diferenciaCaja) : 'Pendiente'}</p>
-        <p class="text-xs text-gray-500 mt-1">${control.cierreHora ? `Se compara contra ${formatearCOP(esperados.esperadoCaja)} esperado en caja` : 'Se calcula cuando registres el cierre'}</p>
+      <div class="rounded-xl border ${control.cierreHora ? (diferencia === 0 ? 'border-green-100 bg-green-50' : 'border-red-100 bg-red-50') : 'border-gray-200 bg-gray-50'} p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Diferencia al cierre</p>
+        <p class="text-xl font-extrabold mt-1 ${control.cierreHora ? (diferencia === 0 ? 'text-green-700' : 'text-red-700') : 'text-gray-700'}">${control.cierreHora ? formatearCOP(diferencia) : 'Pendiente'}</p>
+        <p class="text-xs text-gray-500 mt-1">${control.cierreHora ? `Cierre registrado por ${control.cierreUsuario || 'Sin usuario'}` : 'Se calcula cuando registres el cierre'}</p>
       </div>
     </div>
     <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-      <p><strong>Pedidos activos del día:</strong> ${resumen.cantidadVentas || 0}</p>
-      <p><strong>Total productos vendidos:</strong> ${formatearCOP(resumen.totalVentas || 0)}</p>
+      <p><strong>Ventas activas del día:</strong> ${resumen.cantidadVentas || 0}</p>
+      <p><strong>Domicilios del día:</strong> ${resumen.domicilios || 0}</p>
+      <p><strong>Total vendido activo:</strong> ${formatearCOP(resumen.totalVentas || 0)} <span class="text-xs text-gray-500">(solo productos)</span></p>
       <p><strong>Total cobrado real:</strong> ${formatearCOP(resumen.totalCobrado || 0)} <span class="text-xs text-gray-500">(productos + domicilios)</span></p>
-      <p><strong>Domicilios del día:</strong> ${resumen.domicilios || 0} · ${formatearCOP(resumen.totalDomicilios || 0)} <span class="text-xs text-gray-500">(solo valor domicilio, informativo)</span></p>
+      <p><strong>Otros medios del día:</strong> ${formatearCOP(resumen.totalOtrosMedios || 0)}</p>
       ${control.cierreObservaciones ? `<p class="mt-2"><strong>Observaciones del cierre:</strong> ${control.cierreObservaciones}</p>` : ''}
     </div>
   `;
@@ -2910,12 +2441,14 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
   const controles = await obtenerTodosLosControlesCaja(forzarRemoto);
   const cierres = controles.filter(control => control.cierreHora);
   if (!cierres.length) {
-    body.innerHTML = '<tr><td colspan="13" class="p-3 text-center text-gray-500">No hay cierres de caja registrados todavía.</td></tr>';
+    body.innerHTML = '<tr><td colspan="9" class="p-3 text-center text-gray-500">No hay cierres de caja registrados todavía.</td></tr>';
     return;
   }
   body.innerHTML = cierres.map(control => {
     const resumen = calcularResumenCajaDia(control.diaClave);
-    const esperados = calcularEsperadosCierre(control, resumen);
+    const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
+    const diferencia = Number(control.cierreMonto || 0) - esperado;
+    const claseDiferencia = diferencia === 0 ? 'text-green-700' : 'text-red-700';
     const acciones = esAdmin()
       ? `<button type="button" onclick="eliminarCierreCaja('${control.diaClave}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg font-semibold text-xs">🗑️ Borrar cierre</button>`
       : '-';
@@ -2924,16 +2457,12 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
         <td class="p-2 border">${control.diaClave}</td>
         <td class="p-2 border">${formatearCOP(control.aperturaMonto)}</td>
         <td class="p-2 border">${formatearCOP(control.cierreMonto)}</td>
-        <td class="p-2 border">${formatearCOP(resumen.totalEfectivoSistema || 0)}</td>
-        <td class="p-2 border">${formatearCOP(resumen.totalTransferenciasDigitales || 0)}</td>
-        <td class="p-2 border">${formatearCOP(resumen.ajusteDomiciliosDigitales || 0)}</td>
-        <td class="p-2 border">${formatearCOP(esperados.esperadoCaja)}</td>
-        <td class="p-2 border">${formatearCOP(esperados.esperadoTransferencias)}</td>
-        <td class="p-2 border">${formatearCOP(esperados.esperadoTotal)}</td>
-        <td class="p-2 border ${esperados.diferenciaCaja < 0 ? 'text-red-700' : 'text-green-700'} font-semibold">${formatearDiferenciaCaja(esperados.diferenciaCaja)}</td>
+        <td class="p-2 border">${formatearCOP(resumen.totalEfectivo)}</td>
+        <td class="p-2 border">${formatearCOP(esperado)}<div class="text-[11px] text-gray-500 mt-1">Apertura + efectivo recibido</div></td>
+        <td class="p-2 border font-semibold ${claseDiferencia}">${formatearCOP(diferencia)}</td>
         <td class="p-2 border">${control.aperturaUsuario || '-'}</td>
         <td class="p-2 border">${control.cierreUsuario || '-'}</td>
-        <td class="p-2 border">${acciones}</td>
+        <td class="p-2 border text-center">${acciones}</td>
       </tr>
     `;
   }).join('');
@@ -3011,7 +2540,9 @@ async function eliminarCierreCaja(diaClave) {
   });
   alert('Cierre de caja eliminado correctamente.');
   const diaActual = obtenerFechaLocalISO(new Date());
-  if (diaClave === diaActual) await renderControlCajaDiaActual(true);
+  if (diaClave === diaActual) {
+    await renderControlCajaDiaActual(true);
+  }
   const filtro = document.getElementById('filtroHistoricoFecha');
   if (filtro && filtro.value === diaClave) await renderResumenCajaFecha(diaClave, true);
   renderTablaCierresCaja(true);
@@ -3027,18 +2558,19 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
   if (!contenedor) return;
   const control = await obtenerControlCajaDia(diaClave, forzarRemoto);
   const resumen = calcularResumenCajaDia(diaClave);
-  const esperados = calcularEsperadosCierre(control, resumen);
+  const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
+  const diferencia = control.cierreHora ? Number(control.cierreMonto || 0) - esperado : 0;
   contenedor.innerHTML = `
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
       <div>
         <p class="text-xs uppercase tracking-wide text-yellow-700 font-bold">Caja de la fecha consultada</p>
         <h5 class="text-base font-extrabold text-gray-800">${diaClave}</h5>
       </div>
-      <div class="text-sm ${control.cierreHora ? (esperados.diferenciaCaja < 0 ? 'text-red-700' : 'text-green-700') : 'text-gray-600'}">
-        ${control.cierreHora ? `<strong>Diferencia de caja:</strong> ${formatearDiferenciaCaja(esperados.diferenciaCaja)}` : 'Cierre pendiente'}
+      <div class="text-sm ${control.cierreHora ? (diferencia === 0 ? 'text-green-700' : 'text-red-700') : 'text-gray-600'}">
+        ${control.cierreHora ? `<strong>Diferencia:</strong> ${formatearCOP(diferencia)}` : 'Cierre pendiente'}
       </div>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
         <p class="text-xs uppercase tracking-wide text-gray-500">Apertura</p>
         <p class="text-lg font-extrabold text-gray-800 mt-1">${control.aperturaHora ? formatearCOP(control.aperturaMonto) : 'Sin registro'}</p>
@@ -3050,95 +2582,23 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
         <p class="text-xs text-gray-500 mt-1">${control.cierreHora ? `${formatearFechaHoraColombia(control.cierreHora)} · ${control.cierreUsuario || 'Sin usuario'}` : 'No registrado'}</p>
       </div>
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo sistema</p>
-        <p class="text-lg font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivoSistema || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">Productos cobrados en efectivo</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo recibido</p>
+        <p class="text-lg font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivo || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">${resumen.cantidadVentas} venta(s) activas con dinero real en caja</p>
       </div>
       <div class="rounded-xl border border-amber-100 bg-amber-50 p-3">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Transferencias digitales</p>
-        <p class="text-lg font-extrabold text-amber-700 mt-1">${formatearCOP(resumen.totalTransferenciasDigitales || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">Total digital neto</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Otros medios</p>
+        <p class="text-lg font-extrabold text-amber-700 mt-1">${formatearCOP(resumen.totalOtrosMedios || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">Pagos fuera de caja, incluidos los mixtos</p>
       </div>
-      <div class="rounded-xl border border-rose-100 bg-rose-50 p-3">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Ajuste domicilios digitales</p>
-        <p class="text-lg font-extrabold text-rose-700 mt-1">${formatearCOP(resumen.ajusteDomiciliosDigitales || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">Se resta solo del bloque digital</p>
-      </div>
-      <div class="rounded-xl border border-blue-100 bg-blue-50 p-3">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Esperado en caja</p>
-        <p class="text-lg font-extrabold text-blue-700 mt-1">${formatearCOP(esperados.esperadoCaja)}</p>
-        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo sistema</p>
-      </div>
-      <div class="rounded-xl border border-amber-100 bg-amber-50 p-3">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Esperado en transferencias</p>
-        <p class="text-lg font-extrabold text-amber-700 mt-1">${formatearCOP(esperados.esperadoTransferencias)}</p>
-        <p class="text-xs text-gray-500 mt-1">Medios digitales netos</p>
-      </div>
-      <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Esperado total</p>
-        <p class="text-lg font-extrabold text-indigo-700 mt-1">${formatearCOP(esperados.esperadoTotal)}</p>
-        <p class="text-xs text-gray-500 mt-1">Caja + transferencias</p>
+      <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo esperado</p>
+        <p class="text-lg font-extrabold text-gray-800 mt-1">${formatearCOP(esperado)}</p>
+        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo recibido</p>
       </div>
     </div>
     ${control.cierreObservaciones ? `<p class="mt-3 text-sm text-gray-600"><strong>Observaciones:</strong> ${control.cierreObservaciones}</p>` : ''}
   `;
-}
-
-function ocultarTarjetaProcesoVenta() {
-  const card = document.getElementById("procesoVentaCard");
-  if (!card) return;
-  card.classList.add("hidden");
-}
-
-function mostrarTarjetaProcesoVenta(tipo = "info", titulo = "Estado del proceso", detalle = "", autoOcultarMs = 0) {
-  const card = document.getElementById("procesoVentaCard");
-  const icono = document.getElementById("procesoVentaIcono");
-  const tituloEl = document.getElementById("procesoVentaTitulo");
-  const detalleEl = document.getElementById("procesoVentaDetalle");
-  if (!card || !icono || !tituloEl || !detalleEl) return;
-
-  const estados = {
-    info: {
-      card: "w-full max-w-sm rounded-2xl border border-yellow-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm",
-      icon: "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700",
-      emoji: "🧾"
-    },
-    loading: {
-      card: "w-full max-w-sm rounded-2xl border border-blue-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm",
-      icon: "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 animate-pulse",
-      emoji: "⏳"
-    },
-    success: {
-      card: "w-full max-w-sm rounded-2xl border border-green-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm",
-      icon: "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-green-100 text-green-700",
-      emoji: "✅"
-    },
-    error: {
-      card: "w-full max-w-sm rounded-2xl border border-red-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm",
-      icon: "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-700",
-      emoji: "⚠️"
-    }
-  };
-
-  const conf = estados[tipo] || estados.info;
-  card.className = `proceso-venta-card ${conf.card}`;
-  icono.className = conf.icon;
-  icono.textContent = conf.emoji;
-  tituloEl.textContent = titulo || "Estado del proceso";
-  detalleEl.textContent = detalle || "";
-  card.classList.remove("hidden");
-
-  if (temporizadorTarjetaProcesoVenta) {
-    clearTimeout(temporizadorTarjetaProcesoVenta);
-    temporizadorTarjetaProcesoVenta = null;
-  }
-
-  if (autoOcultarMs > 0) {
-    temporizadorTarjetaProcesoVenta = setTimeout(() => {
-      ocultarTarjetaProcesoVenta();
-      temporizadorTarjetaProcesoVenta = null;
-    }, autoOcultarMs);
-  }
 }
 
 function actualizarIndicadorFirebase(estado, detalle = "") {
@@ -3213,7 +2673,7 @@ window.addEventListener("offline", () => {
   actualizarIndicadorFirebase("desconectado", "Sin conexión a internet");
 });
 
-const firebaseConfig = window.firebaseConfig || {
+const firebaseConfig = {
   apiKey: "AIzaSyDxrAJcH5AAxIAK2rRWD61aSQklaH--dT0",
   authDomain: "prsenorarepa.firebaseapp.com",
   projectId: "prsenorarepa",
@@ -3551,526 +3011,39 @@ function obtenerVentasStorage() {
   return Array.isArray(ventasCache) ? ventasCache.map(normalizarVenta) : [];
 }
 
-function guardarEstadoLecturasVentasRemotas() {
-  try {
-    localStorage.setItem(VENTAS_REMOTE_STATE_KEY, JSON.stringify(ventasRemoteReadState || {}));
-  } catch (error) {
-    console.warn('No se pudo guardar el estado de lecturas optimizadas de ventas:', error);
-  }
-}
-
-function guardarEstadoLecturasCatalogoRemoto() {
-  try {
-    localStorage.setItem(CATALOGO_REMOTE_STATE_KEY, JSON.stringify(catalogoRemoteReadState || {}));
-  } catch (error) {
-    console.warn('No se pudo guardar el estado de lectura del catálogo:', error);
-  }
-}
-
-function catalogoRemotoLeidoRecientemente(ttl = CATALOGO_REMOTE_TTL_MS) {
-  const leidoEn = Number(catalogoRemoteReadState?.ultima || 0);
-  return Boolean(leidoEn) && (Date.now() - leidoEn) < ttl;
-}
-
-function marcarCatalogoRemotoLeido(checksum = '', updatedAt = Date.now()) {
-  actualizarMetaCatalogoLocal({
-    ultima: Date.now(),
-    remoteChecksum: String(checksum || catalogoRemoteReadState?.remoteChecksum || ''),
-    remoteUpdatedAt: Number(updatedAt || 0) || catalogoRemoteReadState?.remoteUpdatedAt || 0
-  });
-}
-
-function guardarEstadoLecturasInventarioRemoto() {
-  try {
-    localStorage.setItem(INVENTARIO_REMOTE_STATE_KEY, JSON.stringify(inventarioRemoteReadState || {}));
-  } catch (error) {
-    console.warn('No se pudo guardar el estado de lectura del inventario:', error);
-  }
-}
-
-function inventarioRemotoLeidoRecientemente(ttl = INVENTARIO_REMOTE_TTL_MS) {
-  const leidoEn = Number(inventarioRemoteReadState?.ultima || 0);
-  return Boolean(leidoEn) && (Date.now() - leidoEn) < ttl;
-}
-
-function marcarInventarioRemotoLeido() {
-  inventarioRemoteReadState = { ...(inventarioRemoteReadState || {}), ultima: Date.now() };
-  guardarEstadoLecturasInventarioRemoto();
-}
-
-function guardarEstadoLecturasControlCajaRemotas() {
-  try {
-    localStorage.setItem(CONTROL_CAJA_REMOTE_STATE_KEY, JSON.stringify(controlCajaRemoteReadState || {}));
-  } catch (error) {
-    console.warn('No se pudo guardar el estado de lectura de control de caja:', error);
-  }
-}
-
-function obtenerClaveRangoControlCaja(inicio = '', finExclusive = '') {
-  return `${String(inicio || '').trim()}__${String(finExclusive || '').trim()}`;
-}
-
-function rangoControlCajaLeidoRecientemente(clave = '', ttl = CONTROL_CAJA_REMOTE_TTL_MS) {
-  const leidoEn = Number(controlCajaRemoteReadState?.[clave] || 0);
-  return Boolean(leidoEn) && (Date.now() - leidoEn) < ttl;
-}
-
-function marcarRangoControlCajaLeido(clave = '') {
-  if (!clave) return;
-  controlCajaRemoteReadState = { ...(controlCajaRemoteReadState || {}), [clave]: Date.now() };
-  guardarEstadoLecturasControlCajaRemotas();
-}
-
-function cancelarPausaVentasPorOculto() {
-  if (temporizadorPausaVentasOculto) {
-    clearTimeout(temporizadorPausaVentasOculto);
-    temporizadorPausaVentasOculto = null;
-  }
-}
-
-function pausarListenerVentasPorAhorro() {
-  cancelarPausaVentasPorOculto();
-  listenerVentasPausadoPorOculto = false;
-}
-
-function programarPausaVentasPorOculto() {
-  cancelarPausaVentasPorOculto();
-}
-
-function esVistaPOSVisible() {
-  const appMain = document.getElementById('appMain');
-  return Boolean(appMain && !appMain.classList.contains('hidden'));
-}
-
-async function refrescarRecursosLivianosSiVencidos() {
-  try {
-    await Promise.all([
-      cargarInventarioFirestoreUnaVez(false),
-      cargarCatalogoFirestoreUnaVez(false, false)
-    ]);
-  } catch (error) {
-    console.warn('No se pudieron refrescar los recursos livianos desde Firebase:', error);
-  }
-}
-
-function manejarVisibilidadAhorroLecturas() {
-  if (document.hidden) {
-    cancelarPausaVentasPorOculto();
-    return;
-  }
-  cancelarPausaVentasPorOculto();
-  refrescarRecursosLivianosSiVencidos();
-  listenerVentasPausadoPorOculto = false;
-}
-
-function registrarEventosAhorroLecturas() {
-  if (ahorroLecturasEventosRegistrados) return;
-  ahorroLecturasEventosRegistrados = true;
-  document.addEventListener('visibilitychange', manejarVisibilidadAhorroLecturas);
-  window.addEventListener('focus', () => {
-    if (!document.hidden) refrescarRecursosLivianosSiVencidos();
-  });
-}
-
-function obtenerInventarioArrayLocal() {
-  try {
-    const items = JSON.parse(localStorage.getItem(INVENTARIO_STORAGE_KEY) || '[]');
-    return Array.isArray(items) ? items : [];
-  } catch (error) {
-    return [];
-  }
-}
-
-function guardarInventarioArrayLocal(items = []) {
-  const lista = Array.isArray(items) ? items : [];
-  try {
-    localStorage.setItem(INVENTARIO_STORAGE_KEY, JSON.stringify(lista));
-  } catch (error) {
-    console.error('No se pudo guardar el inventario local:', error);
-  }
-  inventarioBebidasEstado = obtenerMapaInventarioDesdeArray(lista);
-  actualizarAlertasStockBebidas(inventarioBebidasEstado);
-  return lista;
-}
-
-function obtenerItemInventarioLocalPorClave(clave = '') {
-  const claveNormalizada = normalizarClaveInventario(clave);
-  if (!claveNormalizada) return null;
-  return obtenerInventarioArrayLocal().find(item => normalizarClaveInventario(item?.nombreNormalizado || item?.nombre || '') === claveNormalizada) || null;
-}
-
-function obtenerControlesCajaEnCachePorRango(inicio = '', finExclusive = '') {
-  return Object.values(controlCajaCache || {}).map(item => normalizarControlCaja(item, item?.diaClave || ''))
-    .filter(item => estaFechaISOEnRango(String(item?.diaClave || ''), inicio, finExclusive));
-}
-
-async function consultarControlCajaPorRangoFirestore(inicio = '', finExclusive = '', opciones = {}) {
-  const { forzar = false } = opciones || {};
-  if (!inicio || !finExclusive) return obtenerControlesCajaEnCachePorRango(inicio, finExclusive);
-  const clave = obtenerClaveRangoControlCaja(inicio, finExclusive);
-  if (!forzar && rangoControlCajaLeidoRecientemente(clave)) {
-    return obtenerControlesCajaEnCachePorRango(inicio, finExclusive);
-  }
-  if (!firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser || !controlCajaFirebasePermisosDisponibles) {
-    return obtenerControlesCajaEnCachePorRango(inicio, finExclusive);
-  }
-  try {
-    const snapshot = await firestoreDb.collection('controlCaja')
-      .where('diaClave', '>=', inicio)
-      .where('diaClave', '<', finExclusive)
-      .get();
-    registrarHeartbeatFirebase();
-    snapshot.docs.forEach(doc => {
-      guardarControlCajaEnCache({ diaClave: doc.id, ...doc.data() });
-    });
-    marcarRangoControlCajaLeido(clave);
-  } catch (error) {
-    if (esErrorPermisoFirestore(error)) {
-      desactivarFirebaseCajaPorPermisos(error);
-    } else {
-      console.error('No se pudo consultar controlCaja por rango en Firebase:', error);
-    }
-  }
-  return obtenerControlesCajaEnCachePorRango(inicio, finExclusive);
-}
-
-function construirFilaHistoricaDesdeControl(control = {}, tipo = 'dia') {
-  const dia = String(control?.diaClave || '').trim();
-  const fechaRef = dia ? new Date(`${dia}T12:00:00`) : new Date();
-  const label = tipo === 'semana'
-    ? obtenerClaveSemana(fechaRef)
-    : (tipo === 'mes' ? dia.slice(0, 7) : dia);
-  return {
-    label,
-    ventas: Number(control?.cantidadVentasActivas || control?.cantidadVentas || 0),
-    canceladas: Number(control?.cantidadVentasCanceladas || 0),
-    domicilios: Number(control?.cantidadDomiciliosActivos || control?.domicilios || 0),
-    domiciliosCancelados: Number(control?.cantidadDomiciliosCancelados || 0),
-    total: Number(control?.totalVentas || 0),
-    efectivo: Number(control?.totalEfectivoSistema || control?.totalEfectivo || 0),
-    transferencias: Number(control?.totalTransferenciasDigitales || control?.totalTransferenciasNetas || 0),
-    ajusteDomiciliosDigitales: Number(control?.ajusteDomiciliosDigitales || 0)
-  };
-}
-
-function acumularFilaHistorica(destino, fila) {
-  destino.ventas += Number(fila?.ventas || 0);
-  destino.canceladas += Number(fila?.canceladas || 0);
-  destino.domicilios += Number(fila?.domicilios || 0);
-  destino.domiciliosCancelados += Number(fila?.domiciliosCancelados || 0);
-  destino.total += Number(fila?.total || 0);
-  destino.efectivo += Number(fila?.efectivo || 0);
-  destino.transferencias += Number(fila?.transferencias || 0);
-  destino.ajusteDomiciliosDigitales += Number(fila?.ajusteDomiciliosDigitales || 0);
-  return destino;
-}
-
-function resumirHistoricoControles(controles = [], tipo = 'dia') {
-  const mapa = {};
-  (Array.isArray(controles) ? controles : []).forEach(control => {
-    const fila = construirFilaHistoricaDesdeControl(control, tipo);
-    if (!fila.label) return;
-    if (!mapa[fila.label]) {
-      mapa[fila.label] = { label: fila.label, ventas: 0, canceladas: 0, domicilios: 0, domiciliosCancelados: 0, total: 0, efectivo: 0, transferencias: 0, ajusteDomiciliosDigitales: 0 };
-    }
-    acumularFilaHistorica(mapa[fila.label], fila);
-  });
-  return Object.values(mapa).sort((a, b) => String(b.label).localeCompare(String(a.label)));
-}
-
-
-function obtenerClaveRangoVentas(inicio = '', finExclusive = '') {
-  return `${String(inicio || '').trim()}__${String(finExclusive || '').trim()}`;
-}
-
-function rangoVentasLeidoRecientemente(clave = '', ttl = VENTAS_REMOTE_RANGE_TTL_MS) {
-  const leidoEn = Number(ventasRemoteReadState?.[clave] || 0);
-  return Boolean(leidoEn) && (Date.now() - leidoEn) < ttl;
-}
-
-function marcarRangoVentasLeido(clave = '') {
-  if (!clave) return;
-  ventasRemoteReadState = { ...(ventasRemoteReadState || {}), [clave]: Date.now() };
-  guardarEstadoLecturasVentasRemotas();
-}
-
-function obtenerDiaClaveVenta(venta = {}) {
-  const dia = String(venta?.diaClave || '').trim();
-  if (dia) return dia;
-  return obtenerFechaLocalISO(new Date(venta?.fechaISO || venta?.fecha || Date.now()));
-}
-
-function obtenerClaveUnicaVenta(venta = {}) {
-  const item = normalizarVenta(venta);
-  if (item._docId) return `doc:${item._docId}`;
-  if (item._localId) return `local:${item._localId}`;
-  const firma = [
-    obtenerDiaClaveVenta(item),
-    item.comanda ?? '',
-    item.recibo ?? '',
-    String(item.cliente || '').trim().toLowerCase(),
-    Number(item.totalCobrado || item.total || 0),
-    String(item.fechaISO || item.fecha || '').trim()
-  ].join('|');
-  return `sig:${firma}`;
-}
-
-function deduplicarVentas(lista = []) {
-  const mapa = new Map();
-  (Array.isArray(lista) ? lista : []).forEach(venta => {
-    const item = normalizarVenta(venta);
-    const clave = obtenerClaveUnicaVenta(item);
-    const previo = mapa.get(clave);
-    if (!previo) {
-      mapa.set(clave, item);
-      return;
-    }
-
-    const combinado = {
-      ...previo,
-      ...item,
-      _docId: item._docId || previo._docId || null,
-      _localId: item._localId || previo._localId || null,
-      _syncEstado: (item._syncEstado === 'pendiente' && !item._docId)
-        ? 'pendiente'
-        : (previo._syncEstado === 'pendiente' && !previo._docId ? 'pendiente' : 'sincronizado')
-    };
-    mapa.set(clave, combinado);
-  });
-  return ordenarVentasDesc(Array.from(mapa.values()));
-}
-
-function obtenerVentasDiaConRespaldoLocal(diaClave = '') {
-  if (!diaClave) return [];
-  const cacheDia = obtenerVentasStorage()
-    .map(normalizarVenta)
-    .filter(venta => obtenerDiaClaveVenta(venta) === diaClave);
-  const pendientesDia = obtenerVentasPendientesSync()
-    .map(item => normalizarVenta(item.venta))
-    .filter(venta => obtenerDiaClaveVenta(venta) === diaClave);
-  return deduplicarVentas([...cacheDia, ...pendientesDia]);
-}
-
-function fusionarVentasDiaConRespaldoLocal(diaClave = '', ventasRemotas = []) {
-  const remotasDia = (Array.isArray(ventasRemotas) ? ventasRemotas : [])
-    .map(normalizarVenta)
-    .filter(venta => !diaClave || obtenerDiaClaveVenta(venta) === diaClave)
-    .map(venta => ({ ...venta, _syncEstado: venta._docId ? 'sincronizado' : (venta._syncEstado || 'sincronizado') }));
-  const localesDia = obtenerVentasDiaConRespaldoLocal(diaClave);
-  return deduplicarVentas([...remotasDia, ...localesDia]);
-}
-
-function sumarDiasISO(fechaISO = '', dias = 0) {
-  const [year, month, day] = String(fechaISO || '').split('-').map(Number);
-  if (!year || !month || !day) return fechaISO;
-  const fecha = new Date(Date.UTC(year, month - 1, day));
-  fecha.setUTCDate(fecha.getUTCDate() + Number(dias || 0));
-  return fecha.toISOString().slice(0, 10);
-}
-
-function obtenerInicioMesISO(fecha = new Date()) {
-  const dia = obtenerFechaLocalISO(fecha);
-  return `${dia.slice(0, 7)}-01`;
-}
-
-function obtenerInicioMesSiguienteISO(fecha = new Date()) {
-  const inicioMes = obtenerInicioMesISO(fecha);
-  const [year, month] = inicioMes.split('-').map(Number);
-  const siguiente = month === 12
-    ? new Date(Date.UTC(year + 1, 0, 1))
-    : new Date(Date.UTC(year, month, 1));
-  return siguiente.toISOString().slice(0, 10);
-}
-
-function estaFechaISOEnRango(fechaISO = '', inicio = '', finExclusive = '') {
-  const fecha = String(fechaISO || '').trim();
-  if (!fecha || !inicio || !finExclusive) return false;
-  return fecha >= inicio && fecha < finExclusive;
-}
-
-function fusionarVentasRangoConPendientes(ventasRemotas = [], inicio = '', finExclusive = '') {
-  const remotas = Array.isArray(ventasRemotas) ? ventasRemotas.map(normalizarVenta) : [];
-
-  const pendientesQueue = obtenerVentasPendientesSync()
-    .map(item => normalizarVenta(item.venta))
-    .filter(venta => estaFechaISOEnRango(obtenerDiaClaveVenta(venta), inicio, finExclusive));
-
-  const localesNoConfirmadas = obtenerVentasStorage()
-    .map(normalizarVenta)
-    .filter(venta => estaFechaISOEnRango(obtenerDiaClaveVenta(venta), inicio, finExclusive))
-    .filter(venta =>
-      !venta._docId ||
-      venta._syncEstado === 'pendiente' ||
-      pendientesQueue.some(p => (p._localId && p._localId === venta._localId) || (p._docId && p._docId === venta._docId))
-    );
-
-  const candidatas = ordenarVentasDesc([...pendientesQueue, ...localesNoConfirmadas]);
-  if (!candidatas.length) return remotas;
-
-  const clavesRemotas = new Set();
-  remotas.forEach(venta => {
-    if (venta._docId) clavesRemotas.add(`doc:${venta._docId}`);
-    if (venta._localId) clavesRemotas.add(`local:${venta._localId}`);
-  });
-
-  const extras = [];
-  const clavesExtras = new Set();
-
-  candidatas.forEach(venta => {
-    const claveDoc = venta._docId ? `doc:${venta._docId}` : '';
-    const claveLocal = venta._localId ? `local:${venta._localId}` : '';
-    if ((claveDoc && clavesRemotas.has(claveDoc)) || (claveLocal && clavesRemotas.has(claveLocal))) return;
-    if ((claveDoc && clavesExtras.has(claveDoc)) || (claveLocal && clavesExtras.has(claveLocal))) return;
-    if (claveDoc) clavesExtras.add(claveDoc);
-    if (claveLocal) clavesExtras.add(claveLocal);
-    extras.push(venta);
-  });
-
-  return ordenarVentasDesc([...remotas, ...extras]);
-}
-
-function reemplazarVentasEnCachePorRango(inicio = '', finExclusive = '', ventasRango = []) {
-  const otrasVentas = obtenerVentasStorage().filter(venta => !estaFechaISOEnRango(obtenerDiaClaveVenta(venta), inicio, finExclusive));
-  return guardarVentasEnCache(ordenarVentasDesc([...otrasVentas, ...(Array.isArray(ventasRango) ? ventasRango.map(normalizarVenta) : [])]));
-}
-
-function reemplazarVentasEnCachePorDia(diaClave = '', ventasDia = []) {
-  if (!diaClave) return guardarVentasEnCache(ordenarVentasDesc(ventasDia || []));
-  return reemplazarVentasEnCachePorRango(diaClave, sumarDiasISO(diaClave, 1), ventasDia);
-}
-
-async function consultarVentasPorRangoFirestore(inicio = '', finExclusive = '', opciones = {}) {
-  const { forzar = false } = opciones || {};
-  if (!inicio || !finExclusive) return [];
-
-  const claveRango = obtenerClaveRangoVentas(inicio, finExclusive);
-  if (!forzar && rangoVentasLeidoRecientemente(claveRango)) {
-    return obtenerVentasStorage().filter(venta => estaFechaISOEnRango(obtenerDiaClaveVenta(venta), inicio, finExclusive));
-  }
-
-  if (!firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) {
-    return obtenerVentasStorage().filter(venta => estaFechaISOEnRango(obtenerDiaClaveVenta(venta), inicio, finExclusive));
-  }
-
-  try {
-    const snapshot = await firestoreDb.collection('ventas')
-      .where('diaClave', '>=', inicio)
-      .where('diaClave', '<', finExclusive)
-      .get();
-    registrarHeartbeatFirebase();
-    const ventasRemotas = ordenarVentasDesc(snapshot.docs.map(doc => normalizarVenta({ _docId: doc.id, ...doc.data() })));
-    reemplazarVentasEnCachePorRango(inicio, finExclusive, fusionarVentasRangoConPendientes(ventasRemotas, inicio, finExclusive));
-    marcarRangoVentasLeido(claveRango);
-  } catch (error) {
-    console.error('No se pudo consultar el rango de ventas en Firebase:', error);
-  }
-
-  return obtenerVentasStorage().filter(venta => estaFechaISOEnRango(obtenerDiaClaveVenta(venta), inicio, finExclusive));
-}
-
-async function asegurarVentasDiaCargadas(diaClave = '', forzar = false) {
-  if (!diaClave) return [];
-  return consultarVentasPorRangoFirestore(diaClave, sumarDiasISO(diaClave, 1), { forzar });
-}
-
-async function asegurarVentasMesActualCargadas(forzar = false) {
-  return consultarVentasPorRangoFirestore(obtenerInicioMesISO(new Date()), obtenerInicioMesSiguienteISO(new Date()), { forzar });
-}
-
-async function asegurarVentasNecesariasParaHistoricos(forzar = false) {
-  const filtro = document.getElementById('filtroHistoricoFecha');
-  const fechaSeleccionada = filtro?.value || obtenerFechaLocalISO(new Date());
-  if (filtro && !filtro.value) filtro.value = fechaSeleccionada;
-
-  const inicioMesActual = obtenerInicioMesISO(new Date());
-  const finMesActual = obtenerInicioMesSiguienteISO(new Date());
-  await consultarVentasPorRangoFirestore(inicioMesActual, finMesActual, { forzar });
-
-  if (fechaSeleccionada && !estaFechaISOEnRango(fechaSeleccionada, inicioMesActual, finMesActual)) {
-    await asegurarVentasDiaCargadas(fechaSeleccionada, forzar);
-  }
-
-  return obtenerVentasStorage();
-}
-
 function generarIdVentaLocal() {
   return `venta_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function normalizarItemPendienteSync(item = {}) {
-  return {
-    venta: normalizarVenta(item?.venta || {}),
-    ajustesInventario: item?.ajustesInventario || {}
-  };
-}
-
-function leerVentasPendientesSyncDesdeStorage(claveStorage = VENTAS_PENDIENTES_SYNC_KEY) {
+function obtenerVentasPendientesSync() {
   try {
-    const data = JSON.parse(localStorage.getItem(claveStorage) || '[]');
-    return Array.isArray(data) ? data.map(normalizarItemPendienteSync) : [];
+    const data = JSON.parse(localStorage.getItem(VENTAS_PENDIENTES_SYNC_KEY) || '[]');
+    return Array.isArray(data) ? data.map(item => ({
+      venta: normalizarVenta(item?.venta || {}),
+      ajustesInventario: item?.ajustesInventario || {}
+    })) : [];
   } catch (error) {
-    console.error(`No se pudieron leer las ventas pendientes desde ${claveStorage}:`, error);
+    console.error("No se pudieron leer las ventas pendientes de sincronización:", error);
     return [];
   }
 }
 
-function combinarPendientesSync(...listas) {
-  const mapa = new Map();
-  listas.flat().forEach(item => {
-    const pendiente = normalizarItemPendienteSync(item);
-    const clave = pendiente.venta._localId || pendiente.venta._docId || generarIdVentaLocal();
-    const previo = mapa.get(clave);
-    if (!previo) {
-      mapa.set(clave, pendiente);
-      return;
-    }
-    mapa.set(clave, {
-      venta: normalizarVenta({ ...previo.venta, ...pendiente.venta }),
-      ajustesInventario: { ...(previo.ajustesInventario || {}), ...(pendiente.ajustesInventario || {}) }
-    });
-  });
-  return Array.from(mapa.values());
-}
-
-function reflejarPendientesTemporalesEnCache(lista = []) {
-  const ventasPendientes = (Array.isArray(lista) ? lista : []).map(item => normalizarVenta(item.venta));
-  if (!ventasPendientes.length) return obtenerVentasStorage();
-  const fusionadas = deduplicarVentas([...obtenerVentasStorage(), ...ventasPendientes]);
-  guardarVentasEnCache(fusionadas);
-  return fusionadas;
-}
-
-function obtenerVentasPendientesSync() {
-  const listaPrincipal = leerVentasPendientesSyncDesdeStorage(VENTAS_PENDIENTES_SYNC_KEY);
-  const listaTemporal = leerVentasPendientesSyncDesdeStorage(VENTAS_TEMP_SYNC_STORAGE_KEY);
-  const combinada = combinarPendientesSync(listaPrincipal, listaTemporal);
-
-  try {
-    const principalJSON = JSON.stringify(listaPrincipal);
-    const temporalJSON = JSON.stringify(listaTemporal);
-    const combinadaJSON = JSON.stringify(combinada);
-    if (principalJSON !== combinadaJSON) localStorage.setItem(VENTAS_PENDIENTES_SYNC_KEY, combinadaJSON);
-    if (temporalJSON !== combinadaJSON) localStorage.setItem(VENTAS_TEMP_SYNC_STORAGE_KEY, combinadaJSON);
-  } catch (error) {
-    console.warn('No se pudo reconciliar la cola temporal de ventas pendientes:', error);
-  }
-
-  reflejarPendientesTemporalesEnCache(combinada);
-  return combinada;
-}
-
 function guardarVentasPendientesSync(items = []) {
-  const lista = combinarPendientesSync(Array.isArray(items) ? items : []);
-  const serializada = JSON.stringify(lista);
-  localStorage.setItem(VENTAS_PENDIENTES_SYNC_KEY, serializada);
-  localStorage.setItem(VENTAS_TEMP_SYNC_STORAGE_KEY, serializada);
-  reflejarPendientesTemporalesEnCache(lista);
+  const lista = (Array.isArray(items) ? items : []).map(item => ({
+    venta: normalizarVenta(item?.venta || {}),
+    ajustesInventario: item?.ajustesInventario || {}
+  }));
+  localStorage.setItem(VENTAS_PENDIENTES_SYNC_KEY, JSON.stringify(lista));
   return lista;
 }
 
 function guardarVentaPendienteSync(venta, ajustesInventario = {}) {
-  const pendiente = { venta: normalizarVenta({ ...(venta || {}), _syncEstado: 'pendiente' }), ajustesInventario: ajustesInventario || {} };
-  const lista = combinarPendientesSync(obtenerVentasPendientesSync(), [pendiente]);
+  const pendiente = { venta: normalizarVenta(venta), ajustesInventario: ajustesInventario || {} };
+  const lista = obtenerVentasPendientesSync();
+  const clave = pendiente.venta._localId || pendiente.venta._docId;
+  const index = lista.findIndex(item => (item.venta._localId || item.venta._docId) === clave);
+  if (index >= 0) lista[index] = pendiente;
+  else lista.push(pendiente);
   guardarVentasPendientesSync(lista);
 }
 
@@ -4079,20 +3052,6 @@ function quitarVentaPendienteSync(localId = "") {
   if (!clave) return;
   const lista = obtenerVentasPendientesSync().filter(item => (item.venta._localId || item.venta._docId) !== clave);
   guardarVentasPendientesSync(lista);
-}
-
-function limpiarVentaTemporalSincronizada(localId = "") {
-  const clave = String(localId || "").trim();
-  if (!clave) return;
-  const temporales = leerVentasPendientesSyncDesdeStorage(VENTAS_TEMP_SYNC_STORAGE_KEY)
-    .filter(item => (item.venta._localId || item.venta._docId) !== clave);
-  localStorage.setItem(VENTAS_TEMP_SYNC_STORAGE_KEY, JSON.stringify(temporales));
-}
-
-function reconciliarVentasLocalesTemporales() {
-  const pendientes = obtenerVentasPendientesSync();
-  if (!pendientes.length) return;
-  reflejarPendientesTemporalesEnCache(pendientes);
 }
 
 function upsertVentaEnCacheLocal(venta) {
@@ -4105,14 +3064,27 @@ function upsertVentaEnCacheLocal(venta) {
   if (index >= 0) ventas[index] = { ...ventas[index], ...ventaLista };
   else ventas.push(ventaLista);
   guardarVentasEnCache(ordenarVentasDesc(ventas));
-  sincronizarResumenCajaDiaEnSegundoPlano(obtenerFechaLocalISO(new Date())).catch(() => {});
   return ventaLista;
 }
 
 function fusionarVentasRemotasConPendientes(ventasRemotas = []) {
   const remotas = Array.isArray(ventasRemotas) ? ventasRemotas.map(normalizarVenta) : [];
   const pendientes = obtenerVentasPendientesSync().map(item => normalizarVenta(item.venta));
-  return deduplicarVentas([...remotas, ...pendientes]);
+  if (!pendientes.length) return remotas;
+
+  const clavesRemotas = new Set();
+  remotas.forEach(venta => {
+    if (venta._docId) clavesRemotas.add(`doc:${venta._docId}`);
+    if (venta._localId) clavesRemotas.add(`local:${venta._localId}`);
+  });
+
+  const extras = pendientes.filter(venta => {
+    const claveDoc = venta._docId ? `doc:${venta._docId}` : "";
+    const claveLocal = venta._localId ? `local:${venta._localId}` : "";
+    return !(claveDoc && clavesRemotas.has(claveDoc)) && !(claveLocal && clavesRemotas.has(claveLocal));
+  });
+
+  return ordenarVentasDesc([...remotas, ...extras]);
 }
 
 function programarSyncVentasPendientes(delay = 200) {
@@ -4138,21 +3110,12 @@ async function sincronizarVentasPendientesEnSegundoPlano() {
       try {
         const docId = await guardarVentaEnFirebase(ventaPendiente, ventaPendiente._docId || null);
         await aplicarAjustesInventarioFirestore(item.ajustesInventario || {});
-        const ventaSincronizada = { ...ventaPendiente, _docId: docId, _syncEstado: 'sincronizado', _sincronizadaEn: Date.now() };
+        const ventaSincronizada = { ...ventaPendiente, _docId: docId, _syncEstado: 'sincronizado' };
         upsertVentaEnCacheLocal(ventaSincronizada);
         quitarVentaPendienteSync(localId);
-        limpiarVentaTemporalSincronizada(localId);
         guardarReferenciaUltimaVenta(ventaSincronizada);
-        if (ventaPendienteAvisoSyncLocalId && [ventaSincronizada._localId, ventaPendiente._localId, ventaPendiente._docId].includes(ventaPendienteAvisoSyncLocalId)) {
-          const referenciaVenta = ventaSincronizada.comanda ? `Comanda #${ventaSincronizada.comanda}` : 'La venta';
-          mostrarTarjetaProcesoVenta('success', 'Datos sincronizados', `${referenciaVenta} ya quedó sincronizada con Firebase.`, 5000);
-          ventaPendienteAvisoSyncLocalId = "";
-        }
       } catch (error) {
         console.error("No se pudo sincronizar una venta pendiente con Firebase:", error);
-        if (ventaPendienteAvisoSyncLocalId && [ventaPendiente._localId, ventaPendiente._docId].includes(ventaPendienteAvisoSyncLocalId)) {
-          mostrarTarjetaProcesoVenta('error', 'Sincronización pendiente', 'La venta quedó guardada en este equipo. Firebase intentará sincronizarla de nuevo cuando responda.', 7000);
-        }
       }
     }
   } finally {
@@ -4183,49 +3146,19 @@ async function inicializarFirebaseVentas() {
     firestoreDb = firebase.firestore(firebaseApp);
     authDisponible = Boolean(firebaseAuth);
     firestoreDisponible = Boolean(firestoreDb);
-
-    if (authDisponible && firebaseAuth?.setPersistence && firebase?.auth?.Auth?.Persistence?.LOCAL) {
-      try {
-        await firebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-      } catch (persistError) {
-        console.warn('No se pudo fijar la persistencia local de Firebase Auth:', persistError);
-      }
-    }
-
-    if (firestoreDisponible && firestoreDb?.enablePersistence) {
-      try {
-        await firestoreDb.enablePersistence();
-      } catch (persistenciaError) {
-        const codigo = String(persistenciaError?.code || '');
-        if (codigo !== 'failed-precondition' && codigo !== 'unimplemented') {
-          console.warn('No se pudo activar la persistencia local de Firestore:', persistenciaError);
-        }
-      }
-    }
-
-    registrarEventosAhorroLecturas();
-
-    firebaseAuth.onAuthStateChanged(async (user) => {
+    firebaseAuth.onAuthStateChanged((user) => {
       if (user) {
         const email = String(user.email || '').toLowerCase();
         const registro = resolverRegistroUsuario(email) || resolverRegistroUsuario(user.displayName || '') || { usuario: email.split('@')[0], rol: 'cajero', nombre: user.displayName || email };
         aplicarSesionAutenticada(registro.usuario || email.split('@')[0], registro.rol || 'cajero', user.email || '');
-        registrarHeartbeatFirebase();
         escucharVentasFirestore();
-        escucharControlCajaFirestore();
         escucharInventarioFirestore();
-        await sincronizarCatalogoPendienteSiHaceFalta();
-        await escucharCatalogoFirestore();
-        refrescarRecursosLivianosSiVencidos();
+        escucharCatalogoFirestore();
         programarSyncVentasPendientes(50);
       } else {
         if (typeof ventasUnsubscribe === 'function') {
           ventasUnsubscribe();
           ventasUnsubscribe = null;
-        }
-        if (typeof controlCajaUnsubscribe === 'function') {
-          controlCajaUnsubscribe();
-          controlCajaUnsubscribe = null;
         }
         if (typeof inventarioUnsubscribe === 'function') {
           inventarioUnsubscribe();
@@ -4235,8 +3168,6 @@ async function inicializarFirebaseVentas() {
           catalogoUnsubscribe();
           catalogoUnsubscribe = null;
         }
-        diaVentasEscuchando = '';
-        diaControlCajaEscuchando = '';
         inventarioBebidasEstado = obtenerMapaInventarioLocal();
         actualizarAlertasStockBebidas(inventarioBebidasEstado);
         cargarCatalogoProductos();
@@ -4253,96 +3184,36 @@ async function inicializarFirebaseVentas() {
   }
 }
 
-async function escucharVentasFirestore(forzar = false) {
-  if (!firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) {
-    return obtenerVentasStorage().filter(venta => obtenerDiaClaveVenta(venta) === obtenerFechaLocalISO(new Date()));
-  }
+function escucharVentasFirestore() {
+  if (!firestoreDisponible || !firestoreDb) return;
+  if (typeof ventasUnsubscribe === 'function') ventasUnsubscribe();
 
-  const diaActual = obtenerFechaLocalISO(new Date());
-  const rangoInicio = diaActual;
-  const rangoFin = sumarDiasISO(diaActual, 1);
-
-  if (typeof ventasUnsubscribe === 'function' && diaVentasEscuchando === diaActual && !forzar) {
-    return obtenerVentasStorage().filter(venta => obtenerDiaClaveVenta(venta) === diaActual);
-  }
-
-  if (typeof ventasUnsubscribe === 'function') {
-    ventasUnsubscribe();
-    ventasUnsubscribe = null;
-  }
-
-  diaVentasEscuchando = diaActual;
-  listenerVentasPausadoPorOculto = false;
-  cancelarPausaVentasPorOculto();
-
-  ventasUnsubscribe = firestoreDb.collection('ventas')
-    .where('diaClave', '==', diaActual)
+  let primeraCarga = true;
+  ventasUnsubscribe = firestoreDb.collection("ventas")
+    .orderBy("fechaISO", "desc")
     .onSnapshot(async (snapshot) => {
       registrarHeartbeatFirebase();
+      const ventasRemotas = snapshot.docs.map(doc => normalizarVenta({ _docId: doc.id, ...doc.data() }));
+      guardarVentasEnCache(fusionarVentasRemotasConPendientes(ventasRemotas));
 
-      const ventasLocalesDiaAntes = obtenerVentasDiaConRespaldoLocal(diaActual);
-      const ventasLocalesSinDocAntes = ventasLocalesDiaAntes.filter(venta => !venta._docId);
-
-      const ventasRemotas = ordenarVentasDesc(snapshot.docs.map(doc => normalizarVenta({ _docId: doc.id, ...doc.data(), _syncEstado: 'sincronizado' })));
-      const fusionadas = fusionarVentasDiaConRespaldoLocal(diaActual, ventasRemotas);
-      reemplazarVentasEnCachePorDia(diaActual, fusionadas);
-      marcarRangoVentasLeido(obtenerClaveRangoVentas(rangoInicio, rangoFin));
-
-      if (ventasLocalesSinDocAntes.length > 0) {
-        try {
-          await migrarVentasLocalesAFirebase(ventasLocalesSinDocAntes);
-        } catch (error) {
-          console.warn('No se pudieron migrar las ventas locales al modo en tiempo real:', error);
+      if (primeraCarga && ventasRemotas.length === 0) {
+        const pendientes = obtenerVentasPendientesSync();
+        const clavesPendientes = new Set(pendientes.map(item => item.venta?._localId).filter(Boolean));
+        const ventasLocales = JSON.parse(localStorage.getItem("ventas") || "[]").map(normalizarVenta).filter(venta => !venta._docId && !(venta._localId && clavesPendientes.has(venta._localId)));
+        if (ventasLocales.length > 0) {
+          await migrarVentasLocalesAFirebase(ventasLocales);
         }
       }
 
-      sincronizarResumenCajaDiaEnSegundoPlano(diaActual).catch(() => {});
       programarSyncVentasPendientes(50);
+      primeraCarga = false;
+
       mostrarVentas();
       refrescarVistasAnaliticasSiEstanAbiertas();
     }, (error) => {
-      console.error('No se pudo escuchar las ventas del día en tiempo real:', error);
+      console.error("Error al escuchar ventas de Firebase:", error);
+      actualizarIndicadorFirebase("desconectado", "Error al sincronizar con Firebase");
     });
-
-  return obtenerVentasStorage().filter(venta => obtenerDiaClaveVenta(venta) === diaActual);
-}
-
-async function escucharControlCajaFirestore(forzar = false) {
-  const diaActual = obtenerFechaLocalISO(new Date());
-
-  if (!firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser || !controlCajaFirebasePermisosDisponibles) {
-    renderControlCajaUI(obtenerControlCajaLocal(diaActual), diaActual);
-    return obtenerControlCajaLocal(diaActual);
-  }
-
-  if (typeof controlCajaUnsubscribe === 'function' && diaControlCajaEscuchando === diaActual && !forzar) {
-    return obtenerControlCajaLocal(diaActual);
-  }
-
-  if (typeof controlCajaUnsubscribe === 'function') {
-    controlCajaUnsubscribe();
-    controlCajaUnsubscribe = null;
-  }
-
-  diaControlCajaEscuchando = diaActual;
-  controlCajaUnsubscribe = firestoreDb.collection('controlCaja').doc(diaActual).onSnapshot((doc) => {
-    registrarHeartbeatFirebase();
-    controlCajaFirebasePermisosDisponibles = true;
-    if (doc.exists) {
-      const control = guardarControlCajaEnCache({ diaClave: diaActual, ...doc.data() });
-      renderControlCajaUI(control, diaActual);
-    } else {
-      renderControlCajaUI(obtenerControlCajaLocal(diaActual), diaActual);
-    }
-  }, (error) => {
-    if (esErrorPermisoFirestore(error)) {
-      desactivarFirebaseCajaPorPermisos(error);
-    } else {
-      console.error('No se pudo escuchar el control de caja en tiempo real:', error);
-    }
-  });
-
-  return obtenerControlCajaLocal(diaActual);
 }
 
 async function migrarVentasLocalesAFirebase(ventasLocales) {
@@ -4992,10 +3863,8 @@ function cancelarPedidoActual() {
       rolUsuario: rolActual || ""
     };
 
-    const esVentaNueva = !ventaDocIdEnEdicion;
-    const ventanaImpresionCocina = esVentaNueva ? abrirVentanaImpresionPreparada('Pedido Cocina') : null;
-
     try {
+      const esVentaNueva = !ventaDocIdEnEdicion;
       venta._localId = venta._localId || ventaOriginalEnEdicion?._localId || generarIdVentaLocal();
 
       if (esVentaNueva) {
@@ -5012,14 +3881,7 @@ function cancelarPedidoActual() {
 
         guardarReferenciaUltimaVenta(ventaLocal);
         limpiarContextoEdicionVenta();
-        imprimirVentaCocinaAutomatica(ventaLocal, ventanaImpresionCocina);
-        if (firestoreDisponible) {
-          ventaPendienteAvisoSyncLocalId = ventaLocal._localId || ventaLocal._docId || "";
-          const referenciaVenta = ventaLocal.comanda ? `Comanda #${ventaLocal.comanda}` : 'La venta';
-          mostrarTarjetaProcesoVenta('loading', 'Recibo de cocina abierto', `${referenciaVenta} se guardó y se está sincronizando con Firebase.`, 0);
-        } else {
-          mostrarTarjetaProcesoVenta('success', 'Recibo de cocina abierto', 'La venta quedó guardada en este equipo y el recibo de cocina ya está listo para imprimir.', 5000);
-        }
+        alert(firestoreDisponible ? "Venta guardada al instante. Se está sincronizando con la base de datos." : "Venta guardada exitosamente.");
       } else {
         if (firestoreDisponible) {
           const docIdGuardado = await guardarVentaEnFirebase(venta, ventaDocIdEnEdicion);
@@ -5031,7 +3893,7 @@ function cancelarPedidoActual() {
         await sincronizarInventarioBebidasPorCambio(venta, ventaOriginalEnEdicion);
         guardarReferenciaUltimaVenta(venta);
         limpiarContextoEdicionVenta();
-        mostrarTarjetaProcesoVenta("success", "Venta actualizada", "Los cambios de la venta quedaron guardados correctamente.", 4000);
+        alert("Venta guardada exitosamente.");
       }
 
       limpiarPedido();
@@ -5039,9 +3901,8 @@ function cancelarPedidoActual() {
       refrescarVistasAnaliticasSiEstanAbiertas();
       document.getElementById("resumenProductos").classList.add("hidden");
     } catch (error) {
-      cerrarVentanaImpresionPreparada(ventanaImpresionCocina);
       console.error("Error al guardar la venta:", error);
-      mostrarTarjetaProcesoVenta('error', 'No se pudo guardar la venta', 'Revisa la conexión o la configuración de Firebase e inténtalo de nuevo.', 7000);
+      alert("No se pudo guardar la venta. Revisa la conexión o la configuración de Firebase.");
     }
   }
 
@@ -5074,9 +3935,7 @@ function cancelarPedidoActual() {
         <td class='border p-1'>${v.cliente}</td>
         <td class='border p-1'>${obtenerEtiquetaFormaPago(v)}</td>
         <td class='border p-1'>${formatearTipoPedidoVisual(v)}</td>
-        <td class='border p-1'>
-          <div class="flex flex-wrap gap-1">${obtenerBadgeEstadoVenta(v)}${obtenerBadgeSyncVenta(v)}</div>
-        </td>
+        <td class='border p-1'>${obtenerBadgeEstadoVenta(v)}</td>
         <td class='border p-1'>${productosResumen}</td>
         <td class='border p-1 font-semibold ${ventaCancelada ? 'text-red-600' : ''}'>$${v.total.toLocaleString('es-CO')}</td>
         <td class='border p-1 space-y-1 space-x-1'>${botonesAccion}</td>
@@ -5158,7 +4017,7 @@ function cancelarPedidoActual() {
           </div>
           <div class="text-right">
             <p class="text-sm font-bold ${ventaCancelada ? 'text-red-600' : 'text-gray-800'}">${formatearCOP(obtenerIngresoRealVenta(v))}</p>
-            <div class="mt-1 flex flex-wrap justify-end gap-1">${obtenerBadgeEstadoVenta(v)}${obtenerBadgeSyncVenta(v)}</div>
+            <div class="mt-1">${obtenerBadgeEstadoVenta(v)}</div>
           </div>
         </div>
         <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -5196,15 +4055,14 @@ function cancelarPedidoActual() {
 
   function obtenerVentasDelDiaActualConIndices() {
     const hoy = obtenerClaveDiaActual();
-    const ventasDia = fusionarVentasDiaConRespaldoLocal(hoy, obtenerVentasStorage().filter(venta => obtenerDiaClaveVenta(venta) === hoy));
-    return ventasDia.map(venta => ({
-      venta,
-      index: obtenerVentasStorage().findIndex(item => (
-        (venta._docId && item._docId === venta._docId) ||
-        (venta._localId && item._localId === venta._localId) ||
-        (obtenerClaveUnicaVenta(item) === obtenerClaveUnicaVenta(venta))
-      ))
-    }));
+    const ventas = obtenerVentasStorage();
+    return ventas
+      .map((venta, index) => ({ venta, index }))
+      .filter(({ venta }) => {
+        const fechaBase = venta.fechaISO ? new Date(venta.fechaISO) : new Date(venta.fecha || Date.now());
+        const diaVenta = venta.diaClave || obtenerFechaLocalISO(fechaBase);
+        return diaVenta === hoy;
+      });
   }
 
   function renderVentasTabla() {
@@ -5240,7 +4098,6 @@ function cancelarPedidoActual() {
     paginaVentasActual = 1;
     renderVentasTabla();
     renderControlCajaDiaActual();
-    sincronizarResumenCajaDiaEnSegundoPlano(obtenerFechaLocalISO(new Date())).catch(() => {});
   }
 
   function cambiarPaginaVentas(direccion) {
@@ -5451,40 +4308,8 @@ function construirListaProductosImpresion(venta = {}, resumido = false) {
     .join('');
 }
 
-function abrirVentanaImpresionPreparada(titulo = 'Impresión') {
+function abrirVentanaImpresion(contenido, titulo = 'Impresión') {
   const w = window.open('', '_blank', 'width=420,height=720');
-  if (!w) return null;
-  w.document.open();
-  w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${titulo}</title><style>body{font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fff7ed;color:#9a3412;font-weight:700}div{text-align:center;padding:24px}</style>
-<style>
-  .proceso-venta-card {
-    transition: opacity 0.25s ease, transform 0.25s ease;
-  }
-  .proceso-venta-card.hidden {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  .proceso-venta-card:not(.hidden) {
-    opacity: 1;
-    transform: translateY(0);
-  }
-</style>
-
-</head><body><div>Preparando impresión...</div></body></html>`);
-  w.document.close();
-  return w;
-}
-
-function cerrarVentanaImpresionPreparada(ventana) {
-  try {
-    if (ventana && !ventana.closed) {
-      ventana.close();
-    }
-  } catch (_) {}
-}
-
-function abrirVentanaImpresion(contenido, titulo = 'Impresión', ventanaExistente = null) {
-  const w = (ventanaExistente && !ventanaExistente.closed) ? ventanaExistente : window.open('', '_blank', 'width=420,height=720');
   if (!w) {
     alert('No se pudo abrir la ventana de impresión. Revisa el bloqueador de ventanas emergentes.');
     return;
@@ -5562,22 +4387,7 @@ function generarPlantillaReciboCliente(venta = {}, referencia = 1) {
           font-size: 15px;
         }
       </style>
-    
-<style>
-  .proceso-venta-card {
-    transition: opacity 0.25s ease, transform 0.25s ease;
-  }
-  .proceso-venta-card.hidden {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  .proceso-venta-card:not(.hidden) {
-    opacity: 1;
-    transform: translateY(0);
-  }
-</style>
-
-</head>
+    </head>
     <body>
       <h2>SEÑOR AREPA</h2>
       <div class="sub-info">
@@ -5665,22 +4475,7 @@ function generarPlantillaComanda(venta = {}, referencia = 1) {
           font-weight: 700;
         }
       </style>
-    
-<style>
-  .proceso-venta-card {
-    transition: opacity 0.25s ease, transform 0.25s ease;
-  }
-  .proceso-venta-card.hidden {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  .proceso-venta-card:not(.hidden) {
-    opacity: 1;
-    transform: translateY(0);
-  }
-</style>
-
-</head>
+    </head>
     <body>
       <h2>🧾 PEDIDO A COCINA</h2>
       <div class="line"></div>
@@ -5701,18 +4496,6 @@ function generarPlantillaComanda(venta = {}, referencia = 1) {
       <p class="footer-note">👨‍🍳 Preparar con cuidado</p>
     </body>
   </html>`;
-}
-
-function imprimirVentaCocinaAutomatica(venta, ventanaExistente = null) {
-  if (!venta) return;
-  if (esVentaCancelada(venta)) return;
-  if (!venta.pedido || !Array.isArray(venta.pedido) || !venta.pedido.length) return;
-
-  abrirVentanaImpresion(
-    generarPlantillaComanda(venta, venta.comanda ?? venta.recibo ?? 1),
-    'Pedido Cocina',
-    ventanaExistente
-  );
 }
 
 function imprimirUltimaCocinero() {
@@ -5814,7 +4597,6 @@ async function marcarVentaComoCancelada(index) {
     } else {
       ventas[index] = ventaActualizada;
       guardarVentasEnCache(ordenarVentasDesc(ventas));
-      sincronizarResumenCajaDiaEnSegundoPlano(obtenerFechaLocalISO(new Date())).catch(() => {});
     }
 
     await sincronizarInventarioBebidasPorCambio(ventaActualizada, venta);
@@ -5872,101 +4654,6 @@ function filtrarVentasPorCliente() {
   renderVentasTabla();
 }
 
-function mostrarTablaHistorico(tipo = 'dia') {
-  const paneles = {
-    dia: document.getElementById('panelHistoricoDia'),
-    semana: document.getElementById('panelHistoricoSemana'),
-    mes: document.getElementById('panelHistoricoMes')
-  };
-  const botones = {
-    dia: document.getElementById('btnHistDia'),
-    semana: document.getElementById('btnHistSemana'),
-    mes: document.getElementById('btnHistMes')
-  };
-  Object.entries(paneles).forEach(([clave, panel]) => {
-    if (!panel) return;
-    panel.classList.toggle('hidden', clave !== tipo);
-  });
-  Object.entries(botones).forEach(([clave, boton]) => {
-    if (!boton) return;
-    const activo = clave === tipo;
-    boton.className = activo
-      ? 'bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-semibold'
-      : 'bg-white border border-yellow-300 text-yellow-700 px-4 py-2 rounded-lg font-semibold';
-  });
-}
-
-function ejecutarEnSegundoPlano(tarea, delay = 16, timeout = 800) {
-  const job = () => {
-    try {
-      const posiblePromesa = tarea?.();
-      if (posiblePromesa && typeof posiblePromesa.catch === 'function') {
-        posiblePromesa.catch(error => console.warn('Tarea diferida con error:', error));
-      }
-    } catch (error) {
-      console.warn('No se pudo ejecutar la tarea diferida:', error);
-    }
-  };
-  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-    return window.requestIdleCallback(job, { timeout });
-  }
-  return window.setTimeout(job, delay);
-}
-
-function actualizarEstadoCargaHistoricos(mensaje = 'Listo para consultar.', tono = 'neutral') {
-  const tarjeta = document.getElementById('histEstadoCarga');
-  if (!tarjeta) return;
-  const estilos = {
-    neutral: ['border-blue-100', 'bg-blue-50', 'text-blue-700', 'bg-blue-500'],
-    cargando: ['border-amber-100', 'bg-amber-50', 'text-amber-700', 'bg-amber-500'],
-    listo: ['border-emerald-100', 'bg-emerald-50', 'text-emerald-700', 'bg-emerald-500'],
-    error: ['border-red-100', 'bg-red-50', 'text-red-700', 'bg-red-500']
-  };
-  const [border, bg, textColor, dot] = estilos[tono] || estilos.neutral;
-  tarjeta.className = `mb-4 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${border} ${bg} ${textColor}`;
-  tarjeta.innerHTML = `<span class="inline-block h-2 w-2 rounded-full ${dot}"></span><span>${mensaje}</span>`;
-}
-
-let historicosRefreshToken = 0;
-let cargaInicialPesadaProgramada = false;
-
-function programarCargaInicialPesada() {
-  if (cargaInicialPesadaProgramada) return;
-  cargaInicialPesadaProgramada = true;
-  ejecutarEnSegundoPlano(async () => {
-    await inicializarFirebaseVentas();
-    await renderControlCajaDiaActual(false);
-    await renderTablaCierresCaja(false);
-  }, 60, 1200);
-}
-
-async function actualizarHistoricosManual() {
-  actualizarEstadoCargaHistoricos('Actualizando históricos desde Firebase...', 'cargando');
-  try {
-    await actualizarHistoricos(true, { soloCache: false });
-    actualizarEstadoCargaHistoricos('Históricos actualizados.', 'listo');
-  } catch (error) {
-    console.error('No se pudieron actualizar los históricos manualmente:', error);
-    actualizarEstadoCargaHistoricos('No se pudo actualizar ahora. Se muestran datos guardados.', 'error');
-  }
-}
-
-function refrescarHistoricosEnSegundoPlano(forzarRemoto = false) {
-  const token = ++historicosRefreshToken;
-  actualizarEstadoCargaHistoricos('Cargando últimos datos sin bloquear la vista...', 'cargando');
-  ejecutarEnSegundoPlano(async () => {
-    try {
-      await actualizarHistoricos(forzarRemoto, { soloCache: false });
-      if (token !== historicosRefreshToken) return;
-      actualizarEstadoCargaHistoricos('Datos actualizados.', 'listo');
-    } catch (error) {
-      console.error('No se pudieron refrescar los históricos en segundo plano:', error);
-      if (token !== historicosRefreshToken) return;
-      actualizarEstadoCargaHistoricos('Se muestran datos guardados. Reintenta actualizar.', 'error');
-    }
-  }, 80, 1500);
-}
-
 async function abrirHistoricos() {
   if (!verificarAcceso(["admin", "administrador"])) return;
   const appMain = document.getElementById("appMain");
@@ -5977,10 +4664,7 @@ async function abrirHistoricos() {
   if (cajaVista) cajaVista.classList.add("hidden");
   if (domiciliosVista) domiciliosVista.classList.add("hidden");
   if (historicosVista) historicosVista.classList.remove("hidden");
-
-  actualizarEstadoCargaHistoricos('Mostrando datos guardados del equipo...', 'neutral');
-  await actualizarHistoricos(false, { soloCache: true });
-  refrescarHistoricosEnSegundoPlano(false);
+  actualizarHistoricos();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -6008,15 +4692,11 @@ function volverAlPOS() {
   if (cajaVista) cajaVista.classList.add("hidden");
   if (domiciliosVista) domiciliosVista.classList.add("hidden");
   if (appMain) appMain.classList.remove("hidden");
-  escucharVentasFirestore(false).catch(() => {});
-  escucharControlCajaFirestore(false).catch(() => {});
-  refrescarRecursosLivianosSiVencidos();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 
     window.onload = async () => {
-      reconciliarVentasLocalesTemporales();
       mostrarVentas();
       actualizarResumenMovil();
       aplicarPermisosPorRol();
@@ -6041,11 +4721,9 @@ function volverAlPOS() {
         });
       }
       actualizarCampoCostoDomicilio();
-
-      renderControlCajaDiaActual(false).catch(() => {});
-      renderTablaCierresCaja(false).catch(() => {});
-      programarCargaInicialPesada();
-
+      await inicializarFirebaseVentas();
+      await renderControlCajaDiaActual(true);
+      renderTablaCierresCaja(false);
       document.querySelectorAll('#modalAperturaCaja, #modalCierreCaja, #modalDineroEsperado, #modalPagoMixto').forEach(modal => {
         modal?.addEventListener('click', (event) => {
           if (event.target === modal) cerrarModalCaja(modal.id);
@@ -6214,233 +4892,22 @@ function volverAlPOS() {
     const historicosVista = document.getElementById('historicosVista');
     const domiciliosVista = document.getElementById('domiciliosVista');
     if (historicosVista && !historicosVista.classList.contains('hidden')) {
-      actualizarHistoricos(false, { soloCache: true });
-      refrescarHistoricosEnSegundoPlano(false);
+      actualizarHistoricos();
     }
     if (domiciliosVista && !domiciliosVista.classList.contains('hidden')) {
-      asegurarVentasMesActualCargadas().finally(() => actualizarDomiciliosVista());
+      actualizarDomiciliosVista();
     }
   }
 
-  function guardarCacheVentasDetalleHistorico() {
-    try {
-      localStorage.setItem(VENTAS_DIA_DETALLE_CACHE_KEY, JSON.stringify(ventasDetalleHistoricoCache || {}));
-    } catch (error) {
-      console.warn('No se pudo guardar la caché del detalle histórico:', error);
-    }
-  }
-
-  function obtenerRangoFechaISOFirestore(diaClave = '') {
-    const dia = String(diaClave || '').trim();
-    if (!dia) return { inicio: '', fin: '' };
-    return {
-      inicio: `${dia}T00:00:00.000-05:00`,
-      fin: `${sumarDiasISO(dia, 1)}T00:00:00.000-05:00`
-    };
-  }
-
-  function limpiarCacheVentasDetalleHistoricoVencida() {
-    const ahora = Date.now();
-    const limpio = {};
-    Object.entries(ventasDetalleHistoricoCache || {}).forEach(([clave, valor]) => {
-      if (!valor?.actualizadoEn) return;
-      if ((ahora - Number(valor.actualizadoEn || 0)) <= VENTAS_DIA_DETALLE_CACHE_TTL_MS) {
-        limpio[clave] = valor;
-      }
-    });
-    ventasDetalleHistoricoCache = limpio;
-    guardarCacheVentasDetalleHistorico();
-  }
-
-  function obtenerDetalleHistoricoCacheDia(diaClave = '') {
-    limpiarCacheVentasDetalleHistoricoVencida();
-    const entrada = ventasDetalleHistoricoCache?.[diaClave];
-    if (!entrada) return null;
-    return {
-      ventas: Array.isArray(entrada.ventas) ? entrada.ventas.map(normalizarVenta) : [],
-      agotadoRemoto: Boolean(entrada.agotadoRemoto),
-      ultimoCursor: String(entrada.ultimoCursor || ''),
-      actualizadoEn: Number(entrada.actualizadoEn || 0)
-    };
-  }
-
-  function guardarDetalleHistoricoCacheDia(diaClave = '', ventas = [], extras = {}) {
-    if (!diaClave) return null;
-    ventasDetalleHistoricoCache = {
-      ...(ventasDetalleHistoricoCache || {}),
-      [diaClave]: {
-        ventas: Array.isArray(ventas) ? ventas.map(normalizarVenta) : [],
-        agotadoRemoto: Boolean(extras?.agotadoRemoto),
-        ultimoCursor: String(extras?.ultimoCursor || ''),
-        actualizadoEn: Date.now()
-      }
-    };
-    guardarCacheVentasDetalleHistorico();
-    return ventasDetalleHistoricoCache[diaClave];
-  }
-
-  function obtenerClaveVentaUnica(venta = {}) {
-    if (venta?._docId) return `doc:${venta._docId}`;
-    if (venta?._localId) return `local:${venta._localId}`;
-    return `tmp:${venta?.fechaISO || venta?.fecha || ''}:${venta?.recibo || ''}:${venta?.comanda || ''}:${venta?.cliente || ''}`;
-  }
-
-  function mezclarVentasSinDuplicados(...colecciones) {
-    const mapa = new Map();
-    colecciones.flat().forEach(venta => {
-      const normalizada = normalizarVenta(venta);
-      mapa.set(obtenerClaveVentaUnica(normalizada), normalizada);
-    });
-    return ordenarVentasDesc(Array.from(mapa.values()));
-  }
-
-  function obtenerVentasLocalesSoloDia(diaClave = '') {
-    return obtenerVentasNormalizadas().filter(v => v.diaClave === diaClave);
-  }
-
-  async function cargarVentasDetalleHistoricoDia(diaClave = '', opciones = {}) {
-    const { forzar = false, cargarMas = false } = opciones || {};
-    if (!diaClave) return [];
-
-    const cacheDia = obtenerDetalleHistoricoCacheDia(diaClave);
-    const ventasLocalesDia = obtenerVentasLocalesSoloDia(diaClave).filter(v => !v._docId);
-
-    if (!cargarMas && !forzar && cacheDia) {
-      const mezcladas = mezclarVentasSinDuplicados(cacheDia.ventas, ventasLocalesDia);
-      ventasDetalleDiaEstado = {
-        fecha: diaClave,
-        paginaActual: 1,
-        totalPaginas: Math.max(1, Math.ceil(mezcladas.length / DETALLE_VENTAS_PAGE_SIZE)),
-        cargadasRemotas: cacheDia.ventas.length,
-        agotadoRemoto: Boolean(cacheDia.agotadoRemoto),
-        ultimoCursor: cacheDia.ultimoCursor || '',
-        cargando: false
-      };
-      return mezcladas;
-    }
-
-    if (!firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) {
-      const soloLocal = mezclarVentasSinDuplicados(cacheDia?.ventas || [], ventasLocalesDia);
-      ventasDetalleDiaEstado = {
-        fecha: diaClave,
-        paginaActual: 1,
-        totalPaginas: Math.max(1, Math.ceil(soloLocal.length / DETALLE_VENTAS_PAGE_SIZE)),
-        cargadasRemotas: cacheDia?.ventas?.length || 0,
-        agotadoRemoto: true,
-        ultimoCursor: cacheDia?.ultimoCursor || '',
-        cargando: false
-      };
-      return soloLocal;
-    }
-
-    const baseRemota = cargarMas ? (cacheDia?.ventas || []) : [];
-    const ultimoCursor = cargarMas ? String(cacheDia?.ultimoCursor || '') : '';
-    const { inicio, fin } = obtenerRangoFechaISOFirestore(diaClave);
-    let consulta = firestoreDb.collection('ventas')
-      .where('fechaISO', '>=', inicio)
-      .where('fechaISO', '<', fin)
-      .orderBy('fechaISO', 'desc')
-      .limit(DETALLE_VENTAS_PAGE_SIZE);
-
-    if (ultimoCursor) {
-      consulta = consulta.startAfter(ultimoCursor);
-    }
-
-    const snapshot = await consulta.get();
-    registrarHeartbeatFirebase();
-    const lote = snapshot.docs.map(doc => normalizarVenta({ _docId: doc.id, ...doc.data() }));
-    const remotasAcumuladas = mezclarVentasSinDuplicados(baseRemota, lote).filter(v => v._docId);
-    const agotadoRemoto = lote.length < DETALLE_VENTAS_PAGE_SIZE;
-    const cursorNuevo = remotasAcumuladas.length ? String(remotasAcumuladas[remotasAcumuladas.length - 1]?.fechaISO || '') : '';
-    guardarDetalleHistoricoCacheDia(diaClave, remotasAcumuladas, { agotadoRemoto, ultimoCursor: cursorNuevo });
-
-    const mezcladas = mezclarVentasSinDuplicados(remotasAcumuladas, ventasLocalesDia);
-    ventasDetalleDiaEstado = {
-      fecha: diaClave,
-      paginaActual: cargarMas ? Math.max(1, ventasDetalleDiaEstado.paginaActual + 1) : 1,
-      totalPaginas: Math.max(1, Math.ceil(mezcladas.length / DETALLE_VENTAS_PAGE_SIZE)),
-      cargadasRemotas: remotasAcumuladas.length,
-      agotadoRemoto,
-      ultimoCursor: cursorNuevo,
-      cargando: false
-    };
-    return mezcladas;
-  }
-
-  function enriquecerControlesConVentas(controles = [], inicio = '', finExclusive = '') {
-    const mapa = {};
-    (Array.isArray(controles) ? controles : []).forEach(control => {
-      const dia = String(control?.diaClave || '').trim();
-      if (!dia) return;
-      mapa[dia] = normalizarControlCaja(control, dia);
-    });
-
-    const ventasRango = obtenerVentasNormalizadas().filter(venta => {
-      const dia = obtenerDiaClaveVenta(venta);
-      return dia && estaFechaISOEnRango(dia, inicio, finExclusive);
-    });
-
-    const diasConVentas = [...new Set(ventasRango.map(venta => obtenerDiaClaveVenta(venta)).filter(Boolean))];
-    diasConVentas.forEach(dia => {
-      const base = mapa[dia] || normalizarControlCaja({}, dia);
-      const resumen = calcularResumenCajaDia(dia);
-      const esperados = calcularDineroEsperadoCaja(base, resumen);
-      mapa[dia] = construirPayloadControlCaja(base, resumen, esperados);
-    });
-
-    return Object.values(mapa).sort((a, b) => String(b.diaClave || '').localeCompare(String(a.diaClave || '')));
-  }
-
-  function construirControlesBaseDelMesHastaHoy(controles = [], hoy = obtenerFechaLocalISO(new Date())) {
-    const mapa = {};
-    (Array.isArray(controles) ? controles : []).forEach(control => {
-      const dia = String(control?.diaClave || '').trim();
-      if (dia) mapa[dia] = normalizarControlCaja(control, dia);
-    });
-    const inicio = `${hoy.slice(0, 7)}-01`;
-    let cursor = inicio;
-    const salida = [];
-    while (cursor <= hoy) {
-      salida.push(mapa[cursor] || normalizarControlCaja({}, cursor));
-      cursor = sumarDiasISO(cursor, 1);
-    }
-    return salida.sort((a, b) => String(b.diaClave || '').localeCompare(String(a.diaClave || '')));
-  }
-
-  function renderControlesPaginacionSimple(containerId, paginaActual, totalPaginas, onPrev, onNext, resumenTexto) {
-    const contenedor = document.getElementById(containerId);
-    if (!contenedor) return;
-    contenedor.innerHTML = `
-      <div class="text-gray-600">${resumenTexto}</div>
-      <div class="flex flex-wrap gap-2">
-        <button type="button" onclick="${onPrev}" class="px-3 py-2 rounded-lg border border-yellow-300 bg-white text-yellow-700 font-semibold ${paginaActual <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${paginaActual <= 1 ? 'disabled' : ''}>← Anterior</button>
-        <button type="button" onclick="${onNext}" class="px-3 py-2 rounded-lg border border-yellow-300 bg-white text-yellow-700 font-semibold ${paginaActual >= totalPaginas ? 'opacity-50 cursor-not-allowed' : ''}" ${paginaActual >= totalPaginas ? 'disabled' : ''}>Siguiente →</button>
-      </div>
-    `;
-  }
-
-  function cambiarPaginaHistorico(tipo = 'dia', delta = 0) {
-    const actual = Number(historicoPaginacionEstado?.[tipo] || 1);
-    historicoPaginacionEstado = { ...(historicoPaginacionEstado || {}), [tipo]: Math.max(1, actual + Number(delta || 0)) };
-    actualizarHistoricos(false, { soloCache: true });
-  }
-
-  function renderHistorico(bodyId, filas, etiquetaVacia, tipo = 'dia') {
+  function renderHistorico(bodyId, filas, etiquetaVacia) {
     const body = document.getElementById(bodyId);
     if (!body) return;
     body.innerHTML = "";
-    const containerId = `paginacionHistorico${tipo.charAt(0).toUpperCase()}${tipo.slice(1)}`;
     if (!filas.length) {
-      body.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-gray-500">${etiquetaVacia}</td></tr>`;
-      renderControlesPaginacionSimple(containerId, 1, 1, `cambiarPaginaHistorico('${tipo}', -1)`, `cambiarPaginaHistorico('${tipo}', 1)`, 'Sin registros para mostrar');
+      body.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-gray-500">${etiquetaVacia}</td></tr>`;
       return;
     }
-    const totalPaginas = Math.max(1, Math.ceil(filas.length / HISTORICO_PAGE_SIZE));
-    const paginaActual = Math.min(Math.max(1, Number(historicoPaginacionEstado?.[tipo] || 1)), totalPaginas);
-    historicoPaginacionEstado = { ...(historicoPaginacionEstado || {}), [tipo]: paginaActual };
-    const inicio = (paginaActual - 1) * HISTORICO_PAGE_SIZE;
-    const pagina = filas.slice(inicio, inicio + HISTORICO_PAGE_SIZE);
-    pagina.forEach(fila => {
+    filas.forEach(fila => {
       const pedidosTexto = `${fila.ventas}${fila.canceladas ? ` activas / ${fila.canceladas} canceladas` : ''}`;
       const domiciliosTexto = `${fila.domicilios}${fila.domiciliosCancelados ? ` activos / ${fila.domiciliosCancelados} cancelados` : ''}`;
       body.innerHTML += `
@@ -6448,21 +4915,10 @@ function volverAlPOS() {
           <td class="p-2 border">${fila.label}</td>
           <td class="p-2 border">${pedidosTexto}</td>
           <td class="p-2 border">${domiciliosTexto}</td>
-          <td class="p-2 border">${formatearDinero(fila.efectivo || 0)}</td>
-          <td class="p-2 border">${formatearDinero(fila.transferencias || 0)}</td>
-          <td class="p-2 border">${formatearDinero(fila.ajusteDomiciliosDigitales || 0)}</td>
           <td class="p-2 border">${formatearDinero(fila.total)}</td>
         </tr>
       `;
     });
-    renderControlesPaginacionSimple(
-      containerId,
-      paginaActual,
-      totalPaginas,
-      `cambiarPaginaHistorico('${tipo}', -1)`,
-      `cambiarPaginaHistorico('${tipo}', 1)`,
-      `Mostrando ${inicio + 1}-${Math.min(inicio + pagina.length, filas.length)} de ${filas.length} registros`
-    );
   }
 
   function formatearHora(fechaTexto) {
@@ -6480,50 +4936,16 @@ function volverAlPOS() {
       .join('<br>');
   }
 
-  function limpiarVentasDetalladasHistorico(fechaSeleccionada = '') {
+  function verVentasDetalladasPorFecha() {
     const input = document.getElementById('filtroHistoricoFecha');
     const body = document.getElementById('ventasDiaDetalleBody');
     const resumen = document.getElementById('resumenVentasDiaSeleccionado');
-    const paginacion = document.getElementById('paginacionVentasDiaDetalle');
-    const fecha = fechaSeleccionada || input?.value || obtenerFechaLocalISO(new Date());
-
-    if (input && !input.value) input.value = fecha;
-    ventasDetalleDiaEstado = { fecha, paginaActual: 1, totalPaginas: 1, cargadasRemotas: 0, agotadoRemoto: false, ultimoCursor: '', cargando: false };
-
-    if (resumen) {
-      resumen.innerHTML = `<strong>Fecha lista para consultar:</strong> ${fecha} &nbsp;|&nbsp; Selecciona <strong>Ver ventas del día</strong> para cargar el detalle.`;
-    }
-    if (body) {
-      body.innerHTML = '<tr><td colspan="10" class="p-3 text-center text-gray-500">Aún no se ha cargado el detalle. Consulta una fecha para ver las ventas del día.</td></tr>';
-    }
-    if (paginacion) {
-      paginacion.innerHTML = '<div class="text-gray-500">Sin consulta detallada cargada todavía.</div>';
-    }
-  }
-
-  async function verVentasDetalladasPorFecha(forzarRemoto = false, cargarMas = false) {
-    const input = document.getElementById('filtroHistoricoFecha');
-    const body = document.getElementById('ventasDiaDetalleBody');
-    const resumen = document.getElementById('resumenVentasDiaSeleccionado');
-    const paginacion = document.getElementById('paginacionVentasDiaDetalle');
-    if (!input || !body || !resumen || !paginacion) return;
+    if (!input || !body || !resumen) return;
 
     const fechaSeleccionada = input.value || obtenerFechaLocalISO(new Date());
     input.value = fechaSeleccionada;
 
-    if (!cargarMas) {
-      ventasDetalleDiaEstado = { fecha: fechaSeleccionada, paginaActual: 1, totalPaginas: 1, cargadasRemotas: 0, agotadoRemoto: false, ultimoCursor: '', cargando: false };
-    }
-
-    let ventas = [];
-    try {
-      ventas = await cargarVentasDetalleHistoricoDia(fechaSeleccionada, { forzar: forzarRemoto, cargarMas });
-    } catch (error) {
-      console.error('No se pudieron cargar las ventas detalladas del día:', error);
-      ventas = mezclarVentasSinDuplicados(obtenerDetalleHistoricoCacheDia(fechaSeleccionada)?.ventas || [], obtenerVentasLocalesSoloDia(fechaSeleccionada));
-    }
-
-    ventas = ventas
+    const ventas = obtenerVentasNormalizadas()
       .filter(v => v.diaClave === fechaSeleccionada)
       .sort((a, b) => {
         const aTime = new Date(a.fechaISO || a.fecha).getTime() || 0;
@@ -6541,17 +4963,10 @@ function volverAlPOS() {
     body.innerHTML = '';
     if (!ventas.length) {
       body.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-gray-500">No hay ventas registradas para esta fecha.</td></tr>`;
-      paginacion.innerHTML = '<div class="text-gray-500">No hay páginas para mostrar.</div>';
       return;
     }
 
-    const totalPaginas = Math.max(1, Math.ceil(ventas.length / DETALLE_VENTAS_PAGE_SIZE));
-    ventasDetalleDiaEstado.totalPaginas = totalPaginas;
-    ventasDetalleDiaEstado.paginaActual = Math.min(Math.max(1, ventasDetalleDiaEstado.paginaActual || 1), totalPaginas);
-    const hasta = ventasDetalleDiaEstado.paginaActual * DETALLE_VENTAS_PAGE_SIZE;
-    const visibles = ventas.slice(0, hasta);
-
-    visibles.forEach(v => {
+    ventas.forEach(v => {
       const ventaCancelada = esVentaCancelada(v);
       body.innerHTML += `
         <tr class="${ventaCancelada ? 'bg-red-50 text-gray-500' : ''}">
@@ -6568,32 +4983,6 @@ function volverAlPOS() {
         </tr>
       `;
     });
-
-    const puedeCargarMasCache = hasta < ventas.length;
-    const puedeCargarMasRemoto = !ventasDetalleDiaEstado.agotadoRemoto;
-    paginacion.innerHTML = `
-      <div class="text-gray-600">Mostrando 1-${Math.min(visibles.length, ventas.length)} de ${ventas.length} venta(s) cargadas en local.</div>
-      <div class="flex flex-wrap gap-2">
-        <button type="button" onclick="cargarMasVentasHistoricoDia()" class="px-3 py-2 rounded-lg border border-indigo-300 bg-white text-indigo-700 font-semibold ${(puedeCargarMasCache || puedeCargarMasRemoto) ? '' : 'opacity-50 cursor-not-allowed'}" ${(puedeCargarMasCache || puedeCargarMasRemoto) ? '' : 'disabled'}>${puedeCargarMasCache ? 'Ver más desde caché' : (puedeCargarMasRemoto ? 'Cargar más desde Firebase' : 'Todo cargado')}</button>
-      </div>
-    `;
-
-  }
-
-  async function cargarMasVentasHistoricoDia() {
-    const fechaSeleccionada = document.getElementById('filtroHistoricoFecha')?.value || obtenerFechaLocalISO(new Date());
-    const cacheDia = obtenerDetalleHistoricoCacheDia(fechaSeleccionada);
-    const ventasActuales = mezclarVentasSinDuplicados(cacheDia?.ventas || [], obtenerVentasLocalesSoloDia(fechaSeleccionada));
-    const visibles = (ventasDetalleDiaEstado.paginaActual || 1) * DETALLE_VENTAS_PAGE_SIZE;
-    if (visibles < ventasActuales.length) {
-      ventasDetalleDiaEstado.paginaActual += 1;
-      return verVentasDetalladasPorFecha(false, false);
-    }
-    if (!ventasDetalleDiaEstado.agotadoRemoto) {
-      await verVentasDetalladasPorFecha(false, true);
-      ventasDetalleDiaEstado.paginaActual = Math.min((ventasDetalleDiaEstado.paginaActual || 1) + 1, ventasDetalleDiaEstado.totalPaginas || 1);
-      return verVentasDetalladasPorFecha(false, false);
-    }
   }
 
   async function exportarVentasDelDiaHistorico() {
@@ -6601,7 +4990,6 @@ function volverAlPOS() {
     const input = document.getElementById('filtroHistoricoFecha');
     const fechaSeleccionada = input?.value || obtenerFechaLocalISO(new Date());
     if (input && !input.value) input.value = fechaSeleccionada;
-    await asegurarVentasDiaCargadas(fechaSeleccionada, true);
 
     const ventas = obtenerVentasNormalizadas().filter(v => v.diaClave === fechaSeleccionada);
     if (ventas.length === 0) {
@@ -6612,79 +5000,96 @@ function volverAlPOS() {
     await exportarVentasAExcel(ventas, `Ventas_${fechaSeleccionada}.xlsx`, `Ventas ${fechaSeleccionada}`);
   }
 
-  async function actualizarHistoricos(forzarRemoto = false, opciones = {}) {
-    const { soloCache = false } = opciones || {};
+  function actualizarHistoricos() {
+    const ventas = obtenerVentasNormalizadas();
     const hoy = obtenerFechaLocalISO(new Date());
     const ahora = new Date();
     const semanaActual = obtenerClaveSemana(ahora);
-    const filtroFecha = document.getElementById('filtroHistoricoFecha');
-    const fechaSeleccionada = filtroFecha?.value || hoy;
-    if (filtroFecha && !filtroFecha.value) filtroFecha.value = fechaSeleccionada;
+    const mesActual = hoy.slice(0, 7);
 
-    const inicioMesActual = obtenerInicioMesISO(new Date());
-    const finMesActual = obtenerInicioMesSiguienteISO(new Date());
+    const ventasHoy = ventas.filter(v => v.diaClave === hoy);
+    const ventasSemana = ventas.filter(v => {
+      const fecha = new Date(v.fechaISO || v.fecha);
+      return obtenerClaveSemana(fecha) === semanaActual;
+    });
+    const ventasMes = ventas.filter(v => (v.diaClave || "").slice(0, 7) === mesActual);
 
-    let controles = [];
-
-    if (soloCache) {
-      controles = obtenerControlesCajaEnCachePorRango(inicioMesActual, finMesActual);
-      if (fechaSeleccionada && !estaFechaISOEnRango(fechaSeleccionada, inicioMesActual, finMesActual)) {
-        controles = controles.concat(obtenerControlesCajaEnCachePorRango(fechaSeleccionada, sumarDiasISO(fechaSeleccionada, 1)));
-      }
-    } else {
-      await asegurarVentasNecesariasParaHistoricos(forzarRemoto);
-      controles = await consultarControlCajaPorRangoFirestore(inicioMesActual, finMesActual, { forzar: forzarRemoto });
-      if (fechaSeleccionada && !estaFechaISOEnRango(fechaSeleccionada, inicioMesActual, finMesActual)) {
-        await consultarControlCajaPorRangoFirestore(fechaSeleccionada, sumarDiasISO(fechaSeleccionada, 1), { forzar: forzarRemoto });
-        controles = obtenerControlesCajaEnCachePorRango(inicioMesActual, finMesActual)
-          .concat(obtenerControlesCajaEnCachePorRango(fechaSeleccionada, sumarDiasISO(fechaSeleccionada, 1)));
-      }
-    }
-
-    const controlesConVentas = enriquecerControlesConVentas(
-      (Array.isArray(controles) ? controles : []).map(control => normalizarControlCaja(control, control?.diaClave || '')),
-      inicioMesActual,
-      finMesActual
-    );
-    const controlesNormalizados = construirControlesBaseDelMesHastaHoy(controlesConVentas, hoy);
-    const controlHoy = controlesNormalizados.find(control => control.diaClave === hoy) || normalizarControlCaja({}, hoy);
-    const controlesSemana = controlesNormalizados.filter(control => obtenerClaveSemana(new Date(`${control.diaClave}T12:00:00`)) === semanaActual);
-
-    const sumar = (lista, getter) => redondearPago((lista || []).reduce((acc, item) => acc + Number(getter(item) || 0), 0));
-    const ventasSemanaActivas = controlesSemana.reduce((acc, item) => acc + Number(item.cantidadVentasActivas || item.cantidadVentas || 0), 0);
-    const ventasSemanaCanceladas = controlesSemana.reduce((acc, item) => acc + Number(item.cantidadVentasCanceladas || 0), 0);
-    const domiciliosSemanaActivos = controlesSemana.reduce((acc, item) => acc + Number(item.cantidadDomiciliosActivos || item.domicilios || 0), 0);
-    const domiciliosSemanaCancelados = controlesSemana.reduce((acc, item) => acc + Number(item.cantidadDomiciliosCancelados || 0), 0);
-    const ventasMesActivas = controlesNormalizados.reduce((acc, item) => acc + Number(item.cantidadVentasActivas || item.cantidadVentas || 0), 0);
-    const ventasMesCanceladas = controlesNormalizados.reduce((acc, item) => acc + Number(item.cantidadVentasCanceladas || 0), 0);
-    const domiciliosMesActivos = controlesNormalizados.reduce((acc, item) => acc + Number(item.cantidadDomiciliosActivos || item.domicilios || 0), 0);
-    const domiciliosMesCancelados = controlesNormalizados.reduce((acc, item) => acc + Number(item.cantidadDomiciliosCancelados || 0), 0);
+    const ventasHoyActivas = filtrarVentasActivas(ventasHoy);
+    const ventasSemanaActivas = filtrarVentasActivas(ventasSemana);
+    const ventasMesActivas = filtrarVentasActivas(ventasMes);
+    const canceladasHoy = ventasHoy.length - ventasHoyActivas.length;
+    const canceladasSemana = ventasSemana.length - ventasSemanaActivas.length;
+    const canceladasMes = ventasMes.length - ventasMesActivas.length;
+    const domiciliosHoy = contarDomicilios(ventasHoyActivas, true);
+    const domiciliosSemana = contarDomicilios(ventasSemanaActivas, true);
+    const domiciliosMes = contarDomicilios(ventasMesActivas, true);
+    const domiciliosHoyCancelados = ventasHoy.filter(v => esVentaCancelada(v) && esPedidoDomicilio(v)).length;
+    const domiciliosSemanaCancelados = ventasSemana.filter(v => esVentaCancelada(v) && esPedidoDomicilio(v)).length;
+    const domiciliosMesCancelados = ventasMes.filter(v => esVentaCancelada(v) && esPedidoDomicilio(v)).length;
 
     const setText = (id, value) => {
       const el = document.getElementById(id);
       if (el) el.textContent = value;
     };
 
-    const totalSemana = sumar(controlesSemana, item => item.totalVentas);
-    const totalMes = sumar(controlesNormalizados, item => item.totalVentas);
+    setText("histHoyVentas", `${ventasHoyActivas.length} pedido(s)${canceladasHoy ? ` · ${canceladasHoy} cancelado(s)` : ""}`);
+    setText("histHoyTotal", `${formatearDinero(ventasHoyActivas.reduce((acc, v) => acc + obtenerIngresoRealVenta(v), 0))} · ${domiciliosHoy} domicilio(s)${domiciliosHoyCancelados ? ` / ${domiciliosHoyCancelados} cancelado(s)` : ""} · sin domicilios`);
+    setText("histSemanaVentas", `${ventasSemanaActivas.length} pedido(s)${canceladasSemana ? ` · ${canceladasSemana} cancelado(s)` : ""}`);
+    setText("histSemanaTotal", `${formatearDinero(ventasSemanaActivas.reduce((acc, v) => acc + obtenerIngresoRealVenta(v), 0))} · ${domiciliosSemana} domicilio(s)${domiciliosSemanaCancelados ? ` / ${domiciliosSemanaCancelados} cancelado(s)` : ""} · sin domicilios`);
+    setText("histMesVentas", `${ventasMesActivas.length} pedido(s)${canceladasMes ? ` · ${canceladasMes} cancelado(s)` : ""}`);
+    setText("histMesTotal", `${formatearDinero(ventasMesActivas.reduce((acc, v) => acc + obtenerIngresoRealVenta(v), 0))} · ${domiciliosMes} domicilio(s)${domiciliosMesCancelados ? ` / ${domiciliosMesCancelados} cancelado(s)` : ""} · sin domicilios`);
 
-    setText('histHoyVentas', `${Number(controlHoy.cantidadVentasActivas || controlHoy.cantidadVentas || 0)} venta(s) del día${Number(controlHoy.cantidadVentasCanceladas || 0) ? ` · ${Number(controlHoy.cantidadVentasCanceladas || 0)} cancelada(s)` : ''}`);
-    setText('histHoyTotal', `Total del día: ${formatearDinero(Number(controlHoy.totalVentas || 0))} · ${Number(controlHoy.cantidadDomiciliosActivos || controlHoy.domicilios || 0)} domicilio(s)${Number(controlHoy.cantidadDomiciliosCancelados || 0) ? ` / ${Number(controlHoy.cantidadDomiciliosCancelados || 0)} cancelado(s)` : ''}`);
-    setText('histSemanaTotal', formatearDinero(totalSemana));
-    setText('histSemanaVentas', `${ventasSemanaActivas} venta(s)${ventasSemanaCanceladas ? ` · ${ventasSemanaCanceladas} cancelada(s)` : ''} · ${domiciliosSemanaActivos} domicilio(s)${domiciliosSemanaCancelados ? ` / ${domiciliosSemanaCancelados} cancelados` : ''}`);
-    setText('histMesTotal', formatearDinero(totalMes));
-    setText('histMesVentas', `${ventasMesActivas} venta(s)${ventasMesCanceladas ? ` · ${ventasMesCanceladas} cancelada(s)` : ''} · ${domiciliosMesActivos} domicilio(s)${domiciliosMesCancelados ? ` / ${domiciliosMesCancelados} cancelados` : ''}`);
+    const diario = {};
+    const semanal = {};
+    const mensual = {};
 
-    renderHistorico('historicoDiaBody', resumirHistoricoControles(controlesNormalizados, 'dia'), 'No hay cierres/resúmenes registrados por día.', 'dia');
-    renderHistorico('historicoSemanaBody', resumirHistoricoControles(controlesNormalizados, 'semana'), 'No hay cierres/resúmenes registrados por semana.', 'semana');
-    renderHistorico('historicoMesBody', resumirHistoricoControles(controlesNormalizados, 'mes'), 'No hay cierres/resúmenes registrados por mes.', 'mes');
+    ventas.forEach(v => {
+      const fecha = new Date(v.fechaISO || v.fecha);
+      const dia = v.diaClave;
+      const semana = obtenerClaveSemana(fecha);
+      const mes = dia.slice(0, 7);
 
-    limpiarVentasDetalladasHistorico(fechaSeleccionada);
-    if (!soloCache) {
-      renderTablaCierresCaja(false);
+      if (!diario[dia]) diario[dia] = { label: dia, ventas: 0, canceladas: 0, domicilios: 0, domiciliosCancelados: 0, total: 0 };
+      if (!semanal[semana]) semanal[semana] = { label: semana, ventas: 0, canceladas: 0, domicilios: 0, domiciliosCancelados: 0, total: 0 };
+      if (!mensual[mes]) mensual[mes] = { label: mes, ventas: 0, canceladas: 0, domicilios: 0, domiciliosCancelados: 0, total: 0 };
+
+      if (esVentaCancelada(v)) {
+        diario[dia].canceladas += 1;
+        semanal[semana].canceladas += 1;
+        mensual[mes].canceladas += 1;
+        if (esPedidoDomicilio(v)) {
+          diario[dia].domiciliosCancelados += 1;
+          semanal[semana].domiciliosCancelados += 1;
+          mensual[mes].domiciliosCancelados += 1;
+        }
+      } else {
+        diario[dia].ventas += 1;
+        diario[dia].total += obtenerIngresoRealVenta(v);
+        if (esPedidoDomicilio(v)) diario[dia].domicilios += 1;
+
+        semanal[semana].ventas += 1;
+        semanal[semana].total += obtenerIngresoRealVenta(v);
+        if (esPedidoDomicilio(v)) semanal[semana].domicilios += 1;
+
+        mensual[mes].ventas += 1;
+        mensual[mes].total += obtenerIngresoRealVenta(v);
+        if (esPedidoDomicilio(v)) mensual[mes].domicilios += 1;
+      }
+    });
+
+    const ordenarDesc = data => Object.values(data).sort((a, b) => b.label.localeCompare(a.label));
+
+    renderHistorico("historicoDiaBody", ordenarDesc(diario), "No hay ventas registradas por día.");
+    renderHistorico("historicoSemanaBody", ordenarDesc(semanal), "No hay ventas registradas por semana.");
+    renderHistorico("historicoMesBody", ordenarDesc(mensual), "No hay ventas registradas por mes.");
+
+    const filtroFecha = document.getElementById("filtroHistoricoFecha");
+    if (filtroFecha && !filtroFecha.value) {
+      filtroFecha.value = hoy;
     }
+    verVentasDetalladasPorFecha();
+    renderTablaCierresCaja(false);
   }
-
 
   
   function actualizarDomiciliosVista() {
@@ -6836,7 +5241,6 @@ function volverAlPOS() {
     if (historicosVista) historicosVista.classList.add('hidden');
     if (cajaVista) cajaVista.classList.add('hidden');
     if (domiciliosVista) domiciliosVista.classList.remove('hidden');
-    await asegurarVentasMesActualCargadas();
     actualizarDomiciliosVista();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -6847,11 +5251,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const loginScreen = document.getElementById('loginScreen');
   if (appContent) appContent.classList.add('hidden');
   if (loginScreen) loginScreen.classList.remove('hidden');
-  reconciliarVentasLocalesTemporales();
   cargarCatalogoProductos();
   aplicarPermisosPorRol();
-  mostrarTablaHistorico('dia');
-  programarCargaInicialPesada();
 
   const modalEditor = document.getElementById('modalEditorCatalogo');
   if (modalEditor) {
