@@ -974,6 +974,14 @@
             <tbody id="cierresCajaBody"></tbody>
           </table>
         </div>
+        <div id="paginacionCierresCaja" class="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm">
+          <span id="infoPaginacionCierresCaja" class="text-gray-500">Mostrando 0-0 de 0 registros</span>
+          <div class="flex items-center gap-2">
+            <button id="btnPrevCierresCaja" type="button" onclick="cambiarPaginaTabla('cierresCaja', -1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">← Anterior</button>
+            <span id="paginaCierresCajaActual" class="font-semibold text-gray-700">Página 1 de 1</span>
+            <button id="btnNextCierresCaja" type="button" onclick="cambiarPaginaTabla('cierresCaja', 1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Siguiente →</button>
+          </div>
+        </div>
       </section>
 
     </div>
@@ -1144,6 +1152,14 @@
               <tbody id="historicoDiaBody"></tbody>
             </table>
           </div>
+          <div class="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm">
+            <span id="infoPaginacionHistoricoDia" class="text-gray-500">Mostrando 0-0 de 0 registros</span>
+            <div class="flex items-center gap-2">
+              <button id="btnPrevHistoricoDia" type="button" onclick="cambiarPaginaTabla('historicoDia', -1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">← Anterior</button>
+              <span id="paginaHistoricoDiaActual" class="font-semibold text-gray-700">Página 1 de 1</span>
+              <button id="btnNextHistoricoDia" type="button" onclick="cambiarPaginaTabla('historicoDia', 1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Siguiente →</button>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -1161,6 +1177,14 @@
               <tbody id="historicoSemanaBody"></tbody>
             </table>
           </div>
+          <div class="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm">
+            <span id="infoPaginacionHistoricoSemana" class="text-gray-500">Mostrando 0-0 de 0 registros</span>
+            <div class="flex items-center gap-2">
+              <button id="btnPrevHistoricoSemana" type="button" onclick="cambiarPaginaTabla('historicoSemana', -1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">← Anterior</button>
+              <span id="paginaHistoricoSemanaActual" class="font-semibold text-gray-700">Página 1 de 1</span>
+              <button id="btnNextHistoricoSemana" type="button" onclick="cambiarPaginaTabla('historicoSemana', 1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Siguiente →</button>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -1177,6 +1201,14 @@
               </thead>
               <tbody id="historicoMesBody"></tbody>
             </table>
+          </div>
+          <div class="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm">
+            <span id="infoPaginacionHistoricoMes" class="text-gray-500">Mostrando 0-0 de 0 registros</span>
+            <div class="flex items-center gap-2">
+              <button id="btnPrevHistoricoMes" type="button" onclick="cambiarPaginaTabla('historicoMes', -1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">← Anterior</button>
+              <span id="paginaHistoricoMesActual" class="font-semibold text-gray-700">Página 1 de 1</span>
+              <button id="btnNextHistoricoMes" type="button" onclick="cambiarPaginaTabla('historicoMes', 1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Siguiente →</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1217,6 +1249,14 @@
             </thead>
             <tbody id="ventasDiaDetalleBody"></tbody>
           </table>
+        </div>
+        <div class="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm">
+          <span id="infoPaginacionHistoricoDetalle" class="text-gray-500">Mostrando 0-0 de 0 registros</span>
+          <div class="flex items-center gap-2">
+            <button id="btnPrevHistoricoDetalle" type="button" onclick="cambiarPaginaTabla('historicoDetalle', -1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">← Anterior</button>
+            <span id="paginaHistoricoDetalleActual" class="font-semibold text-gray-700">Página 1 de 1</span>
+            <button id="btnNextHistoricoDetalle" type="button" onclick="cambiarPaginaTabla('historicoDetalle', 1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Siguiente →</button>
+          </div>
         </div>
       </div>
 
@@ -1279,6 +1319,14 @@
             <tbody id="domiciliosDiaBody"></tbody>
           </table>
         </div>
+        <div class="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm">
+          <span id="infoPaginacionDomiciliosDia" class="text-gray-500">Mostrando 0-0 de 0 registros</span>
+          <div class="flex items-center gap-2">
+            <button id="btnPrevDomiciliosDia" type="button" onclick="cambiarPaginaTabla('domiciliosDia', -1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">← Anterior</button>
+            <span id="paginaDomiciliosDiaActual" class="font-semibold text-gray-700">Página 1 de 1</span>
+            <button id="btnNextDomiciliosDia" type="button" onclick="cambiarPaginaTabla('domiciliosDia', 1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Siguiente →</button>
+          </div>
+        </div>
       </div>
 
       <div class="border border-yellow-200 rounded-xl p-4 bg-yellow-50">
@@ -1317,6 +1365,14 @@
             </thead>
             <tbody id="domiciliosDetalleBody"></tbody>
           </table>
+        </div>
+        <div class="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm">
+          <span id="infoPaginacionDomiciliosDetalle" class="text-gray-500">Mostrando 0-0 de 0 registros</span>
+          <div class="flex items-center gap-2">
+            <button id="btnPrevDomiciliosDetalle" type="button" onclick="cambiarPaginaTabla('domiciliosDetalle', -1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">← Anterior</button>
+            <span id="paginaDomiciliosDetalleActual" class="font-semibold text-gray-700">Página 1 de 1</span>
+            <button id="btnNextDomiciliosDetalle" type="button" onclick="cambiarPaginaTabla('domiciliosDetalle', 1)" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Siguiente →</button>
+          </div>
         </div>
       </div>
     </div>
@@ -2443,15 +2499,9 @@ async function obtenerTodosLosControlesCaja(forzarRemoto = false) {
 }
 
 async function renderTablaCierresCaja(forzarRemoto = false) {
-  const body = document.getElementById('cierresCajaBody');
-  if (!body) return;
   const controles = await obtenerTodosLosControlesCaja(forzarRemoto);
   const cierres = controles.filter(control => control.cierreHora);
-  if (!cierres.length) {
-    body.innerHTML = '<tr><td colspan="9" class="p-3 text-center text-gray-500">No hay cierres de caja registrados todavía.</td></tr>';
-    return;
-  }
-  body.innerHTML = cierres.map(control => {
+  const filas = cierres.map(control => {
     const resumen = calcularResumenCajaDia(control.diaClave);
     const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
     const diferencia = Number(control.cierreMonto || 0) - esperado;
@@ -2472,7 +2522,19 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
         <td class="p-2 border text-center">${acciones}</td>
       </tr>
     `;
-  }).join('');
+  });
+
+  renderFilasPaginadas({
+    clave: 'cierresCaja',
+    bodyId: 'cierresCajaBody',
+    filas,
+    colspan: 9,
+    etiquetaVacia: 'No hay cierres de caja registrados todavía.',
+    infoId: 'infoPaginacionCierresCaja',
+    pageId: 'paginaCierresCajaActual',
+    prevId: 'btnPrevCierresCaja',
+    nextId: 'btnNextCierresCaja'
+  });
 }
 
 async function registrarAperturaCaja() {
@@ -3934,7 +3996,7 @@ function cancelarPedidoActual() {
   }
 
   // Muestra las ventas guardadas en la tabla
-  const VENTAS_POR_PAGINA = 15;
+  const VENTAS_POR_PAGINA = 10;
   let paginaVentasActual = 1;
   const ventasSeleccionadas = new Set();
 
@@ -4216,6 +4278,101 @@ function cancelarPedidoActual() {
     document.getElementById("btnNextVentas").disabled = paginaVentasActual >= totalPaginas;
     document.getElementById("btnPrevVentas").classList.toggle("opacity-50", paginaVentasActual <= 1);
     document.getElementById("btnNextVentas").classList.toggle("opacity-50", paginaVentasActual >= totalPaginas);
+  }
+
+
+  const FILAS_POR_PAGINA_TABLAS = 10;
+  const estadoPaginacionTablas = {
+    cierresCaja: { pagina: 1 },
+    historicoDia: { pagina: 1 },
+    historicoSemana: { pagina: 1 },
+    historicoMes: { pagina: 1 },
+    historicoDetalle: { pagina: 1 },
+    domiciliosDia: { pagina: 1 },
+    domiciliosDetalle: { pagina: 1 }
+  };
+  let ultimaFechaHistoricoDetalle = '';
+  let ultimaFechaDomiciliosDetalle = '';
+
+  function obtenerEstadoPaginacionTabla(clave) {
+    if (!estadoPaginacionTablas[clave]) estadoPaginacionTablas[clave] = { pagina: 1 };
+    return estadoPaginacionTablas[clave];
+  }
+
+  function reiniciarPaginaTabla(clave) {
+    obtenerEstadoPaginacionTabla(clave).pagina = 1;
+  }
+
+  function cambiarPaginaTabla(clave, direccion) {
+    const estado = obtenerEstadoPaginacionTabla(clave);
+    estado.pagina = Math.max(1, Number(estado.pagina || 1) + Number(direccion || 0));
+    if (clave === 'cierresCaja') {
+      renderTablaCierresCaja(false);
+      return;
+    }
+    if (['historicoDia', 'historicoSemana', 'historicoMes'].includes(clave)) {
+      actualizarHistoricos();
+      return;
+    }
+    if (clave === 'historicoDetalle') {
+      verVentasDetalladasPorFecha();
+      return;
+    }
+    if (clave === 'domiciliosDia') {
+      actualizarDomiciliosVista();
+      return;
+    }
+    if (clave === 'domiciliosDetalle') {
+      verDomiciliosDetalladosPorFecha();
+    }
+  }
+
+  function renderFilasPaginadas(config = {}) {
+    const {
+      clave,
+      bodyId,
+      filas = [],
+      colspan = 1,
+      etiquetaVacia = 'No hay registros.',
+      infoId,
+      pageId,
+      prevId,
+      nextId
+    } = config;
+    const body = document.getElementById(bodyId);
+    if (!body) return;
+
+    const estado = obtenerEstadoPaginacionTabla(clave);
+    const total = Array.isArray(filas) ? filas.length : 0;
+    const totalPaginas = Math.max(1, Math.ceil(total / FILAS_POR_PAGINA_TABLAS));
+    if (estado.pagina > totalPaginas) estado.pagina = totalPaginas;
+    if (estado.pagina < 1) estado.pagina = 1;
+
+    const inicioIndex = (estado.pagina - 1) * FILAS_POR_PAGINA_TABLAS;
+    const finIndex = inicioIndex + FILAS_POR_PAGINA_TABLAS;
+    const filasPagina = (filas || []).slice(inicioIndex, finIndex);
+
+    body.innerHTML = filasPagina.length
+      ? filasPagina.join('')
+      : `<tr><td colspan="${colspan}" class="p-3 text-center text-gray-500">${etiquetaVacia}</td></tr>`;
+
+    const inicioVisible = total === 0 ? 0 : inicioIndex + 1;
+    const finVisible = total === 0 ? 0 : Math.min(finIndex, total);
+    const info = document.getElementById(infoId);
+    const pagina = document.getElementById(pageId);
+    const prev = document.getElementById(prevId);
+    const next = document.getElementById(nextId);
+
+    if (info) info.textContent = `Mostrando ${inicioVisible}-${finVisible} de ${total} registros`;
+    if (pagina) pagina.textContent = `Página ${estado.pagina} de ${totalPaginas}`;
+    if (prev) {
+      prev.disabled = estado.pagina <= 1;
+      prev.classList.toggle('opacity-50', estado.pagina <= 1);
+    }
+    if (next) {
+      next.disabled = estado.pagina >= totalPaginas;
+      next.classList.toggle('opacity-50', estado.pagina >= totalPaginas);
+    }
   }
 
   function obtenerClaveDiaActual() {
@@ -5079,18 +5236,11 @@ function volverAlPOS() {
     }
   }
 
-  function renderHistorico(bodyId, filas, etiquetaVacia) {
-    const body = document.getElementById(bodyId);
-    if (!body) return;
-    body.innerHTML = "";
-    if (!filas.length) {
-      body.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-gray-500">${etiquetaVacia}</td></tr>`;
-      return;
-    }
-    filas.forEach(fila => {
+  function renderHistorico(claveTabla, bodyId, filas, etiquetaVacia) {
+    const htmlFilas = (filas || []).map(fila => {
       const pedidosTexto = `${fila.ventas}${fila.canceladas ? ` activas / ${fila.canceladas} canceladas` : ''}`;
       const domiciliosTexto = `${fila.domicilios}${fila.domiciliosCancelados ? ` activos / ${fila.domiciliosCancelados} cancelados` : ''}`;
-      body.innerHTML += `
+      return `
         <tr>
           <td class="p-2 border">${fila.label}</td>
           <td class="p-2 border">${pedidosTexto}</td>
@@ -5098,6 +5248,36 @@ function volverAlPOS() {
           <td class="p-2 border">${formatearDinero(fila.total)}</td>
         </tr>
       `;
+    });
+
+    const mapa = {
+      historicoDia: {
+        infoId: 'infoPaginacionHistoricoDia',
+        pageId: 'paginaHistoricoDiaActual',
+        prevId: 'btnPrevHistoricoDia',
+        nextId: 'btnNextHistoricoDia'
+      },
+      historicoSemana: {
+        infoId: 'infoPaginacionHistoricoSemana',
+        pageId: 'paginaHistoricoSemanaActual',
+        prevId: 'btnPrevHistoricoSemana',
+        nextId: 'btnNextHistoricoSemana'
+      },
+      historicoMes: {
+        infoId: 'infoPaginacionHistoricoMes',
+        pageId: 'paginaHistoricoMesActual',
+        prevId: 'btnPrevHistoricoMes',
+        nextId: 'btnNextHistoricoMes'
+      }
+    };
+
+    renderFilasPaginadas({
+      clave: claveTabla,
+      bodyId,
+      filas: htmlFilas,
+      colspan: 4,
+      etiquetaVacia,
+      ...mapa[claveTabla]
     });
   }
 
@@ -5118,12 +5298,15 @@ function volverAlPOS() {
 
   function verVentasDetalladasPorFecha() {
     const input = document.getElementById('filtroHistoricoFecha');
-    const body = document.getElementById('ventasDiaDetalleBody');
     const resumen = document.getElementById('resumenVentasDiaSeleccionado');
-    if (!input || !body || !resumen) return;
+    if (!input || !resumen) return;
 
     const fechaSeleccionada = input.value || obtenerFechaLocalISO(new Date());
     input.value = fechaSeleccionada;
+    if (ultimaFechaHistoricoDetalle !== fechaSeleccionada) {
+      ultimaFechaHistoricoDetalle = fechaSeleccionada;
+      reiniciarPaginaTabla('historicoDetalle');
+    }
 
     const ventas = obtenerVentasNormalizadas()
       .filter(v => v.diaClave === fechaSeleccionada)
@@ -5140,15 +5323,9 @@ function volverAlPOS() {
     const totalDia = ventasActivas.reduce((acc, v) => acc + obtenerIngresoRealVenta(v), 0);
     resumen.innerHTML = `<strong>Fecha consultada:</strong> ${fechaSeleccionada} &nbsp;|&nbsp; <strong>Pedidos activos:</strong> ${ventasActivas.length} &nbsp;|&nbsp; <strong>Domicilios:</strong> ${domiciliosActivos}${domiciliosCancelados ? ` activos / ${domiciliosCancelados} cancelados` : ''} &nbsp;|&nbsp; <strong>Canceladas:</strong> ${canceladas} &nbsp;|&nbsp; <strong>Total contabilizado:</strong> ${formatearDinero(totalDia)} <span class="text-xs text-gray-500">(sin domicilios)</span>`;
 
-    body.innerHTML = '';
-    if (!ventas.length) {
-      body.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-gray-500">No hay ventas registradas para esta fecha.</td></tr>`;
-      return;
-    }
-
-    ventas.forEach(v => {
+    const filas = ventas.map(v => {
       const ventaCancelada = esVentaCancelada(v);
-      body.innerHTML += `
+      return `
         <tr class="${ventaCancelada ? 'bg-red-50 text-gray-500' : ''}">
           <td class="p-2 border">${v.recibo ?? '-'}</td>
           <td class="p-2 border">${v.comanda ?? '-'}</td>
@@ -5162,6 +5339,18 @@ function volverAlPOS() {
           <td class="p-2 border font-semibold ${ventaCancelada ? 'text-red-600' : ''}">${formatearDinero(obtenerIngresoRealVenta(v))}</td>
         </tr>
       `;
+    });
+
+    renderFilasPaginadas({
+      clave: 'historicoDetalle',
+      bodyId: 'ventasDiaDetalleBody',
+      filas,
+      colspan: 10,
+      etiquetaVacia: 'No hay ventas registradas para esta fecha.',
+      infoId: 'infoPaginacionHistoricoDetalle',
+      pageId: 'paginaHistoricoDetalleActual',
+      prevId: 'btnPrevHistoricoDetalle',
+      nextId: 'btnNextHistoricoDetalle'
     });
   }
 
@@ -5259,9 +5448,9 @@ function volverAlPOS() {
 
     const ordenarDesc = data => Object.values(data).sort((a, b) => b.label.localeCompare(a.label));
 
-    renderHistorico("historicoDiaBody", ordenarDesc(diario), "No hay ventas registradas por día.");
-    renderHistorico("historicoSemanaBody", ordenarDesc(semanal), "No hay ventas registradas por semana.");
-    renderHistorico("historicoMesBody", ordenarDesc(mensual), "No hay ventas registradas por mes.");
+    renderHistorico("historicoDia", "historicoDiaBody", ordenarDesc(diario), "No hay ventas registradas por día.");
+    renderHistorico("historicoSemana", "historicoSemanaBody", ordenarDesc(semanal), "No hay ventas registradas por semana.");
+    renderHistorico("historicoMes", "historicoMesBody", ordenarDesc(mensual), "No hay ventas registradas por mes.");
 
     const filtroFecha = document.getElementById("filtroHistoricoFecha");
     if (filtroFecha && !filtroFecha.value) {
@@ -5326,29 +5515,32 @@ function volverAlPOS() {
       }
     });
 
-    const body = document.getElementById('domiciliosDiaBody');
-    if (body) {
-      const filas = Object.values(resumenPorDia).sort((a, b) => b.fecha.localeCompare(a.fecha));
-      body.innerHTML = '';
-      if (!filas.length) {
-        body.innerHTML = '<tr><td colspan="8" class="p-3 text-center text-gray-500">No hay domicilios registrados.</td></tr>';
-      } else {
-        filas.forEach(fila => {
-          body.innerHTML += `
-            <tr>
-              <td class="p-2 border">${fila.fecha}</td>
-              <td class="p-2 border">${fila.cantidad}</td>
-              <td class="p-2 border">${fila.cancelados}</td>
-              <td class="p-2 border">${fila.transferenciaCantidad}</td>
-              <td class="p-2 border">${fila.efectivoCantidad}</td>
-              <td class="p-2 border">${formatearDinero(fila.transferenciaValor)}</td>
-              <td class="p-2 border">${formatearDinero(fila.efectivoValor)}</td>
-              <td class="p-2 border font-semibold">${formatearDinero(fila.totalValor)}</td>
-            </tr>
-          `;
-        });
-      }
-    }
+    const filasResumenDomicilios = Object.values(resumenPorDia)
+      .sort((a, b) => b.fecha.localeCompare(a.fecha))
+      .map(fila => `
+        <tr>
+          <td class="p-2 border">${fila.fecha}</td>
+          <td class="p-2 border">${fila.cantidad}</td>
+          <td class="p-2 border">${fila.cancelados}</td>
+          <td class="p-2 border">${fila.transferenciaCantidad}</td>
+          <td class="p-2 border">${fila.efectivoCantidad}</td>
+          <td class="p-2 border">${formatearDinero(fila.transferenciaValor)}</td>
+          <td class="p-2 border">${formatearDinero(fila.efectivoValor)}</td>
+          <td class="p-2 border font-semibold">${formatearDinero(fila.totalValor)}</td>
+        </tr>
+      `);
+
+    renderFilasPaginadas({
+      clave: 'domiciliosDia',
+      bodyId: 'domiciliosDiaBody',
+      filas: filasResumenDomicilios,
+      colspan: 8,
+      etiquetaVacia: 'No hay domicilios registrados.',
+      infoId: 'infoPaginacionDomiciliosDia',
+      pageId: 'paginaDomiciliosDiaActual',
+      prevId: 'btnPrevDomiciliosDia',
+      nextId: 'btnNextDomiciliosDia'
+    });
 
     const filtroFecha = document.getElementById('filtroDomiciliosFecha');
     if (filtroFecha && !filtroFecha.value) {
@@ -5359,12 +5551,15 @@ function volverAlPOS() {
 
   function verDomiciliosDetalladosPorFecha() {
     const input = document.getElementById('filtroDomiciliosFecha');
-    const body = document.getElementById('domiciliosDetalleBody');
     const resumen = document.getElementById('resumenDomiciliosDiaSeleccionado');
-    if (!input || !body || !resumen) return;
+    if (!input || !resumen) return;
 
     const fechaSeleccionada = input.value || obtenerFechaLocalISO(new Date());
     input.value = fechaSeleccionada;
+    if (ultimaFechaDomiciliosDetalle !== fechaSeleccionada) {
+      ultimaFechaDomiciliosDetalle = fechaSeleccionada;
+      reiniciarPaginaTabla('domiciliosDetalle');
+    }
 
     const domicilios = obtenerVentasNormalizadas()
       .map((v, index) => ({ ...v, _index: index }))
@@ -5385,15 +5580,9 @@ function volverAlPOS() {
 
     resumen.innerHTML = `<strong>Fecha consultada:</strong> ${fechaSeleccionada} &nbsp;|&nbsp; <strong>Domicilios activos:</strong> ${activos.length} &nbsp;|&nbsp; <strong>Transferencia:</strong> ${transferencia.length} (${formatearDinero(valorTransferencia)}) &nbsp;|&nbsp; <strong>Efectivo:</strong> ${efectivo.length} (${formatearDinero(valorEfectivo)}) &nbsp;|&nbsp; <strong>Cancelados:</strong> ${cancelados} &nbsp;|&nbsp; <strong>Total domicilio:</strong> ${formatearDinero(valorTotalDomicilios)}`;
 
-    body.innerHTML = '';
-    if (!domicilios.length) {
-      body.innerHTML = '<tr><td colspan="11" class="p-3 text-center text-gray-500">No hay domicilios registrados para esta fecha.</td></tr>';
-      return;
-    }
-
-    domicilios.forEach(v => {
+    const filas = domicilios.map(v => {
       const ventaCancelada = esVentaCancelada(v);
-      body.innerHTML += `
+      return `
         <tr class="${ventaCancelada ? 'bg-red-50 text-gray-500' : ''}">
           <td class="p-2 border">${v.recibo ?? '-'}</td>
           <td class="p-2 border">${v.comanda ?? '-'}</td>
@@ -5408,6 +5597,18 @@ function volverAlPOS() {
           <td class="p-2 border text-center">${ventaCancelada ? '<span class="text-xs text-red-600 font-semibold">Sin recibo</span>' : `<button onclick="imprimirVentaCliente(${v._index})" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-xs font-semibold">Abrir recibo</button>`}</td>
         </tr>
       `;
+    });
+
+    renderFilasPaginadas({
+      clave: 'domiciliosDetalle',
+      bodyId: 'domiciliosDetalleBody',
+      filas,
+      colspan: 11,
+      etiquetaVacia: 'No hay domicilios registrados para esta fecha.',
+      infoId: 'infoPaginacionDomiciliosDetalle',
+      pageId: 'paginaDomiciliosDetalleActual',
+      prevId: 'btnPrevDomiciliosDetalle',
+      nextId: 'btnNextDomiciliosDetalle'
     });
   }
 
