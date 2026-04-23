@@ -964,7 +964,10 @@
                 <th class="p-2 border">Apertura</th>
                 <th class="p-2 border">Cierre</th>
                 <th class="p-2 border">Efectivo sistema</th>
-                <th class="p-2 border">Dinero esperado</th>
+                <th class="p-2 border">Transferencias</th>
+                <th class="p-2 border">Domicilios descontados</th>
+                <th class="p-2 border">Caja esperada</th>
+                <th class="p-2 border">Cierre real del día</th>
                 <th class="p-2 border">Diferencia</th>
                 <th class="p-2 border">Abrió</th>
                 <th class="p-2 border">Cerró</th>
@@ -1058,7 +1061,7 @@
       <div class="flex items-center justify-between gap-3 px-6 py-4 border-b border-green-100 bg-green-50">
         <div>
           <p class="text-xs uppercase tracking-wide text-green-700 font-bold">Control de caja</p>
-          <h3 class="text-xl font-extrabold text-gray-800">Cierre de caja</h3>
+          <h3 id="tituloModalCierreCaja" class="text-xl font-extrabold text-gray-800">Cierre de caja</h3>
         </div>
         <button type="button" onclick="cerrarModalCaja('modalCierreCaja')" class="w-10 h-10 rounded-full bg-white border border-green-200 text-gray-600 hover:bg-green-100">✕</button>
       </div>
@@ -1078,7 +1081,7 @@
         </div>
       </div>
       <div class="px-6 py-4 border-t border-green-100 bg-white flex flex-col sm:flex-row gap-2 sm:justify-between">
-        <button type="button" id="btnEliminarCierreCajaActual" data-role="admin-only" onclick="eliminarCierreCajaActual()" class="hidden px-4 py-3 rounded-2xl bg-red-100 text-red-700 font-bold hover:bg-red-200">🗑️ Borrar cierre de hoy</button>
+        <button type="button" id="btnEliminarCierreCajaActual" data-role="admin-only" onclick="manejarEliminarDesdeModalCierreCaja()" class="hidden px-4 py-3 rounded-2xl bg-red-100 text-red-700 font-bold hover:bg-red-200">🗑️ Borrar cierre de hoy</button>
         <div class="flex flex-col sm:flex-row gap-2 sm:ml-auto">
           <button type="button" onclick="cerrarModalCaja('modalCierreCaja')" class="px-4 py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200">Cancelar</button>
           <button type="button" id="btnRegistrarCierreCaja" onclick="registrarCierreCaja()" class="px-4 py-3 rounded-2xl bg-green-500 text-white font-bold hover:bg-green-600">Guardar cierre</button>
@@ -1445,6 +1448,7 @@ const CONTROL_CAJA_STORAGE_KEY = "controlCajaPorDia";
 let controlCajaCache = JSON.parse(localStorage.getItem(CONTROL_CAJA_STORAGE_KEY) || "{}");
 let controlCajaFirebasePermisosDisponibles = true;
 let controlCajaFirebasePermisosAvisados = false;
+let cierreCajaEdicionDiaClave = "";
 let catalogoUnsubscribe = null;
 let catalogoFirestorePermisosDisponibles = true;
 let catalogoGuardandoRemoto = false;
@@ -2298,17 +2302,22 @@ function calcularResumenCajaDia(diaClave) {
   const totalEfectivo = ventasActivas.reduce((acc, venta) => acc + obtenerValorPagoPorMedio(venta, "efectivo"), 0);
   const totalOtrosMedios = ventasActivas.reduce((acc, venta) => acc + obtenerTotalOtrosMediosVenta(venta), 0);
   const domicilios = ventasActivas.filter(venta => esPedidoDomicilio(venta)).length;
-  const efectivoNetoSistema = totalEfectivo;
+  const ajusteDomiciliosTransferencia = ventasActivas.reduce((acc, venta) => acc + obtenerValorDomicilioCubiertoPorTransferencia(venta), 0);
+  const efectivoNetoSistema = redondearPago(totalEfectivo);
+  const totalTransferencias = redondearPago(totalOtrosMedios);
+  const totalSistemaReal = redondearPago(totalEfectivo + totalTransferencias - ajusteDomiciliosTransferencia);
   return {
     cantidadVentas: ventasActivas.length,
     totalVentas,
     totalCobrado,
-    totalEfectivo,
-    totalOtrosMedios,
+    totalEfectivo: redondearPago(totalEfectivo),
+    totalOtrosMedios: totalTransferencias,
+    totalTransferencias,
     domicilios,
-    ajusteDomiciliosTransferencia: 0,
+    ajusteDomiciliosTransferencia: redondearPago(ajusteDomiciliosTransferencia),
     efectivoNetoSistema,
-    montoEsperado: efectivoNetoSistema
+    totalSistemaReal,
+    montoEsperado: totalSistemaReal
   };
 }
 
@@ -2349,19 +2358,16 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
   const control = await obtenerControlCajaDia(diaClave, forzarRemoto);
   const resumen = calcularResumenCajaDia(diaClave);
   const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
+  const cierreRealDia = Number(resumen.totalSistemaReal || 0);
   const diferencia = control.cierreHora ? Number(control.cierreMonto || 0) - esperado : 0;
 
   const aperturaEstadoTexto = document.getElementById('aperturaCajaEstadoTexto');
   const cierreEstadoTexto = document.getElementById('cierreCajaEstadoTexto');
   const dineroEsperadoResumenTexto = document.getElementById('dineroEsperadoResumenTexto');
   const aperturaInfoModal = document.getElementById('aperturaCajaInfoModal');
-  const cierreInfoModal = document.getElementById('cierreCajaInfoModal');
   const btnApertura = document.getElementById('btnRegistrarAperturaCaja');
-  const btnCierre = document.getElementById('btnRegistrarCierreCaja');
-  const btnEliminarCierreActual = document.getElementById('btnEliminarCierreCajaActual');
   const inputApertura = document.getElementById('aperturaCajaMonto');
-  const inputCierre = document.getElementById('cierreCajaMonto');
-  const inputObs = document.getElementById('cierreCajaObservaciones');
+  const editandoOtraFecha = Boolean(cierreCajaEdicionDiaClave && cierreCajaEdicionDiaClave !== diaClave);
 
   if (aperturaEstadoTexto) {
     aperturaEstadoTexto.textContent = control.aperturaHora
@@ -2374,30 +2380,82 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
       : 'Haz clic para registrar cierre';
   }
   if (dineroEsperadoResumenTexto) {
-    dineroEsperadoResumenTexto.textContent = `${formatearCOP(esperado)} · efectivo recibido ${formatearCOP(resumen.totalEfectivo || 0)} · ${control.cierreHora ? `diferencia ${formatearCOP(diferencia)}` : 'ver detalle completo'}`;
+    dineroEsperadoResumenTexto.textContent = `${formatearCOP(cierreRealDia)} real del día · caja esperada ${formatearCOP(esperado)} · ${control.cierreHora ? `diferencia ${formatearCOP(diferencia)}` : 'ver detalle completo'}`;
   }
 
   if (aperturaInfoModal) aperturaInfoModal.textContent = control.aperturaHora
     ? `Registrada el ${formatearFechaHoraColombia(control.aperturaHora)} por ${control.aperturaUsuario || 'Sin usuario'}`
     : 'Aún no registrada para hoy.';
 
-  if (cierreInfoModal) cierreInfoModal.textContent = control.cierreHora
-    ? `Registrado el ${formatearFechaHoraColombia(control.cierreHora)} por ${control.cierreUsuario || 'Sin usuario'}`
-    : 'Aún no registrado para hoy.';
-
   if (btnApertura) btnApertura.textContent = control.aperturaHora ? 'Actualizar apertura' : 'Guardar apertura';
-  if (btnCierre) btnCierre.textContent = control.cierreHora ? 'Actualizar cierre' : 'Guardar cierre';
+  if (inputApertura && document.activeElement !== inputApertura) inputApertura.value = control.aperturaMonto ? String(control.aperturaMonto) : '';
+
+  if (!editandoOtraFecha) {
+    aplicarEstadoModalCierreCaja(control, diaClave, false);
+  }
+
+  renderContenidoModalDineroEsperado(control, resumen);
+  actualizarTarjetasEstadoCaja(control, resumen);
+}
+
+function limpiarEstadoEdicionCierreCaja() {
+  cierreCajaEdicionDiaClave = "";
+}
+
+function obtenerDiaObjetivoCierreCaja() {
+  return cierreCajaEdicionDiaClave || obtenerFechaLocalISO(new Date());
+}
+
+function aplicarEstadoModalCierreCaja(control = {}, diaClave = "", esEdicionHistorica = false) {
+  const titulo = document.getElementById('tituloModalCierreCaja');
+  const cierreInfoModal = document.getElementById('cierreCajaInfoModal');
+  const btnCierre = document.getElementById('btnRegistrarCierreCaja');
+  const btnEliminarCierreActual = document.getElementById('btnEliminarCierreCajaActual');
+  const inputCierre = document.getElementById('cierreCajaMonto');
+  const inputObs = document.getElementById('cierreCajaObservaciones');
+
+  if (titulo) {
+    titulo.textContent = esEdicionHistorica ? `Editar cierre de ${diaClave}` : 'Cierre de caja';
+  }
+  if (cierreInfoModal) {
+    if (control.cierreHora) {
+      const detalleFecha = esEdicionHistorica ? `del ${diaClave}` : 'de hoy';
+      cierreInfoModal.textContent = `Registrado ${detalleFecha} el ${formatearFechaHoraColombia(control.cierreHora)} por ${control.cierreUsuario || 'Sin usuario'}`;
+    } else {
+      cierreInfoModal.textContent = esEdicionHistorica ? `Aún no hay cierre registrado para ${diaClave}.` : 'Aún no registrado para hoy.';
+    }
+  }
+  if (btnCierre) {
+    btnCierre.textContent = control.cierreHora ? (esEdicionHistorica ? 'Guardar cambios' : 'Actualizar cierre') : 'Guardar cierre';
+  }
   if (btnEliminarCierreActual) {
     const mostrar = esAdmin() && Boolean(control.cierreHora);
     btnEliminarCierreActual.classList.toggle('hidden', !mostrar);
     btnEliminarCierreActual.style.display = mostrar ? '' : 'none';
+    btnEliminarCierreActual.textContent = esEdicionHistorica ? `🗑️ Borrar cierre ${diaClave}` : '🗑️ Borrar cierre de hoy';
   }
-  if (inputApertura && document.activeElement !== inputApertura) inputApertura.value = control.aperturaMonto ? String(control.aperturaMonto) : '';
   if (inputCierre && document.activeElement !== inputCierre) inputCierre.value = control.cierreMonto ? String(control.cierreMonto) : '';
   if (inputObs && document.activeElement !== inputObs) inputObs.value = control.cierreObservaciones || '';
+}
 
-  renderContenidoModalDineroEsperado(control, resumen);
-  actualizarTarjetasEstadoCaja(control, resumen);
+async function abrirModalEditarCierreCaja(diaClave) {
+  if (!esAdmin()) return;
+  if (!diaClave) return;
+  const control = await obtenerControlCajaDia(diaClave, true);
+  if (!control.cierreHora) {
+    alert('Ese día no tiene un cierre registrado para editar.');
+    return;
+  }
+  cierreCajaEdicionDiaClave = diaClave;
+  aplicarEstadoModalCierreCaja(control, diaClave, true);
+  abrirModalCaja('modalCierreCaja');
+}
+
+async function manejarEliminarDesdeModalCierreCaja() {
+  const diaClave = obtenerDiaObjetivoCierreCaja();
+  if (!diaClave) return;
+  await eliminarCierreCaja(diaClave);
+  cerrarModalCaja('modalCierreCaja');
 }
 
 function abrirModalCaja(id) {
@@ -2411,6 +2469,9 @@ function cerrarModalCaja(id) {
   const modal = document.getElementById(id);
   if (!modal) return;
   modal.classList.add('hidden');
+  if (id === 'modalCierreCaja') {
+    limpiarEstadoEdicionCierreCaja();
+  }
   if (!["modalAperturaCaja", "modalCierreCaja", "modalDineroEsperado", "modalPagoMixto"].some(modalId => !document.getElementById(modalId)?.classList.contains('hidden'))) {
     document.body.classList.remove('overflow-hidden');
   }
@@ -2424,6 +2485,7 @@ async function abrirModalAperturaCaja() {
 
 async function abrirModalCierreCaja() {
   if (!verificarAcceso(["admin", "cajero"])) return;
+  limpiarEstadoEdicionCierreCaja();
   await renderControlCajaDiaActual(true);
   abrirModalCaja('modalCierreCaja');
 }
@@ -2438,41 +2500,48 @@ function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
   const contenedor = document.getElementById('contenidoModalDineroEsperado');
   if (!contenedor) return;
   const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
+  const cierreRealDia = Number(resumen.totalSistemaReal || 0);
   const diferencia = control.cierreHora ? Number(control.cierreMonto || 0) - esperado : 0;
   contenedor.innerHTML = `
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Apertura</p>
         <p class="text-xl font-extrabold text-gray-800 mt-1">${control.aperturaHora ? formatearCOP(control.aperturaMonto) : 'Sin registro'}</p>
         <p class="text-xs text-gray-500 mt-1">${control.aperturaHora ? `${formatearFechaHoraColombia(control.aperturaHora)} · ${control.aperturaUsuario || 'Sin usuario'}` : 'Primero registra la apertura'}</p>
       </div>
       <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo recibido</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo del día</p>
         <p class="text-xl font-extrabold text-gray-800 mt-1">${formatearCOP(resumen.totalEfectivo || 0)}</p>
         <p class="text-xs text-gray-500 mt-1">Incluye ventas en efectivo y la parte en efectivo de pagos mixtos</p>
       </div>
       <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Otros medios</p>
-        <p class="text-xl font-extrabold text-amber-700 mt-1">${formatearCOP(resumen.totalOtrosMedios || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">Transferencias, QR, Bre-B, daviplata, nequi y la parte no en efectivo de pagos mixtos</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Transferencias del día</p>
+        <p class="text-xl font-extrabold text-amber-700 mt-1">${formatearCOP(resumen.totalTransferencias || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">QR, Bre-B, daviplata, nequi y la parte no en efectivo de pagos mixtos</p>
       </div>
-      <div class="rounded-xl border border-blue-100 bg-blue-50 p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Dinero esperado</p>
-        <p class="text-xl font-extrabold text-blue-700 mt-1">${formatearCOP(esperado)}</p>
-        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo recibido en caja</p>
+      <div class="rounded-xl border border-red-100 bg-red-50 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Domicilios pagados por transferencia</p>
+        <p class="text-xl font-extrabold text-red-700 mt-1">${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">Este valor se descuenta para que el cierre del día sea real</p>
+      </div>
+      <div class="rounded-xl border border-green-100 bg-green-50 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Cierre real del día</p>
+        <p class="text-xl font-extrabold text-green-700 mt-1">${formatearCOP(cierreRealDia)}</p>
+        <p class="text-xs text-gray-500 mt-1">Efectivo + transferencias - domicilios pagados por transferencia</p>
       </div>
       <div class="rounded-xl border ${control.cierreHora ? (diferencia === 0 ? 'border-green-100 bg-green-50' : 'border-red-100 bg-red-50') : 'border-gray-200 bg-gray-50'} p-4">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Diferencia al cierre</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Diferencia en caja</p>
         <p class="text-xl font-extrabold mt-1 ${control.cierreHora ? (diferencia === 0 ? 'text-green-700' : 'text-red-700') : 'text-gray-700'}">${control.cierreHora ? formatearCOP(diferencia) : 'Pendiente'}</p>
-        <p class="text-xs text-gray-500 mt-1">${control.cierreHora ? `Cierre registrado por ${control.cierreUsuario || 'Sin usuario'}` : 'Se calcula cuando registres el cierre'}</p>
+        <p class="text-xs text-gray-500 mt-1">${control.cierreHora ? `Comparado contra la caja esperada · cierre por ${control.cierreUsuario || 'Sin usuario'}` : 'Se calcula cuando registres el cierre físico de caja'}</p>
       </div>
     </div>
-    <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+    <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 space-y-1">
       <p><strong>Ventas activas del día:</strong> ${resumen.cantidadVentas || 0}</p>
       <p><strong>Domicilios del día:</strong> ${resumen.domicilios || 0}</p>
       <p><strong>Total vendido activo:</strong> ${formatearCOP(resumen.totalVentas || 0)} <span class="text-xs text-gray-500">(solo productos)</span></p>
       <p><strong>Total cobrado real:</strong> ${formatearCOP(resumen.totalCobrado || 0)} <span class="text-xs text-gray-500">(productos + domicilios)</span></p>
-      <p><strong>Otros medios del día:</strong> ${formatearCOP(resumen.totalOtrosMedios || 0)}</p>
+      <p><strong>Caja esperada:</strong> ${formatearCOP(esperado)} <span class="text-xs text-gray-500">(apertura + efectivo del día)</span></p>
+      <p><strong>Cierre real del día:</strong> ${formatearCOP(cierreRealDia)} <span class="text-xs text-gray-500">(efectivo + transferencias - domicilios por transferencia)</span></p>
       ${control.cierreObservaciones ? `<p class="mt-2"><strong>Observaciones del cierre:</strong> ${control.cierreObservaciones}</p>` : ''}
     </div>
   `;
@@ -2504,18 +2573,24 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
   const filas = cierres.map(control => {
     const resumen = calcularResumenCajaDia(control.diaClave);
     const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
+    const cierreRealDia = Number(resumen.totalSistemaReal || 0);
+    const transferencias = Number(resumen.totalTransferencias || 0);
+    const domiciliosDescontados = Number(resumen.ajusteDomiciliosTransferencia || 0);
     const diferencia = Number(control.cierreMonto || 0) - esperado;
     const claseDiferencia = diferencia === 0 ? 'text-green-700' : 'text-red-700';
     const acciones = esAdmin()
-      ? `<button type="button" onclick="eliminarCierreCaja('${control.diaClave}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg font-semibold text-xs">🗑️ Borrar cierre</button>`
+      ? `<div class="flex flex-wrap items-center justify-center gap-2"><button type="button" onclick="abrirModalEditarCierreCaja('${control.diaClave}')" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded-lg font-semibold text-xs">✏️ Editar</button><button type="button" onclick="eliminarCierreCaja('${control.diaClave}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg font-semibold text-xs">🗑️ Borrar cierre</button></div>`
       : '-';
     return `
       <tr>
         <td class="p-2 border">${control.diaClave}</td>
         <td class="p-2 border">${formatearCOP(control.aperturaMonto)}</td>
         <td class="p-2 border">${formatearCOP(control.cierreMonto)}</td>
-        <td class="p-2 border">${formatearCOP(resumen.totalEfectivo)}</td>
-        <td class="p-2 border">${formatearCOP(esperado)}<div class="text-[11px] text-gray-500 mt-1">Apertura + efectivo recibido</div></td>
+        <td class="p-2 border">${formatearCOP(resumen.totalEfectivo || 0)}<div class="text-[11px] text-gray-500 mt-1">Solo efectivo del sistema</div></td>
+        <td class="p-2 border">${formatearCOP(transferencias)}<div class="text-[11px] text-gray-500 mt-1">Sección aparte de transferencias</div></td>
+        <td class="p-2 border text-red-700 font-semibold">${formatearCOP(domiciliosDescontados)}<div class="text-[11px] text-gray-500 mt-1">Restado por domicilios en transferencia</div></td>
+        <td class="p-2 border">${formatearCOP(esperado)}<div class="text-[11px] text-gray-500 mt-1">Apertura + efectivo del día</div></td>
+        <td class="p-2 border text-green-700 font-semibold">${formatearCOP(cierreRealDia)}<div class="text-[11px] text-gray-500 mt-1">Efectivo + transferencias - domicilios</div></td>
         <td class="p-2 border font-semibold ${claseDiferencia}">${formatearCOP(diferencia)}</td>
         <td class="p-2 border">${control.aperturaUsuario || '-'}</td>
         <td class="p-2 border">${control.cierreUsuario || '-'}</td>
@@ -2528,7 +2603,7 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
     clave: 'cierresCaja',
     bodyId: 'cierresCajaBody',
     filas,
-    colspan: 9,
+    colspan: 12,
     etiquetaVacia: 'No hay cierres de caja registrados todavía.',
     infoId: 'infoPaginacionCierresCaja',
     pageId: 'paginaCierresCajaActual',
@@ -2562,11 +2637,16 @@ async function registrarAperturaCaja() {
 }
 
 async function registrarCierreCaja() {
-  if (!verificarAcceso(["admin", "cajero"])) return;
-  const diaClave = obtenerFechaLocalISO(new Date());
+  const editandoHistorico = Boolean(cierreCajaEdicionDiaClave);
+  if (editandoHistorico) {
+    if (!esAdmin()) return;
+  } else {
+    if (!verificarAcceso(["admin", "cajero"])) return;
+  }
+  const diaClave = obtenerDiaObjetivoCierreCaja();
   const actual = await obtenerControlCajaDia(diaClave, true);
   if (!actual.aperturaHora) {
-    alert('Primero registra la apertura de caja del día.');
+    alert('Primero registra la apertura de caja de esa fecha.');
     return;
   }
   const monto = Number(document.getElementById('cierreCajaMonto')?.value || 0);
@@ -2582,7 +2662,7 @@ async function registrarCierreCaja() {
     cierreUsuario: usuarioActual || '',
     cierreObservaciones: observaciones
   });
-  alert('Cierre de caja registrado.');
+  alert(editandoHistorico ? `Cierre de caja actualizado para ${diaClave}.` : 'Cierre de caja registrado.');
   cerrarModalCaja('modalCierreCaja');
   await renderControlCajaDiaActual();
   const filtro = document.getElementById('filtroHistoricoFecha');
@@ -2618,8 +2698,7 @@ async function eliminarCierreCaja(diaClave) {
 }
 
 async function eliminarCierreCajaActual() {
-  const diaClave = obtenerFechaLocalISO(new Date());
-  await eliminarCierreCaja(diaClave);
+  await manejarEliminarDesdeModalCierreCaja();
 }
 
 async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
@@ -2628,6 +2707,7 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
   const control = await obtenerControlCajaDia(diaClave, forzarRemoto);
   const resumen = calcularResumenCajaDia(diaClave);
   const esperado = Number(control.aperturaMonto || 0) + Number(resumen.efectivoNetoSistema || 0);
+  const cierreRealDia = Number(resumen.totalSistemaReal || 0);
   const diferencia = control.cierreHora ? Number(control.cierreMonto || 0) - esperado : 0;
   contenedor.innerHTML = `
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
@@ -2639,7 +2719,7 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
         ${control.cierreHora ? `<strong>Diferencia:</strong> ${formatearCOP(diferencia)}` : 'Cierre pendiente'}
       </div>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
         <p class="text-xs uppercase tracking-wide text-gray-500">Apertura</p>
         <p class="text-lg font-extrabold text-gray-800 mt-1">${control.aperturaHora ? formatearCOP(control.aperturaMonto) : 'Sin registro'}</p>
@@ -2656,12 +2736,22 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
         <p class="text-xs text-gray-500 mt-1">${resumen.cantidadVentas} venta(s) activas con dinero real en caja</p>
       </div>
       <div class="rounded-xl border border-amber-100 bg-amber-50 p-3">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Otros medios</p>
-        <p class="text-lg font-extrabold text-amber-700 mt-1">${formatearCOP(resumen.totalOtrosMedios || 0)}</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Transferencias del día</p>
+        <p class="text-lg font-extrabold text-amber-700 mt-1">${formatearCOP(resumen.totalTransferencias || 0)}</p>
         <p class="text-xs text-gray-500 mt-1">Pagos fuera de caja, incluidos los mixtos</p>
       </div>
+      <div class="rounded-xl border border-red-100 bg-red-50 p-3">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Domicilios por transferencia</p>
+        <p class="text-lg font-extrabold text-red-700 mt-1">${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)}</p>
+        <p class="text-xs text-gray-500 mt-1">Se resta para obtener el cierre real del día</p>
+      </div>
+      <div class="rounded-xl border border-green-100 bg-green-50 p-3">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Cierre real del día</p>
+        <p class="text-lg font-extrabold text-green-700 mt-1">${formatearCOP(cierreRealDia)}</p>
+        <p class="text-xs text-gray-500 mt-1">Efectivo + transferencias - domicilios por transferencia</p>
+      </div>
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo esperado</p>
+        <p class="text-xs uppercase tracking-wide text-gray-500">Caja esperada</p>
         <p class="text-lg font-extrabold text-gray-800 mt-1">${formatearCOP(esperado)}</p>
         <p class="text-xs text-gray-500 mt-1">Apertura + efectivo recibido</p>
       </div>
@@ -2882,6 +2972,13 @@ function obtenerTotalOtrosMediosVenta(venta = {}) {
   return redondearPago(obtenerDetallePagosVenta(venta)
     .filter(item => String(item.medio || "").trim().toLowerCase() !== "efectivo")
     .reduce((acc, item) => acc + Number(item.valor || 0), 0));
+}
+
+function obtenerValorDomicilioCubiertoPorTransferencia(venta = {}) {
+  const valorDomicilio = obtenerValorDomicilio(venta);
+  if (valorDomicilio <= 0) return 0;
+  const totalTransferido = obtenerTotalOtrosMediosVenta(venta);
+  return redondearPago(Math.min(valorDomicilio, totalTransferido));
 }
 
 function esPagoMixto(venta = {}) {
@@ -3952,8 +4049,19 @@ function cancelarPedidoActual() {
       rolUsuario: rolActual || ""
     };
 
+    const esVentaNueva = !ventaDocIdEnEdicion;
+    const popupImpresionCocina = esVentaNueva
+      ? window.open('', '_blank', 'width=420,height=720')
+      : null;
+
+    if (popupImpresionCocina) {
+      try {
+        popupImpresionCocina.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Preparando impresión</title></head><body style="font-family:sans-serif;padding:16px;">Preparando comanda de cocina...</body></html>');
+        popupImpresionCocina.document.close();
+      } catch (_) {}
+    }
+
     try {
-      const esVentaNueva = !ventaDocIdEnEdicion;
       venta._localId = venta._localId || ventaOriginalEnEdicion?._localId || generarIdVentaLocal();
 
       if (esVentaNueva) {
@@ -3971,6 +4079,11 @@ function cancelarPedidoActual() {
         guardarReferenciaUltimaVenta(ventaLocal);
         limpiarContextoEdicionVenta();
         alert(firestoreDisponible ? "Venta guardada al instante. Se está sincronizando con la base de datos." : "Venta guardada exitosamente.");
+        if (popupImpresionCocina) {
+          imprimirComandaVenta(ventaLocal, popupImpresionCocina);
+        } else {
+          setTimeout(() => imprimirComandaVenta(ventaLocal), 80);
+        }
       } else {
         if (firestoreDisponible) {
           const docIdGuardado = await guardarVentaEnFirebase(venta, ventaDocIdEnEdicion);
@@ -3990,6 +4103,9 @@ function cancelarPedidoActual() {
       refrescarVistasAnaliticasSiEstanAbiertas();
       document.getElementById("resumenProductos").classList.add("hidden");
     } catch (error) {
+      try {
+        if (popupImpresionCocina && !popupImpresionCocina.closed) popupImpresionCocina.close();
+      } catch (_) {}
       console.error("Error al guardar la venta:", error);
       alert("No se pudo guardar la venta. Revisa la conexión o la configuración de Firebase.");
     }
@@ -4637,17 +4753,43 @@ function construirListaProductosImpresion(venta = {}, resumido = false) {
     .join('');
 }
 
-function abrirVentanaImpresion(contenido, titulo = 'Impresión') {
-  const w = window.open('', '_blank', 'width=420,height=720');
+function abrirVentanaImpresion(contenido, titulo = 'Impresión', ventanaDestino = null) {
+  const w = ventanaDestino && !ventanaDestino.closed
+    ? ventanaDestino
+    : window.open('', '_blank', 'width=420,height=720');
   if (!w) {
     alert('No se pudo abrir la ventana de impresión. Revisa el bloqueador de ventanas emergentes.');
-    return;
+    return null;
   }
-  w.document.open();
-  w.document.write(contenido);
-  w.document.close();
-  w.focus();
-  w.print();
+  try {
+    w.document.open();
+    w.document.write(contenido);
+    w.document.close();
+    setTimeout(() => {
+      try {
+        w.focus();
+        w.print();
+      } catch (error) {
+        console.warn('No se pudo lanzar la impresión automática.', error);
+      }
+    }, 120);
+  } catch (error) {
+    console.error('No se pudo preparar la ventana de impresión.', error);
+    try { w.close(); } catch (_) {}
+    return null;
+  }
+  return w;
+}
+
+function imprimirComandaVenta(venta, ventanaDestino = null) {
+  if (!venta) return null;
+  if (esVentaCancelada(venta)) return null;
+  if (!Array.isArray(venta.pedido) || !venta.pedido.length) return null;
+  return abrirVentanaImpresion(
+    generarPlantillaComanda(venta, venta.comanda ?? venta.recibo ?? 1),
+    'Pedido Cocina',
+    ventanaDestino
+  );
 }
 
 function generarPlantillaReciboCliente(venta = {}, referencia = 1) {
@@ -4843,10 +4985,7 @@ function imprimirUltimaCocinero() {
     return;
   }
 
-  abrirVentanaImpresion(
-    generarPlantillaComanda(ultimaVenta, ultimaVenta.comanda ?? ultimaVenta.recibo ?? 1),
-    'Pedido Cocina'
-  );
+  imprimirComandaVenta(ultimaVenta);
 }
 
 // Imprimir último recibo para cliente (simple)
