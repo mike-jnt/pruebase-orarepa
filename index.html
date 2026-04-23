@@ -850,12 +850,19 @@
   <input type="text" id="filtroCliente" oninput="filtrarVentasPorCliente()" placeholder="🔍 Filtrar por cliente..." class="w-full md:w-1/3 p-2 border border-yellow-300 rounded" />
   </div>
 
+  <div id="accionesLoteVentas" class="mb-4 flex flex-wrap items-center gap-2 hidden">
+    <button type="button" onclick="toggleSeleccionTodasVentasFiltradas(true)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-semibold">☑️ Seleccionar visibles</button>
+    <button type="button" onclick="toggleSeleccionTodasVentasFiltradas(false)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-semibold">↩️ Limpiar selección</button>
+    <button type="button" id="btnEliminarVentasSeleccionadas" onclick="eliminarVentasSeleccionadas()" disabled class="bg-red-800 hover:bg-red-900 text-white px-3 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">🗑️ Eliminar seleccionados (0)</button>
+  </div>
+
   <div id="ventasGuardadasMobile" class="md:hidden space-y-3"></div>
 
   <div class="hidden md:block overflow-auto">
     <table class="min-w-full text-left border">
       <thead>
         <tr class="bg-yellow-200">
+          <th id="colSeleccionVentas" class="p-2 border hidden">Sel.</th>
           <th class="p-2 border">#</th>
           <th class="p-2 border">Fecha</th>
           <th class="p-2 border">Cliente</th>
@@ -3929,6 +3936,138 @@ function cancelarPedidoActual() {
   // Muestra las ventas guardadas en la tabla
   const VENTAS_POR_PAGINA = 15;
   let paginaVentasActual = 1;
+  const ventasSeleccionadas = new Set();
+
+  function obtenerClaveSeleccionVenta(venta = {}, index = -1) {
+    return venta._localId || venta._docId || `${venta.diaClave || ''}|${venta.fechaISO || venta.fecha || ''}|${venta.comanda || venta.recibo || index}`;
+  }
+
+  function limpiarSeleccionVentasInexistentes() {
+    const clavesDisponibles = new Set(
+      obtenerVentasStorage().map((venta, index) => obtenerClaveSeleccionVenta(venta, index))
+    );
+    Array.from(ventasSeleccionadas).forEach(clave => {
+      if (!clavesDisponibles.has(clave)) ventasSeleccionadas.delete(clave);
+    });
+  }
+
+  function actualizarUISeleccionVentas() {
+    const contenedorAcciones = document.getElementById('accionesLoteVentas');
+    const btnEliminar = document.getElementById('btnEliminarVentasSeleccionadas');
+    const colSeleccion = document.getElementById('colSeleccionVentas');
+    const habilitado = esAdmin();
+    const total = ventasSeleccionadas.size;
+
+    if (contenedorAcciones) contenedorAcciones.classList.toggle('hidden', !habilitado);
+    if (colSeleccion) colSeleccion.style.display = habilitado ? 'table-cell' : 'none';
+    if (btnEliminar) {
+      btnEliminar.disabled = !habilitado || total === 0;
+      btnEliminar.textContent = `🗑️ Eliminar seleccionados (${total})`;
+    }
+  }
+
+  function toggleSeleccionVenta(clave, marcada) {
+    if (!esAdmin() || !clave) return;
+    if (marcada) ventasSeleccionadas.add(clave);
+    else ventasSeleccionadas.delete(clave);
+    actualizarUISeleccionVentas();
+  }
+
+  function obtenerVentasFiltradasPaginaActual() {
+    const filtro = document.getElementById('filtroCliente')?.value.toLowerCase().trim() || '';
+    const ventasDelDia = obtenerVentasDelDiaActualConIndices();
+    const ventasFiltradas = ventasDelDia.filter(({ venta }) => (venta.cliente || '').toLowerCase().includes(filtro));
+    const inicio = (paginaVentasActual - 1) * VENTAS_POR_PAGINA;
+    return ventasFiltradas.slice(inicio, inicio + VENTAS_POR_PAGINA);
+  }
+
+  function toggleSeleccionTodasVentasFiltradas(seleccionar = true) {
+    if (!verificarAcceso(['admin'])) return;
+    const ventasVisibles = obtenerVentasFiltradasPaginaActual();
+    ventasVisibles.forEach(({ venta, index }) => {
+      const clave = obtenerClaveSeleccionVenta(venta, index);
+      if (seleccionar) ventasSeleccionadas.add(clave);
+      else ventasSeleccionadas.delete(clave);
+    });
+    renderVentasTabla();
+  }
+
+  async function eliminarVentasPorClaves(claves = []) {
+    if (!verificarAcceso(['admin'])) return;
+    const clavesSet = new Set((Array.isArray(claves) ? claves : []).filter(Boolean));
+    if (!clavesSet.size) {
+      alert('Selecciona al menos un pedido para eliminar.');
+      return;
+    }
+
+    const ventasActuales = obtenerVentasStorage();
+    const registros = ventasActuales
+      .map((venta, index) => ({ venta, index, clave: obtenerClaveSeleccionVenta(venta, index) }))
+      .filter(registro => clavesSet.has(registro.clave));
+
+    if (!registros.length) {
+      alert('No se encontraron los pedidos seleccionados.');
+      ventasSeleccionadas.clear();
+      actualizarUISeleccionVentas();
+      renderVentasTabla();
+      return;
+    }
+
+    const requiereConexion = registros.some(({ venta }) => Boolean(venta._docId));
+    if (requiereConexion && (!firestoreDisponible || !firestoreDb)) {
+      alert('No se puede eliminar en este momento porque uno o más pedidos están guardados en la base de datos y no hay conexión.');
+      return;
+    }
+
+    const mensajeConfirmacion = registros.length === 1
+      ? `¿Eliminar definitivamente la venta #${registros[0].venta.comanda ?? registros[0].venta.recibo ?? (registros[0].index + 1)}? Esta acción la borrará del local y de la base de datos.`
+      : `¿Eliminar definitivamente ${registros.length} pedidos seleccionados? Esta acción los borrará del local y de la base de datos.`;
+
+    if (!confirm(mensajeConfirmacion)) return;
+
+    try {
+      let seEliminoVentaEnEdicion = false;
+
+      for (const { venta, clave } of registros) {
+        if (venta._docId) {
+          await borrarVentaEnFirebase(venta._docId);
+        }
+        await sincronizarInventarioBebidasPorCambio(null, venta);
+        eliminarVentaDeCacheLocal(venta);
+        quitarVentaPendienteSync(venta._localId || venta._docId || '');
+        ventasSeleccionadas.delete(clave);
+
+        const esVentaEnEdicion =
+          (ventaDocIdEnEdicion && venta._docId && ventaDocIdEnEdicion === venta._docId) ||
+          (ventaOriginalEnEdicion?._localId && venta._localId && ventaOriginalEnEdicion._localId === venta._localId);
+
+        if (esVentaEnEdicion) seEliminoVentaEnEdicion = true;
+      }
+
+      actualizarReferenciaUltimaVentaTrasEliminar();
+
+      if (seEliminoVentaEnEdicion) {
+        limpiarContextoEdicionVenta();
+        limpiarPedido();
+      }
+
+      alert(registros.length === 1 ? 'Venta eliminada definitivamente.' : 'Pedidos eliminados definitivamente.');
+      mostrarVentas();
+      renderControlCajaDiaActual();
+      const resumen = document.getElementById('resumenProductos');
+      if (resumen && !resumen.classList.contains('hidden')) {
+        generarResumenProductos();
+      }
+      refrescarVistasAnaliticasSiEstanAbiertas();
+    } catch (error) {
+      console.error('Error al eliminar pedidos:', error);
+      alert('No se pudieron eliminar los pedidos seleccionados.');
+    }
+  }
+
+  async function eliminarVentasSeleccionadas() {
+    await eliminarVentasPorClaves(Array.from(ventasSeleccionadas));
+  }
 
   function construirFilaVenta(v, i) {
     const resumen = {};
@@ -3937,6 +4076,8 @@ function cancelarPedidoActual() {
     });
 
     const ventaCancelada = esVentaCancelada(v);
+    const ventaKey = obtenerClaveSeleccionVenta(v, i);
+    const ventaSeleccionada = ventasSeleccionadas.has(ventaKey);
     const productosResumen = Object.entries(resumen)
       .map(([prod, cant]) => `${prod}: ${cant}`)
       .join("<br>");
@@ -3951,6 +4092,9 @@ function cancelarPedidoActual() {
 
     return `
       <tr class="${ventaCancelada ? 'bg-red-50 text-gray-500' : ''}">
+        <td class='border p-1 text-center' style="display:${esAdmin() ? 'table-cell' : 'none'}">
+          <input type="checkbox" ${ventaSeleccionada ? 'checked' : ''} onchange="toggleSeleccionVenta('${ventaKey}', this.checked)" class="w-4 h-4 accent-red-700 cursor-pointer" />
+        </td>
         <td class='border p-1'>${v.comanda ?? v.recibo ?? (i + 1)}</td>
         <td class='border p-1'>${formatearFechaHoraColombia(v.fechaISO || v.fecha)}</td>
         <td class='border p-1'>${v.cliente}</td>
@@ -4002,6 +4146,8 @@ function cancelarPedidoActual() {
       resumen[p.nombre] = (resumen[p.nombre] || 0) + 1;
     });
     const ventaCancelada = esVentaCancelada(v);
+    const ventaKey = obtenerClaveSeleccionVenta(v, i);
+    const ventaSeleccionada = ventasSeleccionadas.has(ventaKey);
     const productosResumen = Object.entries(resumen)
       .map(([prod, cant]) => `<li class="flex justify-between gap-3"><span>${prod}</span><strong>x${cant}</strong></li>`)
       .join("");
@@ -4032,6 +4178,7 @@ function cancelarPedidoActual() {
 
     return `
       <article class="${ventaCancelada ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'} border rounded-2xl p-4 shadow-sm">
+        ${esAdmin() ? `<label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3"><input type="checkbox" ${ventaSeleccionada ? 'checked' : ''} onchange="toggleSeleccionVenta('${ventaKey}', this.checked)" class="w-4 h-4 accent-red-700 cursor-pointer" /> Seleccionar pedido</label>` : ''}
         <div class="flex items-start justify-between gap-3">
           <div>
             <p class="text-xs text-gray-500">Venta #${v.comanda ?? v.recibo ?? (i + 1)}</p>
@@ -4088,6 +4235,7 @@ function cancelarPedidoActual() {
   }
 
   function renderVentasTabla() {
+    limpiarSeleccionVentasInexistentes();
     const filtro = document.getElementById("filtroCliente").value.toLowerCase().trim();
     const ventasDelDia = obtenerVentasDelDiaActualConIndices();
     const ventasFiltradas = ventasDelDia
@@ -4103,7 +4251,7 @@ function cancelarPedidoActual() {
     const contenedor = document.getElementById("ventasGuardadas");
     contenedor.innerHTML = ventasPagina.length
       ? ventasPagina.map(({ venta, index }) => construirFilaVenta(venta, index)).join("")
-      : `<tr><td colspan="9" class="border p-3 text-center text-gray-500">No hay ventas del día para mostrar.</td></tr>`;
+      : `<tr><td colspan="10" class="border p-3 text-center text-gray-500">No hay ventas del día para mostrar.</td></tr>`;
 
     const contenedorMobile = document.getElementById("ventasGuardadasMobile");
     if (contenedorMobile) {
@@ -4113,6 +4261,7 @@ function cancelarPedidoActual() {
     }
 
     actualizarControlesPaginacion(ventasFiltradas.length);
+    actualizarUISeleccionVentas();
   }
 
   function mostrarVentas() {
@@ -4136,6 +4285,7 @@ function cancelarPedidoActual() {
           await borrarTodasLasVentasEnFirebase();
         }
         guardarVentasEnCache([]);
+        ventasSeleccionadas.clear();
         localStorage.removeItem(ULTIMA_VENTA_GUARDADA_KEY);
         alert("Todas las ventas han sido eliminadas.");
         mostrarVentas();
@@ -4596,50 +4746,7 @@ async function eliminarVentaPermanentemente(index) {
   const ventas = obtenerVentasStorage();
   const venta = ventas[index];
   if (!venta) return alert("Venta no encontrada.");
-
-  const numeroVenta = venta.comanda ?? venta.recibo ?? (index + 1);
-  const tieneRegistroRemoto = Boolean(venta._docId);
-
-  if (tieneRegistroRemoto && (!firestoreDisponible || !firestoreDb)) {
-    alert("No se puede eliminar en este momento porque no hay conexión con la base de datos.");
-    return;
-  }
-
-  if (!confirm(`¿Eliminar definitivamente la venta #${numeroVenta}? Esta acción la borrará del local y de la base de datos.`)) {
-    return;
-  }
-
-  try {
-    if (tieneRegistroRemoto) {
-      await borrarVentaEnFirebase(venta._docId);
-    }
-
-    await sincronizarInventarioBebidasPorCambio(null, venta);
-    eliminarVentaDeCacheLocal(venta);
-    quitarVentaPendienteSync(venta._localId || venta._docId || "");
-    actualizarReferenciaUltimaVentaTrasEliminar();
-
-    const esVentaEnEdicion =
-      (ventaDocIdEnEdicion && venta._docId && ventaDocIdEnEdicion === venta._docId) ||
-      (ventaOriginalEnEdicion?._localId && venta._localId && ventaOriginalEnEdicion._localId === venta._localId);
-
-    if (esVentaEnEdicion) {
-      limpiarContextoEdicionVenta();
-      limpiarPedido();
-    }
-
-    alert("Venta eliminada definitivamente.");
-    mostrarVentas();
-    renderControlCajaDiaActual();
-    const resumen = document.getElementById("resumenProductos");
-    if (resumen && !resumen.classList.contains("hidden")) {
-      generarResumenProductos();
-    }
-    refrescarVistasAnaliticasSiEstanAbiertas();
-  } catch (error) {
-    console.error("Error al eliminar la venta:", error);
-    alert("No se pudo eliminar la venta.");
-  }
+  await eliminarVentasPorClaves([obtenerClaveSeleccionVenta(venta, index)]);
 }
 
 async function marcarVentaComoCancelada(index) {
