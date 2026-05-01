@@ -393,7 +393,8 @@
   #modalPagoMixto .max-w-2xl,
   #modalAperturaCaja .max-w-lg,
   #modalCierreCaja .max-w-lg,
-  #modalDineroEsperado .max-w-4xl {
+  #modalDineroEsperado .max-w-4xl,
+  #modalDesgloseCierre .max-w-6xl {
     border-radius: 1.25rem !important;
   }
 
@@ -421,14 +422,16 @@
   #modalPagoMixto h3,
   #modalAperturaCaja h3,
   #modalCierreCaja h3,
-  #modalDineroEsperado h3 {
+  #modalDineroEsperado h3,
+  #modalDesgloseCierre h3 {
     font-size: 1.05rem !important;
   }
 
   #modalPagoMixto button,
   #modalAperturaCaja button,
   #modalCierreCaja button,
-  #modalDineroEsperado button {
+  #modalDineroEsperado button,
+  #modalDesgloseCierre button {
     font-size: 0.88rem !important;
     border-radius: 1rem !important;
   }
@@ -911,6 +914,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
           <button type="button" onclick="abrirModalDineroEsperado()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">Dinero esperado</button>
+          <button type="button" onclick="abrirModalDesgloseCierre()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg">📊 Desglose profesional</button>
           <button type="button" onclick="volverAlPOS()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">← Volver al sistema</button>
         </div>
       </div>
@@ -924,7 +928,7 @@
         <div id="controlCajaEstadoActual" class="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full lg:w-auto lg:min-w-[460px]"></div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mt-5">
         <button type="button" onclick="abrirModalAperturaCaja()" class="text-left rounded-2xl border border-yellow-200 bg-yellow-50 hover:bg-yellow-100 px-4 py-4 transition shadow-sm">
           <p class="text-xs uppercase tracking-wide text-yellow-700 font-bold">Botón de apertura</p>
           <p class="text-lg font-extrabold text-gray-800 mt-1">Apertura de caja</p>
@@ -941,6 +945,12 @@
           <p class="text-xs uppercase tracking-wide text-blue-700 font-bold">Consulta rápida</p>
           <p class="text-lg font-extrabold text-gray-800 mt-1">Dinero esperado en el cierre</p>
           <p id="dineroEsperadoResumenTexto" class="text-sm text-gray-500 mt-2">Haz clic para ver el detalle</p>
+        </button>
+
+        <button type="button" onclick="abrirModalDesgloseCierre()" class="text-left rounded-2xl border border-slate-300 bg-slate-50 hover:bg-slate-100 px-4 py-4 transition shadow-sm">
+          <p class="text-xs uppercase tracking-wide text-slate-700 font-bold">Auditoría del día</p>
+          <p class="text-lg font-extrabold text-gray-800 mt-1">Desglose profesional</p>
+          <p id="desgloseCierreResumenTexto" class="text-sm text-gray-500 mt-2">Fórmula completa, caja esperada y diferencia</p>
         </button>
       </div>
 
@@ -1104,6 +1114,28 @@
       </div>
       <div class="px-6 py-4 border-t border-blue-100 bg-white flex justify-end">
         <button type="button" onclick="cerrarModalCaja('modalDineroEsperado')" class="px-4 py-3 rounded-2xl bg-blue-500 text-white font-bold hover:bg-blue-600">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalDesgloseCierre" class="fixed inset-0 z-[80] hidden bg-black/40 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div class="min-h-full flex items-start justify-center">
+      <div class="w-full max-w-6xl my-4 md:my-8 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-600 font-bold">Auditoría de cierre</p>
+            <h3 class="text-xl font-extrabold text-gray-800">Desglose profesional del cierre diario</h3>
+            <p class="text-sm text-gray-500 mt-1">Explica cómo se forma la caja esperada y cómo se compara contra el cierre contado.</p>
+          </div>
+          <button type="button" onclick="cerrarModalCaja('modalDesgloseCierre')" class="w-10 h-10 rounded-full bg-white border border-slate-200 text-gray-600 hover:bg-slate-100">✕</button>
+        </div>
+        <div class="px-4 sm:px-6 py-5">
+          <div id="contenidoModalDesgloseCierre"></div>
+        </div>
+        <div class="px-4 sm:px-6 py-4 border-t border-slate-200 bg-white flex flex-col sm:flex-row gap-2 sm:justify-end">
+          <button type="button" onclick="cerrarModalCaja('modalDesgloseCierre'); abrirModalDineroEsperado()" class="px-4 py-3 rounded-2xl bg-blue-50 text-blue-700 border border-blue-100 font-bold hover:bg-blue-100">Ver resumen rápido</button>
+          <button type="button" onclick="cerrarModalCaja('modalDesgloseCierre')" class="px-4 py-3 rounded-2xl bg-slate-800 text-white font-bold hover:bg-slate-900">Cerrar desglose</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2302,22 +2334,32 @@ function calcularResumenCajaDia(diaClave) {
   const totalEfectivo = ventasActivas.reduce((acc, venta) => acc + obtenerValorPagoPorMedio(venta, "efectivo"), 0);
   const totalOtrosMedios = ventasActivas.reduce((acc, venta) => acc + obtenerTotalOtrosMediosVenta(venta), 0);
   const domicilios = ventasActivas.filter(venta => esPedidoDomicilio(venta)).length;
-  const ajusteDomiciliosTransferencia = ventasActivas.reduce((acc, venta) => acc + obtenerValorDomicilioCubiertoPorTransferencia(venta), 0);
-  const efectivoNetoSistema = redondearPago(totalEfectivo);
+
+  // Domicilios cubiertos por medios digitales: este dinero no debe quedar como utilidad
+  // y, operativamente, se descuenta del efectivo esperado en caja cuando se paga al domiciliario.
+  const ajusteDomiciliosTransferencia = redondearPago(
+    ventasActivas.reduce((acc, venta) => acc + obtenerValorDomicilioCubiertoPorTransferencia(venta), 0)
+  );
+
+  const efectivoBrutoSistema = redondearPago(totalEfectivo);
+  const efectivoNetoSistema = redondearPago(efectivoBrutoSistema - ajusteDomiciliosTransferencia);
   const totalTransferencias = redondearPago(totalOtrosMedios);
-  const totalSistemaReal = redondearPago(totalEfectivo + totalTransferencias - ajusteDomiciliosTransferencia);
+  const totalSistemaReal = redondearPago(efectivoNetoSistema + totalTransferencias);
+
   return {
     cantidadVentas: ventasActivas.length,
     totalVentas,
     totalCobrado,
-    totalEfectivo: redondearPago(totalEfectivo),
+    totalEfectivo: efectivoBrutoSistema,
     totalOtrosMedios: totalTransferencias,
     totalTransferencias,
     domicilios,
-    ajusteDomiciliosTransferencia: redondearPago(ajusteDomiciliosTransferencia),
+    ajusteDomiciliosTransferencia,
+    efectivoBrutoSistema,
     efectivoNetoSistema,
     totalSistemaReal,
-    montoEsperado: totalSistemaReal
+    montoEsperado: totalSistemaReal,
+    montoEsperadoCaja: efectivoNetoSistema
   };
 }
 
@@ -2364,6 +2406,7 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
   const aperturaEstadoTexto = document.getElementById('aperturaCajaEstadoTexto');
   const cierreEstadoTexto = document.getElementById('cierreCajaEstadoTexto');
   const dineroEsperadoResumenTexto = document.getElementById('dineroEsperadoResumenTexto');
+  const desgloseCierreResumenTexto = document.getElementById('desgloseCierreResumenTexto');
   const aperturaInfoModal = document.getElementById('aperturaCajaInfoModal');
   const btnApertura = document.getElementById('btnRegistrarAperturaCaja');
   const inputApertura = document.getElementById('aperturaCajaMonto');
@@ -2383,6 +2426,12 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
     dineroEsperadoResumenTexto.textContent = `${formatearCOP(cierreRealDia)} real del día · caja esperada ${formatearCOP(esperado)} · ${control.cierreHora ? `diferencia ${formatearCOP(diferencia)}` : 'ver detalle completo'}`;
   }
 
+  if (desgloseCierreResumenTexto) {
+    desgloseCierreResumenTexto.textContent = control.cierreHora
+      ? `Cierre contado ${formatearCOP(control.cierreMonto)} · diferencia ${formatearCOP(diferencia)}`
+      : `Caja esperada ${formatearCOP(esperado)} · cierre pendiente`;
+  }
+
   if (aperturaInfoModal) aperturaInfoModal.textContent = control.aperturaHora
     ? `Registrada el ${formatearFechaHoraColombia(control.aperturaHora)} por ${control.aperturaUsuario || 'Sin usuario'}`
     : 'Aún no registrada para hoy.';
@@ -2395,6 +2444,7 @@ async function renderControlCajaDiaActual(forzarRemoto = false) {
   }
 
   renderContenidoModalDineroEsperado(control, resumen);
+  renderContenidoModalDesgloseCierre(control, resumen);
   actualizarTarjetasEstadoCaja(control, resumen);
 }
 
@@ -2472,7 +2522,7 @@ function cerrarModalCaja(id) {
   if (id === 'modalCierreCaja') {
     limpiarEstadoEdicionCierreCaja();
   }
-  if (!["modalAperturaCaja", "modalCierreCaja", "modalDineroEsperado", "modalPagoMixto"].some(modalId => !document.getElementById(modalId)?.classList.contains('hidden'))) {
+  if (!["modalAperturaCaja", "modalCierreCaja", "modalDineroEsperado", "modalDesgloseCierre", "modalPagoMixto"].some(modalId => !document.getElementById(modalId)?.classList.contains('hidden'))) {
     document.body.classList.remove('overflow-hidden');
   }
 }
@@ -2494,6 +2544,28 @@ async function abrirModalDineroEsperado() {
   if (!verificarAcceso(["admin", "cajero"])) return;
   await renderControlCajaDiaActual(true);
   abrirModalCaja('modalDineroEsperado');
+}
+
+async function abrirModalDesgloseCierre() {
+  if (!verificarAcceso(["admin", "cajero"])) return;
+  await renderControlCajaDiaActual(true);
+  abrirModalCaja('modalDesgloseCierre');
+}
+
+async function abrirModalDesgloseCierreDia(diaClave) {
+  if (!verificarAcceso(["admin"])) return;
+  const dia = String(diaClave || '').trim();
+  if (!dia) return alert('No se encontró la fecha del cierre.');
+
+  const control = await obtenerControlCajaDia(dia, true);
+  const resumen = calcularResumenCajaDia(dia);
+
+  if (!control.cierreHora) {
+    return alert('El día ' + dia + ' no tiene un cierre registrado.');
+  }
+
+  renderContenidoModalDesgloseCierre(control, resumen, { origen: 'historico' });
+  abrirModalCaja('modalDesgloseCierre');
 }
 
 function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
@@ -2522,12 +2594,12 @@ function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
       <div class="rounded-xl border border-red-100 bg-red-50 p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Domicilios pagados por transferencia</p>
         <p class="text-xl font-extrabold text-red-700 mt-1">${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">Este valor se descuenta para que el cierre del día sea real</p>
+        <p class="text-xs text-gray-500 mt-1">Se descuenta del efectivo esperado en caja</p>
       </div>
       <div class="rounded-xl border border-green-100 bg-green-50 p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Cierre real del día</p>
         <p class="text-xl font-extrabold text-green-700 mt-1">${formatearCOP(cierreRealDia)}</p>
-        <p class="text-xs text-gray-500 mt-1">Efectivo + transferencias - domicilios pagados por transferencia</p>
+        <p class="text-xs text-gray-500 mt-1">Efectivo neto + transferencias</p>
       </div>
       <div class="rounded-xl border ${control.cierreHora ? (diferencia === 0 ? 'border-green-100 bg-green-50' : 'border-red-100 bg-red-50') : 'border-gray-200 bg-gray-50'} p-4">
         <p class="text-xs uppercase tracking-wide text-gray-500">Diferencia en caja</p>
@@ -2540,10 +2612,210 @@ function renderContenidoModalDineroEsperado(control = {}, resumen = {}) {
       <p><strong>Domicilios del día:</strong> ${resumen.domicilios || 0}</p>
       <p><strong>Total vendido activo:</strong> ${formatearCOP(resumen.totalVentas || 0)} <span class="text-xs text-gray-500">(solo productos)</span></p>
       <p><strong>Total cobrado real:</strong> ${formatearCOP(resumen.totalCobrado || 0)} <span class="text-xs text-gray-500">(productos + domicilios)</span></p>
-      <p><strong>Caja esperada:</strong> ${formatearCOP(esperado)} <span class="text-xs text-gray-500">(apertura + efectivo del día)</span></p>
+      <p><strong>Caja esperada:</strong> ${formatearCOP(esperado)} <span class="text-xs text-gray-500">(apertura + efectivo recibido - domicilios por transferencia)</span></p>
+      <p><strong>Efectivo neto esperado:</strong> ${formatearCOP(resumen.efectivoNetoSistema || 0)} <span class="text-xs text-gray-500">(efectivo recibido - domicilios por transferencia)</span></p>
       <p><strong>Cierre real del día:</strong> ${formatearCOP(cierreRealDia)} <span class="text-xs text-gray-500">(efectivo + transferencias - domicilios por transferencia)</span></p>
       ${control.cierreObservaciones ? `<p class="mt-2"><strong>Observaciones del cierre:</strong> ${control.cierreObservaciones}</p>` : ''}
     </div>
+  `;
+}
+
+
+function renderContenidoModalDesgloseCierre(control = {}, resumen = {}) {
+  const contenedor = document.getElementById('contenidoModalDesgloseCierre');
+  if (!contenedor) return;
+
+  const diaAnalizado = control.diaClave || obtenerFechaLocalISO(new Date());
+  const esDiaActual = diaAnalizado === obtenerFechaLocalISO(new Date());
+  const apertura = Number(control.aperturaMonto || 0);
+  const efectivoBruto = Number(resumen.totalEfectivo || resumen.efectivoBrutoSistema || 0);
+  const transferencias = Number(resumen.totalTransferencias || 0);
+  const domiciliosTransferencia = Number(resumen.ajusteDomiciliosTransferencia || 0);
+  const efectivoNeto = Number(resumen.efectivoNetoSistema || 0);
+  const ventaRealNegocio = Number(resumen.totalVentas || 0);
+  const totalCobradoClientes = Number(resumen.totalCobrado || 0);
+  const cajaEsperada = redondearPago(apertura + efectivoNeto);
+  const cierreContado = Number(control.cierreMonto || 0);
+  const cierreRealDia = Number(resumen.totalSistemaReal || 0);
+  const diferencia = control.cierreHora ? redondearPago(cierreContado - cajaEsperada) : 0;
+  const totalDomicilios = redondearPago(Math.max(0, totalCobradoClientes - ventaRealNegocio));
+  const domiciliosEfectivo = redondearPago(Math.max(0, totalDomicilios - domiciliosTransferencia));
+
+  let estadoDiferencia = {
+    titulo: 'Cierre pendiente',
+    detalle: 'Registra el monto contado al final del día para comparar la caja física contra lo esperado por el software.',
+    clase: 'border-gray-200 bg-gray-50 text-gray-700'
+  };
+  if (control.cierreHora) {
+    if (diferencia === 0) {
+      estadoDiferencia = {
+        titulo: 'Caja cuadrada',
+        detalle: 'El dinero contado coincide exactamente con la caja esperada según las ventas registradas.',
+        clase: 'border-green-200 bg-green-50 text-green-800'
+      };
+    } else if (diferencia > 0) {
+      estadoDiferencia = {
+        titulo: 'Sobra dinero en caja',
+        detalle: `Hay ${formatearCOP(diferencia)} por encima de lo esperado. Revisa pagos no registrados, cambio inicial o movimientos manuales.`,
+        clase: 'border-amber-200 bg-amber-50 text-amber-800'
+      };
+    } else {
+      estadoDiferencia = {
+        titulo: 'Falta dinero en caja',
+        detalle: `Faltan ${formatearCOP(Math.abs(diferencia))} frente a lo esperado. Revisa domicilios pagados, ventas en efectivo, cambios o retiros no registrados.`,
+        clase: 'border-red-200 bg-red-50 text-red-800'
+      };
+    }
+  }
+
+  const filaConciliacion = (concepto, operacion, valor, nota = '', resaltado = '') => `
+    <tr class="${resaltado}">
+      <td class="p-3 border text-gray-700 font-semibold">${concepto}</td>
+      <td class="p-3 border text-center text-gray-500 font-bold">${operacion}</td>
+      <td class="p-3 border text-right font-extrabold text-gray-800">${formatearCOP(valor)}</td>
+      <td class="p-3 border text-xs text-gray-500">${nota}</td>
+    </tr>
+  `;
+
+  contenedor.innerHTML = `
+    <div class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <p class="text-xs uppercase tracking-wide text-slate-500 font-bold">Día analizado</p>
+        <p class="text-xl font-black text-slate-800 mt-1">${diaAnalizado}</p>
+        <p class="text-xs text-slate-500 mt-1">${esDiaActual ? 'Desglose del cierre actual' : 'Desglose histórico abierto desde la tabla de cierres'}</p>
+      </div>
+      <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <strong>Comparación:</strong> cierre contado vs. caja esperada por el software.
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <div class="rounded-2xl border border-yellow-100 bg-yellow-50 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Venta real del negocio</p>
+        <p class="text-2xl font-black text-gray-800 mt-1">${formatearCOP(ventaRealNegocio)}</p>
+        <p class="text-xs text-gray-500 mt-1">Solo productos. No incluye domicilio.</p>
+      </div>
+      <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Caja esperada física</p>
+        <p class="text-2xl font-black text-blue-800 mt-1">${formatearCOP(cajaEsperada)}</p>
+        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo neto del día.</p>
+      </div>
+      <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Cierre contado</p>
+        <p class="text-2xl font-black text-slate-800 mt-1">${control.cierreHora ? formatearCOP(cierreContado) : 'Pendiente'}</p>
+        <p class="text-xs text-gray-500 mt-1">Valor registrado al contar la caja.</p>
+      </div>
+      <div class="rounded-2xl border ${estadoDiferencia.clase} p-4">
+        <p class="text-xs uppercase tracking-wide font-bold opacity-80">Resultado</p>
+        <p class="text-xl font-black mt-1">${control.cierreHora ? formatearCOP(diferencia) : 'Pendiente'}</p>
+        <p class="text-xs mt-1">${estadoDiferencia.titulo}</p>
+      </div>
+    </div>
+
+    <div class="mt-5 rounded-2xl border ${estadoDiferencia.clase} p-4">
+      <p class="font-extrabold">${estadoDiferencia.titulo}</p>
+      <p class="text-sm mt-1">${estadoDiferencia.detalle}</p>
+    </div>
+
+    <div class="mt-5 rounded-2xl border border-emerald-200 overflow-hidden bg-white">
+      <div class="px-4 py-3 bg-emerald-50 border-b border-emerald-200">
+        <h4 class="font-extrabold text-emerald-900">1. Cálculo de venta real del negocio</h4>
+        <p class="text-xs text-emerald-800 mt-1">Aquí se ve claramente cómo el sistema resta los domicilios del total cobrado para dejar solo la venta real de productos.</p>
+      </div>
+      <div class="overflow-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-100 text-gray-600">
+            <tr>
+              <th class="p-3 border text-left">Concepto</th>
+              <th class="p-3 border text-center">Operación</th>
+              <th class="p-3 border text-right">Valor</th>
+              <th class="p-3 border text-left">Explicación</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filaConciliacion('Total cobrado a clientes', '+', totalCobradoClientes, 'Todo el dinero cobrado en el día: productos + domicilios. No todo es utilidad.')}
+            ${filaConciliacion('Domicilios cobrados', '-', totalDomicilios, 'Valor de envíos. Este dinero no pertenece a la ganancia del negocio.')}
+            ${filaConciliacion('Venta real del negocio', '=', ventaRealNegocio, 'Resultado real de productos vendidos. Este es el dato correcto para medir ventas/utilidad bruta.', 'bg-emerald-50')}
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 bg-white border-t border-emerald-100 text-sm text-gray-700">
+        <strong>Fórmula:</strong> ${formatearCOP(totalCobradoClientes)} total cobrado - ${formatearCOP(totalDomicilios)} domicilios = <strong>${formatearCOP(ventaRealNegocio)} venta real</strong>.
+      </div>
+    </div>
+
+    <div class="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="rounded-2xl border border-gray-200 overflow-hidden bg-white">
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <h4 class="font-extrabold text-gray-800">2. Conciliación de caja física</h4>
+          <p class="text-xs text-gray-500 mt-1">Esto responde cuánto dinero debería existir físicamente en la caja al cerrar.</p>
+        </div>
+        <div class="overflow-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-100 text-gray-600">
+              <tr>
+                <th class="p-3 border text-left">Concepto</th>
+                <th class="p-3 border text-center">Operación</th>
+                <th class="p-3 border text-right">Valor</th>
+                <th class="p-3 border text-left">Explicación</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filaConciliacion('Apertura de caja', '+', apertura, 'Base inicial registrada antes de vender.')}
+              ${filaConciliacion('Efectivo recibido por ventas', '+', efectivoBruto, 'Dinero que entró en efectivo, incluyendo pagos mixtos.')}
+              ${filaConciliacion('Domicilios pagados por transferencia', '-', domiciliosTransferencia, 'Se descuenta porque entró digital, pero normalmente se paga al domiciliario desde caja.')}
+              ${filaConciliacion('Caja esperada al cierre', '=', cajaEsperada, 'Este es el efectivo que debería aparecer al contar la caja.', 'bg-blue-50')}
+              ${control.cierreHora ? filaConciliacion('Cierre contado registrado', '↔', cierreContado, 'Monto físico que se ingresó al cerrar la caja.', 'bg-slate-50') : ''}
+              ${control.cierreHora ? filaConciliacion('Diferencia final', '=', diferencia, 'Cierre contado menos caja esperada.', diferencia === 0 ? 'bg-green-50' : (diferencia > 0 ? 'bg-amber-50' : 'bg-red-50')) : ''}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-gray-200 overflow-hidden bg-white">
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <h4 class="font-extrabold text-gray-800">3. Lectura operativa del día</h4>
+          <p class="text-xs text-gray-500 mt-1">Separa venta real, medios de pago y domicilios para no confundir utilidad con dinero recibido.</p>
+        </div>
+        <div class="p-4 space-y-3 text-sm">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
+              <p class="text-xs uppercase tracking-wide text-gray-500">Pedidos activos</p>
+              <p class="text-lg font-black text-gray-800">${resumen.cantidadVentas || 0}</p>
+            </div>
+            <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
+              <p class="text-xs uppercase tracking-wide text-gray-500">Domicilios activos</p>
+              <p class="text-lg font-black text-gray-800">${resumen.domicilios || 0}</p>
+            </div>
+            <div class="rounded-xl border border-green-100 bg-green-50 p-3">
+              <p class="text-xs uppercase tracking-wide text-gray-500">Efectivo neto esperado</p>
+              <p class="text-lg font-black text-green-800">${formatearCOP(efectivoNeto)}</p>
+            </div>
+            <div class="rounded-xl border border-amber-100 bg-amber-50 p-3">
+              <p class="text-xs uppercase tracking-wide text-gray-500">Transferencias recibidas</p>
+              <p class="text-lg font-black text-amber-800">${formatearCOP(transferencias)}</p>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-2">
+            <p><strong>Total cobrado a clientes:</strong> ${formatearCOP(totalCobradoClientes)} <span class="text-xs text-gray-500">(productos + domicilios)</span></p>
+            <p><strong>Menos domicilios totales:</strong> ${formatearCOP(totalDomicilios)} <span class="text-xs text-gray-500">(se excluyen de la venta real)</span></p>
+            <p><strong>Venta real del negocio:</strong> ${formatearCOP(ventaRealNegocio)} <span class="text-xs text-gray-500">(total cobrado - domicilios)</span></p>
+            <hr class="border-gray-200">
+            <p><strong>Domicilios por transferencia:</strong> ${formatearCOP(domiciliosTransferencia)} <span class="text-xs text-gray-500">(se descuentan del efectivo esperado en caja)</span></p>
+            <p><strong>Domicilios en efectivo:</strong> ${formatearCOP(domiciliosEfectivo)} <span class="text-xs text-gray-500">(no se suman como venta real; solo explican dinero recibido)</span></p>
+            <p><strong>Cierre real operativo:</strong> ${formatearCOP(cierreRealDia)} <span class="text-xs text-gray-500">(efectivo neto + transferencias)</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+      <p class="font-extrabold">Regla aplicada para Señor Arepa</p>
+      <p class="mt-1">El domicilio nunca se cuenta como utilidad. Primero se calcula la venta real así: total cobrado a clientes menos domicilios. Luego se calcula la caja física así: apertura + efectivo recibido - domicilios pagados por transferencia. Si el domicilio entra en efectivo, no aumenta la venta real; solo queda reflejado dentro del efectivo recibido.</p>
+    </div>
+
+    ${control.cierreObservaciones ? `<div class="mt-5 rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-700"><strong>Observaciones del cierre:</strong> ${control.cierreObservaciones}</div>` : ''}
   `;
 }
 
@@ -2578,9 +2850,11 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
     const domiciliosDescontados = Number(resumen.ajusteDomiciliosTransferencia || 0);
     const diferencia = Number(control.cierreMonto || 0) - esperado;
     const claseDiferencia = diferencia === 0 ? 'text-green-700' : 'text-red-700';
-    const acciones = esAdmin()
-      ? `<div class="flex flex-wrap items-center justify-center gap-2"><button type="button" onclick="abrirModalEditarCierreCaja('${control.diaClave}')" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded-lg font-semibold text-xs">✏️ Editar</button><button type="button" onclick="eliminarCierreCaja('${control.diaClave}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg font-semibold text-xs">🗑️ Borrar cierre</button></div>`
-      : '-';
+    const botonDesglose = `<button type="button" title="Ver desglose profesional de ${control.diaClave}" onclick="abrirModalDesgloseCierreDia('${control.diaClave}')" class="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-900 text-white px-3 py-1 rounded-lg font-semibold text-xs">📊 Desglose</button>`;
+    const accionesAdmin = esAdmin()
+      ? `<button type="button" onclick="abrirModalEditarCierreCaja('${control.diaClave}')" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded-lg font-semibold text-xs">✏️ Editar</button><button type="button" onclick="eliminarCierreCaja('${control.diaClave}')" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg font-semibold text-xs">🗑️ Borrar cierre</button>`
+      : '';
+    const acciones = `<div class="flex flex-wrap items-center justify-center gap-2">${botonDesglose}${accionesAdmin}</div>`;
     return `
       <tr>
         <td class="p-2 border">${control.diaClave}</td>
@@ -2589,7 +2863,7 @@ async function renderTablaCierresCaja(forzarRemoto = false) {
         <td class="p-2 border">${formatearCOP(resumen.totalEfectivo || 0)}<div class="text-[11px] text-gray-500 mt-1">Solo efectivo del sistema</div></td>
         <td class="p-2 border">${formatearCOP(transferencias)}<div class="text-[11px] text-gray-500 mt-1">Sección aparte de transferencias</div></td>
         <td class="p-2 border text-red-700 font-semibold">${formatearCOP(domiciliosDescontados)}<div class="text-[11px] text-gray-500 mt-1">Restado por domicilios en transferencia</div></td>
-        <td class="p-2 border">${formatearCOP(esperado)}<div class="text-[11px] text-gray-500 mt-1">Apertura + efectivo del día</div></td>
+        <td class="p-2 border">${formatearCOP(esperado)}<div class="text-[11px] text-gray-500 mt-1">Apertura + efectivo - domicilios transferencia</div></td>
         <td class="p-2 border text-green-700 font-semibold">${formatearCOP(cierreRealDia)}<div class="text-[11px] text-gray-500 mt-1">Efectivo + transferencias - domicilios</div></td>
         <td class="p-2 border font-semibold ${claseDiferencia}">${formatearCOP(diferencia)}</td>
         <td class="p-2 border">${control.aperturaUsuario || '-'}</td>
@@ -2743,7 +3017,7 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
       <div class="rounded-xl border border-red-100 bg-red-50 p-3">
         <p class="text-xs uppercase tracking-wide text-gray-500">Domicilios por transferencia</p>
         <p class="text-lg font-extrabold text-red-700 mt-1">${formatearCOP(resumen.ajusteDomiciliosTransferencia || 0)}</p>
-        <p class="text-xs text-gray-500 mt-1">Se resta para obtener el cierre real del día</p>
+        <p class="text-xs text-gray-500 mt-1">Se descuenta del efectivo esperado en caja</p>
       </div>
       <div class="rounded-xl border border-green-100 bg-green-50 p-3">
         <p class="text-xs uppercase tracking-wide text-gray-500">Cierre real del día</p>
@@ -2753,7 +3027,7 @@ async function renderResumenCajaFecha(diaClave, forzarRemoto = false) {
       <div class="rounded-xl border border-yellow-100 bg-yellow-50 p-3">
         <p class="text-xs uppercase tracking-wide text-gray-500">Caja esperada</p>
         <p class="text-lg font-extrabold text-gray-800 mt-1">${formatearCOP(esperado)}</p>
-        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo recibido</p>
+        <p class="text-xs text-gray-500 mt-1">Apertura + efectivo - domicilios por transferencia</p>
       </div>
     </div>
     ${control.cierreObservaciones ? `<p class="mt-3 text-sm text-gray-600"><strong>Observaciones:</strong> ${control.cierreObservaciones}</p>` : ''}
@@ -2979,6 +3253,12 @@ function obtenerValorDomicilioCubiertoPorTransferencia(venta = {}) {
   if (valorDomicilio <= 0) return 0;
   const totalTransferido = obtenerTotalOtrosMediosVenta(venta);
   return redondearPago(Math.min(valorDomicilio, totalTransferido));
+}
+
+function obtenerValorDomicilioCubiertoPorEfectivo(venta = {}) {
+  const valorDomicilio = obtenerValorDomicilio(venta);
+  if (valorDomicilio <= 0) return 0;
+  return redondearPago(Math.max(0, valorDomicilio - obtenerValorDomicilioCubiertoPorTransferencia(venta)));
 }
 
 function esPagoMixto(venta = {}) {
@@ -5347,8 +5627,12 @@ function volverAlPOS() {
   }
 
   function obtenerEtiquetaPagoDomicilio(venta = {}) {
-    if (esPagoMixto(venta)) return 'Mixto';
-    return esPagoEfectivo(venta) ? 'Efectivo' : 'Transferencia';
+    const valorTransferencia = obtenerValorDomicilioCubiertoPorTransferencia(venta);
+    const valorEfectivo = obtenerValorDomicilioCubiertoPorEfectivo(venta);
+    if (valorTransferencia > 0 && valorEfectivo > 0) return 'Mixto';
+    if (valorTransferencia > 0) return 'Transferencia';
+    if (valorEfectivo > 0) return 'Efectivo';
+    return '-';
   }
 
   function obtenerValorDomicilio(venta = {}) {
@@ -5612,15 +5896,15 @@ function volverAlPOS() {
     };
 
     const domiciliosHoy = domiciliosActivos.filter(v => v.diaClave === hoy);
-    const domiciliosTransferencia = domiciliosActivos.filter(v => esPagoTransferencia(v));
-    const domiciliosEfectivo = domiciliosActivos.filter(v => esPagoEfectivo(v));
+    const domiciliosTransferencia = domiciliosActivos.filter(v => obtenerValorDomicilioCubiertoPorTransferencia(v) > 0);
+    const domiciliosEfectivo = domiciliosActivos.filter(v => obtenerValorDomicilioCubiertoPorEfectivo(v) > 0);
 
     setText('domHoyCantidad', `${domiciliosHoy.length} domicilio(s)`);
     setText('domHoyValor', formatearDinero(domiciliosHoy.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0)));
     setText('domTransferenciaCantidad', `${domiciliosTransferencia.length} domicilio(s)`);
-    setText('domTransferenciaValor', formatearDinero(domiciliosTransferencia.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0)));
+    setText('domTransferenciaValor', formatearDinero(domiciliosTransferencia.reduce((acc, v) => acc + obtenerValorDomicilioCubiertoPorTransferencia(v), 0)));
     setText('domEfectivoCantidad', `${domiciliosEfectivo.length} domicilio(s)`);
-    setText('domEfectivoValor', formatearDinero(domiciliosEfectivo.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0)));
+    setText('domEfectivoValor', formatearDinero(domiciliosEfectivo.reduce((acc, v) => acc + obtenerValorDomicilioCubiertoPorEfectivo(v), 0)));
 
     const resumenPorDia = {};
     domicilios.forEach(v => {
@@ -5643,14 +5927,17 @@ function volverAlPOS() {
         return;
       }
       const valorDomicilio = obtenerValorDomicilio(v);
+      const valorDomicilioTransferencia = obtenerValorDomicilioCubiertoPorTransferencia(v);
+      const valorDomicilioEfectivo = obtenerValorDomicilioCubiertoPorEfectivo(v);
       fila.cantidad += 1;
       fila.totalValor += valorDomicilio;
-      if (esPagoEfectivo(v)) {
-        fila.efectivoCantidad += 1;
-        fila.efectivoValor += valorDomicilio;
-      } else {
+      if (valorDomicilioTransferencia > 0) {
         fila.transferenciaCantidad += 1;
-        fila.transferenciaValor += valorDomicilio;
+        fila.transferenciaValor += valorDomicilioTransferencia;
+      }
+      if (valorDomicilioEfectivo > 0) {
+        fila.efectivoCantidad += 1;
+        fila.efectivoValor += valorDomicilioEfectivo;
       }
     });
 
@@ -5711,10 +5998,10 @@ function volverAlPOS() {
 
     const activos = filtrarVentasActivas(domicilios);
     const cancelados = domicilios.length - activos.length;
-    const transferencia = activos.filter(v => esPagoTransferencia(v));
-    const efectivo = activos.filter(v => esPagoEfectivo(v));
-    const valorTransferencia = transferencia.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0);
-    const valorEfectivo = efectivo.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0);
+    const transferencia = activos.filter(v => obtenerValorDomicilioCubiertoPorTransferencia(v) > 0);
+    const efectivo = activos.filter(v => obtenerValorDomicilioCubiertoPorEfectivo(v) > 0);
+    const valorTransferencia = transferencia.reduce((acc, v) => acc + obtenerValorDomicilioCubiertoPorTransferencia(v), 0);
+    const valorEfectivo = efectivo.reduce((acc, v) => acc + obtenerValorDomicilioCubiertoPorEfectivo(v), 0);
     const valorTotalDomicilios = activos.reduce((acc, v) => acc + obtenerValorDomicilio(v), 0);
 
     resumen.innerHTML = `<strong>Fecha consultada:</strong> ${fechaSeleccionada} &nbsp;|&nbsp; <strong>Domicilios activos:</strong> ${activos.length} &nbsp;|&nbsp; <strong>Transferencia:</strong> ${transferencia.length} (${formatearDinero(valorTransferencia)}) &nbsp;|&nbsp; <strong>Efectivo:</strong> ${efectivo.length} (${formatearDinero(valorEfectivo)}) &nbsp;|&nbsp; <strong>Cancelados:</strong> ${cancelados} &nbsp;|&nbsp; <strong>Total domicilio:</strong> ${formatearDinero(valorTotalDomicilios)}`;
