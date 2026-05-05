@@ -6093,9 +6093,61 @@ function volverAlPOS() {
     return crearDetallePagoSimple(formaPago, totalCobrado);
   }
 
-  function leerVentasDesdeWorksheetImportacion(worksheet) {
+  function extraerFechaBaseDesdeNombreArchivoImportacion(nombreArchivo = '') {
+    const texto = String(nombreArchivo || '');
+    const matchIso = texto.match(/(20\d{2})[-_. ](\d{1,2})[-_. ](\d{1,2})/);
+    if (matchIso) {
+      return crearFechaColombiaImportacion(Number(matchIso[1]), Number(matchIso[2]), Number(matchIso[3]));
+    }
+    const matchCompacto = texto.match(/(20\d{2})(\d{2})(\d{2})/);
+    if (matchCompacto) {
+      return crearFechaColombiaImportacion(Number(matchCompacto[1]), Number(matchCompacto[2]), Number(matchCompacto[3]));
+    }
+    return null;
+  }
+
+  function obtenerFechaBaseDesdeWorksheetImportacion(worksheet, columnas) {
+    const conteoFechas = new Map();
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const fechaObj = convertirFechaExcelImportacion(row.getCell(columnas.fecha));
+      if (!fechaObj || isNaN(fechaObj.getTime())) return;
+      const diaClave = obtenerFechaLocalISO(fechaObj);
+      conteoFechas.set(diaClave, (conteoFechas.get(diaClave) || 0) + 1);
+    });
+
+    const fechaMasRepetida = Array.from(conteoFechas.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (!fechaMasRepetida) return null;
+    const [year, month, day] = fechaMasRepetida.split('-').map(Number);
+    return crearFechaColombiaImportacion(year, month, day);
+  }
+
+  function combinarFechaBaseConHoraImportacion(fechaBaseObj, fechaConHoraObj) {
+    if (!fechaBaseObj || isNaN(fechaBaseObj.getTime())) return fechaConHoraObj;
+    const baseColombia = new Date(fechaBaseObj.toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+    const horaColombia = fechaConHoraObj && !isNaN(fechaConHoraObj.getTime())
+      ? new Date(fechaConHoraObj.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+      : new Date(0);
+
+    return crearFechaColombiaImportacion(
+      baseColombia.getFullYear(),
+      baseColombia.getMonth() + 1,
+      baseColombia.getDate(),
+      horaColombia.getHours(),
+      horaColombia.getMinutes(),
+      horaColombia.getSeconds()
+    );
+  }
+
+  function leerVentasDesdeWorksheetImportacion(worksheet, nombreArchivo = '') {
     const columnas = construirMapaColumnasImportacion(worksheet);
     validarColumnasImportacion(columnas);
+
+    const fechaBaseImportacion = extraerFechaBaseDesdeNombreArchivoImportacion(nombreArchivo) || obtenerFechaBaseDesdeWorksheetImportacion(worksheet, columnas);
+    if (!fechaBaseImportacion || isNaN(fechaBaseImportacion.getTime())) {
+      throw new Error('No se pudo identificar la fecha base del Excel. Revisa el nombre del archivo o la columna Fecha.');
+    }
+    const diaBaseImportacion = obtenerFechaLocalISO(fechaBaseImportacion);
 
     const grupos = new Map();
 
@@ -6106,8 +6158,9 @@ function volverAlPOS() {
       const productoNormalizado = normalizarTextoImportacion(producto);
       if (!producto || productoNormalizado.includes('total del dia') || productoNormalizado.includes('total contabilizado') || productoNormalizado.includes('producto mas vendido')) return;
 
-      const fechaObj = convertirFechaExcelImportacion(row.getCell(columnas.fecha));
-      if (!fechaObj || isNaN(fechaObj.getTime())) return;
+      const fechaOriginalObj = convertirFechaExcelImportacion(row.getCell(columnas.fecha));
+      if (!fechaOriginalObj || isNaN(fechaOriginalObj.getTime())) return;
+      const fechaObj = combinarFechaBaseConHoraImportacion(fechaBaseImportacion, fechaOriginalObj);
 
       const numero = Math.trunc(numeroCeldaExcelImportacion(row.getCell(columnas.numero)) || 0);
       const precio = redondearPago(numeroCeldaExcelImportacion(row.getCell(columnas.precio)) || 0);
@@ -6116,7 +6169,7 @@ function volverAlPOS() {
       const cliente = textoCeldaExcelImportacion(row.getCell(columnas.cliente)) || 'N/A';
       const formaPagoTexto = textoCeldaExcelImportacion(row.getCell(columnas.formaPago));
       const tipoPedido = normalizarTipoPedidoImportado(textoCeldaExcelImportacion(row.getCell(columnas.tipoPedido)));
-      const diaClave = obtenerFechaLocalISO(fechaObj);
+      const diaClave = diaBaseImportacion;
       const claveGrupo = `${diaClave}|${numero}|${cliente}|${formaPagoTexto}|${tipoPedido}`;
 
       if (!grupos.has(claveGrupo)) {
@@ -6124,6 +6177,7 @@ function volverAlPOS() {
           numero,
           fechaObj,
           diaClave,
+          fechaBaseCorregida: diaBaseImportacion,
           cliente,
           formaPagoTexto,
           tipoPedido,
@@ -6162,7 +6216,7 @@ function volverAlPOS() {
         numeroDomicilio: grupo.tipoPedido === 'Domicilio' && Number(grupo.numeroDomicilio || 0) > 0 ? Number(grupo.numeroDomicilio) : null,
         costoDomicilio,
         subtotalProductos,
-        observaciones: 'Importado desde Excel',
+        observaciones: `Importado desde Excel · fecha corregida a ${grupo.fechaBaseCorregida || grupo.diaClave}`,
         pedido: grupo.pedido,
         detallePagos: crearDetallePagosImportacion(grupo.formaPagoTexto, totalCobrado),
         totalCobrado,
@@ -6286,7 +6340,7 @@ function volverAlPOS() {
       const worksheet = workbook.worksheets[0];
       if (!worksheet) throw new Error('El archivo no tiene hojas disponibles.');
 
-      const ventasLeidas = leerVentasDesdeWorksheetImportacion(worksheet);
+      const ventasLeidas = leerVentasDesdeWorksheetImportacion(worksheet, archivo.name);
       if (!ventasLeidas.length) {
         actualizarEstadoImportacionVentasExcel('No se encontraron ventas válidas para importar.', 'warning');
         alert('No se encontraron ventas válidas para importar.');
