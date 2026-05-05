@@ -1171,6 +1171,21 @@
         </div>
       </div>
 
+      <div class="border border-blue-200 rounded-xl p-4 bg-blue-50 mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h4 class="font-semibold text-lg text-gray-800">📥 Importar ventas desde Excel</h4>
+            <p class="text-sm text-gray-600">Carga un archivo de ventas exportado para recuperar días que aparecen en cero en el histórico. El sistema agrupa los productos por número de venta y sube cada pedido a Firebase en orden.</p>
+            <p class="text-xs text-gray-500 mt-1">No modifica inventario de bebidas; solo reconstruye las ventas históricas.</p>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <input type="file" id="archivoImportacionVentasExcel" class="hidden" accept=".xlsx,.xls" onchange="importarVentasDesdeExcel(event)" />
+            <button type="button" onclick="abrirSelectorImportacionVentasExcel()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold">Cargar Excel de ventas</button>
+          </div>
+        </div>
+        <div id="estadoImportacionVentasExcel" class="mt-3 text-sm rounded-lg border border-blue-100 bg-white/80 px-3 py-2 text-blue-700">Formato aceptado: #, Fecha, Cliente, Forma de Pago, Tipo de Pedido, Producto, Precio y Total de venta.</div>
+      </div>
+
       <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
         <div>
           <h4 class="font-semibold mb-2">Histórico por día</h4>
@@ -5871,6 +5886,450 @@ function volverAlPOS() {
       prevId: 'btnPrevHistoricoDetalle',
       nextId: 'btnNextHistoricoDetalle'
     });
+  }
+
+  function actualizarEstadoImportacionVentasExcel(mensaje = "", tipo = "info") {
+    const estado = document.getElementById('estadoImportacionVentasExcel');
+    if (!estado) return;
+    const clases = {
+      info: 'mt-3 text-sm rounded-lg border border-blue-100 bg-white/80 px-3 py-2 text-blue-700',
+      success: 'mt-3 text-sm rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-green-700',
+      warning: 'mt-3 text-sm rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-yellow-800',
+      error: 'mt-3 text-sm rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-700'
+    };
+    estado.className = clases[tipo] || clases.info;
+    estado.textContent = mensaje || 'Formato aceptado: #, Fecha, Cliente, Forma de Pago, Tipo de Pedido, Producto, Precio y Total de venta.';
+  }
+
+  function abrirSelectorImportacionVentasExcel() {
+    if (!verificarAcceso(["admin", "administrador"])) return;
+    const input = document.getElementById('archivoImportacionVentasExcel');
+    if (!input) return;
+    input.value = '';
+    input.click();
+  }
+
+  function extraerValorCeldaExcelImportacion(celda) {
+    const valor = celda?.value;
+    if (valor === null || valor === undefined) return '';
+    if (valor instanceof Date) return valor;
+    if (typeof valor === 'object') {
+      if (valor.result !== undefined && valor.result !== null) return valor.result;
+      if (valor.text !== undefined && valor.text !== null) return valor.text;
+      if (Array.isArray(valor.richText)) return valor.richText.map(item => item.text || '').join('');
+      if (valor.hyperlink && valor.text) return valor.text;
+    }
+    return valor;
+  }
+
+  function textoCeldaExcelImportacion(celda) {
+    const valor = extraerValorCeldaExcelImportacion(celda);
+    if (valor instanceof Date) return valor.toISOString();
+    return String(valor ?? '').trim();
+  }
+
+  function normalizarTextoImportacion(valor = '') {
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9#]+/g, ' ')
+      .trim();
+  }
+
+  function numeroCeldaExcelImportacion(celda) {
+    const valor = extraerValorCeldaExcelImportacion(celda);
+    if (typeof valor === 'number' && Number.isFinite(valor)) return valor;
+    const texto = String(valor ?? '').trim();
+    if (!texto) return 0;
+    const limpio = texto
+      .replace(/\s/g, '')
+      .replace(/\$/g, '')
+      .replace(/COP/gi, '')
+      .replace(/\./g, '')
+      .replace(/,/g, '.')
+      .replace(/[^\d.-]/g, '');
+    const numero = Number(limpio);
+    return Number.isFinite(numero) ? numero : 0;
+  }
+
+  function crearFechaColombiaImportacion(year, month, day, hour = 0, minute = 0, second = 0) {
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour) + 5, Number(minute), Number(second)));
+  }
+
+  function convertirFechaExcelImportacion(celda) {
+    const valor = extraerValorCeldaExcelImportacion(celda);
+
+    if (valor instanceof Date && !isNaN(valor.getTime())) {
+      return crearFechaColombiaImportacion(
+        valor.getFullYear(),
+        valor.getMonth() + 1,
+        valor.getDate(),
+        valor.getHours(),
+        valor.getMinutes(),
+        valor.getSeconds()
+      );
+    }
+
+    if (typeof valor === 'number' && Number.isFinite(valor)) {
+      const totalSegundos = Math.round((valor - 25569) * 86400);
+      const fechaSerial = new Date(totalSegundos * 1000);
+      if (!isNaN(fechaSerial.getTime())) {
+        return crearFechaColombiaImportacion(
+          fechaSerial.getUTCFullYear(),
+          fechaSerial.getUTCMonth() + 1,
+          fechaSerial.getUTCDate(),
+          fechaSerial.getUTCHours(),
+          fechaSerial.getUTCMinutes(),
+          fechaSerial.getUTCSeconds()
+        );
+      }
+    }
+
+    const texto = String(valor ?? '').trim();
+    if (!texto) return null;
+
+    const iso = texto.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (iso) {
+      return crearFechaColombiaImportacion(
+        Number(iso[1]), Number(iso[2]), Number(iso[3]),
+        Number(iso[4] || 0), Number(iso[5] || 0), Number(iso[6] || 0)
+      );
+    }
+
+    const partes = texto.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:,?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap]\.?\s*m\.?|am|pm)?)?/i);
+    if (partes) {
+      let day = Number(partes[1]);
+      let month = Number(partes[2]);
+      let year = Number(partes[3]);
+      let hour = Number(partes[4] || 0);
+      const minute = Number(partes[5] || 0);
+      const second = Number(partes[6] || 0);
+      const meridiano = String(partes[7] || '').toLowerCase().replace(/[.\s]/g, '');
+      if (year < 100) year += 2000;
+      if (meridiano.includes('p') && hour < 12) hour += 12;
+      if (meridiano.includes('a') && hour === 12) hour = 0;
+      return crearFechaColombiaImportacion(year, month, day, hour, minute, second);
+    }
+
+    const fechaNativa = new Date(texto);
+    return isNaN(fechaNativa.getTime()) ? null : fechaNativa;
+  }
+
+  function construirMapaColumnasImportacion(worksheet) {
+    const mapa = {};
+    worksheet.getRow(1).eachCell({ includeEmpty: true }, (celda, colNumber) => {
+      const encabezado = normalizarTextoImportacion(textoCeldaExcelImportacion(celda));
+      if (!encabezado) return;
+      if (encabezado === '#' || encabezado === 'n' || encabezado === 'no' || encabezado.includes('numero')) mapa.numero = colNumber;
+      else if (encabezado.includes('fecha')) mapa.fecha = colNumber;
+      else if (encabezado.includes('cliente')) mapa.cliente = colNumber;
+      else if ((encabezado.includes('forma') && encabezado.includes('pago')) || encabezado === 'pago') mapa.formaPago = colNumber;
+      else if (encabezado.includes('tipo') && encabezado.includes('pedido')) mapa.tipoPedido = colNumber;
+      else if (encabezado.includes('n domicilio') || (encabezado.includes('numero') && encabezado.includes('domicilio'))) mapa.numeroDomicilio = colNumber;
+      else if (encabezado.includes('costo') && encabezado.includes('domicilio')) mapa.costoDomicilio = colNumber;
+      else if (encabezado.includes('estado')) mapa.estado = colNumber;
+      else if (encabezado.includes('producto') && !encabezado.includes('mas vendido')) mapa.producto = colNumber;
+      else if (encabezado.includes('precio')) mapa.precio = colNumber;
+      else if (encabezado.includes('total')) mapa.total = colNumber;
+    });
+    return mapa;
+  }
+
+  function validarColumnasImportacion(mapa) {
+    const requeridas = [
+      ['numero', '#'],
+      ['fecha', 'Fecha'],
+      ['cliente', 'Cliente'],
+      ['formaPago', 'Forma de Pago'],
+      ['tipoPedido', 'Tipo de Pedido'],
+      ['producto', 'Producto'],
+      ['precio', 'Precio (COP)']
+    ];
+    const faltantes = requeridas.filter(([clave]) => !mapa[clave]).map(([, nombre]) => nombre);
+    if (faltantes.length) {
+      throw new Error(`El Excel no tiene las columnas requeridas: ${faltantes.join(', ')}.`);
+    }
+  }
+
+  function normalizarFormaPagoImportada(texto = '') {
+    const base = String(texto || '').split('·')[0].trim();
+    const normalizado = normalizarTextoImportacion(base);
+    if (!normalizado) return 'efectivo';
+    if (normalizado.includes('mixto')) return 'mixto';
+    const match = MEDIOS_PAGO_DISPONIBLES.find(item => normalizarTextoImportacion(item.value) === normalizado || normalizarTextoImportacion(item.label) === normalizado);
+    return match ? match.value : base;
+  }
+
+  function normalizarTipoPedidoImportado(texto = '') {
+    const original = String(texto || '').trim();
+    const normalizado = normalizarTextoImportacion(original);
+    if (normalizado.includes('domicilio')) return 'Domicilio';
+    if (normalizado.includes('llevar')) return 'Para llevar';
+    if (normalizado.includes('aqui')) return 'Aquí';
+    return original || 'Aquí';
+  }
+
+  function obtenerEstadoImportado(texto = '') {
+    const estado = normalizarTextoImportacion(texto);
+    return estado.includes('cancel') ? ESTADO_VENTA_CANCELADA : ESTADO_VENTA_ACTIVA;
+  }
+
+  function crearDetallePagosImportacion(formaPagoTexto = '', totalCobrado = 0) {
+    const formaPago = normalizarFormaPagoImportada(formaPagoTexto);
+    const texto = String(formaPagoTexto || '');
+    if (formaPago === 'mixto' && texto.includes('·')) {
+      const detalleTexto = texto.split('·').slice(1).join('·');
+      const detalle = detalleTexto.split('+').map(segmento => {
+        const partes = segmento.split(':');
+        if (partes.length < 2) return null;
+        const medio = normalizarFormaPagoImportada(partes[0]);
+        const valor = Number(String(partes.slice(1).join(':')).replace(/\./g, '').replace(/,/g, '.').replace(/[^\d.-]/g, '')) || 0;
+        return { medio, valor: redondearPago(valor) };
+      }).filter(Boolean);
+      const normalizado = normalizarDetallePagos(detalle, totalCobrado);
+      if (normalizado.length) return normalizado;
+    }
+    return crearDetallePagoSimple(formaPago, totalCobrado);
+  }
+
+  function leerVentasDesdeWorksheetImportacion(worksheet) {
+    const columnas = construirMapaColumnasImportacion(worksheet);
+    validarColumnasImportacion(columnas);
+
+    const grupos = new Map();
+
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const producto = textoCeldaExcelImportacion(row.getCell(columnas.producto));
+      const productoNormalizado = normalizarTextoImportacion(producto);
+      if (!producto || productoNormalizado.includes('total del dia') || productoNormalizado.includes('total contabilizado') || productoNormalizado.includes('producto mas vendido')) return;
+
+      const fechaObj = convertirFechaExcelImportacion(row.getCell(columnas.fecha));
+      if (!fechaObj || isNaN(fechaObj.getTime())) return;
+
+      const numero = Math.trunc(numeroCeldaExcelImportacion(row.getCell(columnas.numero)) || 0);
+      const precio = redondearPago(numeroCeldaExcelImportacion(row.getCell(columnas.precio)) || 0);
+      if (!numero || precio < 0) return;
+
+      const cliente = textoCeldaExcelImportacion(row.getCell(columnas.cliente)) || 'N/A';
+      const formaPagoTexto = textoCeldaExcelImportacion(row.getCell(columnas.formaPago));
+      const tipoPedido = normalizarTipoPedidoImportado(textoCeldaExcelImportacion(row.getCell(columnas.tipoPedido)));
+      const diaClave = obtenerFechaLocalISO(fechaObj);
+      const claveGrupo = `${diaClave}|${numero}|${cliente}|${formaPagoTexto}|${tipoPedido}`;
+
+      if (!grupos.has(claveGrupo)) {
+        grupos.set(claveGrupo, {
+          numero,
+          fechaObj,
+          diaClave,
+          cliente,
+          formaPagoTexto,
+          tipoPedido,
+          numeroDomicilio: columnas.numeroDomicilio ? Math.trunc(numeroCeldaExcelImportacion(row.getCell(columnas.numeroDomicilio)) || 0) : null,
+          costoDomicilio: columnas.costoDomicilio ? redondearPago(numeroCeldaExcelImportacion(row.getCell(columnas.costoDomicilio)) || 0) : 0,
+          estado: columnas.estado ? obtenerEstadoImportado(textoCeldaExcelImportacion(row.getCell(columnas.estado))) : ESTADO_VENTA_ACTIVA,
+          totalExcel: columnas.total ? redondearPago(numeroCeldaExcelImportacion(row.getCell(columnas.total)) || 0) : 0,
+          pedido: []
+        });
+      }
+
+      const grupo = grupos.get(claveGrupo);
+      grupo.pedido.push({ nombre: producto, precio });
+      if (columnas.total) {
+        const totalFila = redondearPago(numeroCeldaExcelImportacion(row.getCell(columnas.total)) || 0);
+        if (totalFila > 0) grupo.totalExcel = totalFila;
+      }
+      if (columnas.estado) {
+        const estadoFila = obtenerEstadoImportado(textoCeldaExcelImportacion(row.getCell(columnas.estado)));
+        if (estadoFila === ESTADO_VENTA_CANCELADA) grupo.estado = ESTADO_VENTA_CANCELADA;
+      }
+    });
+
+    return Array.from(grupos.values()).map(grupo => {
+      const subtotalProductos = redondearPago(grupo.pedido.reduce((acc, item) => acc + Number(item.precio || 0), 0));
+      let costoDomicilio = Number(grupo.costoDomicilio || 0);
+      if (!costoDomicilio && grupo.tipoPedido === 'Domicilio' && grupo.totalExcel > subtotalProductos) {
+        costoDomicilio = redondearPago(grupo.totalExcel - subtotalProductos);
+      }
+      const totalCobrado = redondearPago(subtotalProductos + costoDomicilio);
+      const formaPago = normalizarFormaPagoImportada(grupo.formaPagoTexto);
+      const venta = {
+        cliente: grupo.cliente,
+        formaPago,
+        tipoPedido: grupo.tipoPedido,
+        numeroDomicilio: grupo.tipoPedido === 'Domicilio' && Number(grupo.numeroDomicilio || 0) > 0 ? Number(grupo.numeroDomicilio) : null,
+        costoDomicilio,
+        subtotalProductos,
+        observaciones: 'Importado desde Excel',
+        pedido: grupo.pedido,
+        detallePagos: crearDetallePagosImportacion(grupo.formaPagoTexto, totalCobrado),
+        totalCobrado,
+        total: subtotalProductos,
+        estado: grupo.estado,
+        fechaCancelacion: null,
+        canceladaPor: '',
+        fecha: formatearFechaHoraColombia(grupo.fechaObj),
+        fechaISO: grupo.fechaObj.toISOString(),
+        diaClave: grupo.diaClave,
+        comanda: grupo.numero,
+        recibo: grupo.numero,
+        usuario: usuarioActual || '',
+        rolUsuario: rolActual || '',
+        importadoDesdeExcel: true,
+        fechaImportacionISO: new Date().toISOString(),
+        usuarioImportacion: usuarioActual || ''
+      };
+      venta._localId = `import_excel_${venta.diaClave}_${venta.comanda}_${Math.random().toString(36).slice(2, 8)}`;
+      return normalizarVenta(venta);
+    }).sort((a, b) => {
+      const fechaA = new Date(a.fechaISO || a.fecha).getTime() || 0;
+      const fechaB = new Date(b.fechaISO || b.fecha).getTime() || 0;
+      if (fechaA !== fechaB) return fechaA - fechaB;
+      return Number(a.comanda || 0) - Number(b.comanda || 0);
+    });
+  }
+
+  function obtenerClavesVentasExistentesParaImportacion() {
+    const claves = new Set();
+    obtenerVentasStorage().forEach(ventaOriginal => {
+      const venta = normalizarVenta(ventaOriginal);
+      const dia = venta.diaClave || obtenerFechaLocalISO(new Date(venta.fechaISO || venta.fecha || Date.now()));
+      if (venta.comanda !== undefined && venta.comanda !== null) claves.add(`${dia}|${venta.comanda}`);
+      if (venta.recibo !== undefined && venta.recibo !== null) claves.add(`${dia}|${venta.recibo}`);
+    });
+    return claves;
+  }
+
+  function actualizarNumeracionLocalDesdeVentasImportadas(ventas = []) {
+    const dias = new Set((ventas || []).map(venta => venta.diaClave).filter(Boolean));
+    dias.forEach(dia => {
+      const ventasDia = obtenerVentasStorage().filter(venta => venta.diaClave === dia);
+      const maximo = ventasDia.reduce((max, venta) => Math.max(max, Number(venta.comanda || 0), Number(venta.recibo || 0)), 0);
+      const key = `numeracionDia_${dia}`;
+      const actual = JSON.parse(localStorage.getItem(key) || '{"comanda":0,"recibo":0}');
+      if (maximo > Number(actual.comanda || 0) || maximo > Number(actual.recibo || 0)) {
+        localStorage.setItem(key, JSON.stringify({
+          comanda: Math.max(maximo, Number(actual.comanda || 0)),
+          recibo: Math.max(maximo, Number(actual.recibo || 0))
+        }));
+      }
+    });
+  }
+
+  async function subirVentasImportadasAFirebase(ventas = []) {
+    if (!firestoreDisponible || !firestoreDb) {
+      throw new Error('Firebase no está disponible para importar ventas.');
+    }
+    const guardadas = [];
+    const coleccion = firestoreDb.collection('ventas');
+    const TAMANO_LOTE = 450;
+
+    for (let i = 0; i < ventas.length; i += TAMANO_LOTE) {
+      const loteVentas = ventas.slice(i, i + TAMANO_LOTE);
+      const batch = firestoreDb.batch();
+      loteVentas.forEach(ventaOriginal => {
+        const ref = coleccion.doc();
+        const ventaConId = normalizarVenta({ ...ventaOriginal, _docId: ref.id, _syncEstado: 'sincronizado' });
+        const limpia = { ...ventaConId };
+        delete limpia._docId;
+        delete limpia._syncEstado;
+        batch.set(ref, limpia);
+        guardadas.push(ventaConId);
+      });
+      await batch.commit();
+      registrarHeartbeatFirebase();
+    }
+
+    const combinadas = obtenerVentasStorage();
+    guardadas.forEach(ventaGuardada => {
+      const index = combinadas.findIndex(item =>
+        (ventaGuardada._docId && item._docId === ventaGuardada._docId) ||
+        (ventaGuardada._localId && item._localId === ventaGuardada._localId)
+      );
+      if (index >= 0) combinadas[index] = { ...combinadas[index], ...ventaGuardada };
+      else combinadas.push(ventaGuardada);
+    });
+    guardarVentasEnCache(ordenarVentasDesc(combinadas));
+    return guardadas;
+  }
+
+  async function importarVentasDesdeExcel(event) {
+    const input = event?.target;
+    const archivo = input?.files?.[0];
+    if (!archivo) return;
+
+    if (!verificarAcceso(["admin", "administrador"])) {
+      input.value = '';
+      return;
+    }
+
+    if (!window.ExcelJS) {
+      actualizarEstadoImportacionVentasExcel('No se encontró la librería ExcelJS para leer el archivo.', 'error');
+      input.value = '';
+      return;
+    }
+
+    if (!firestoreDisponible || !firestoreDb || !firebaseAuth?.currentUser) {
+      actualizarEstadoImportacionVentasExcel('Debes estar conectado a Firebase para importar ventas históricas.', 'error');
+      alert('Debes estar conectado a Firebase para importar el Excel.');
+      input.value = '';
+      return;
+    }
+
+    try {
+      actualizarEstadoImportacionVentasExcel(`Leyendo archivo: ${archivo.name}...`, 'info');
+      const workbook = new ExcelJS.Workbook();
+      const buffer = await archivo.arrayBuffer();
+      await workbook.xlsx.load(buffer);
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) throw new Error('El archivo no tiene hojas disponibles.');
+
+      const ventasLeidas = leerVentasDesdeWorksheetImportacion(worksheet);
+      if (!ventasLeidas.length) {
+        actualizarEstadoImportacionVentasExcel('No se encontraron ventas válidas para importar.', 'warning');
+        alert('No se encontraron ventas válidas para importar.');
+        return;
+      }
+
+      const clavesExistentes = obtenerClavesVentasExistentesParaImportacion();
+      const ventasNuevas = ventasLeidas.filter(venta => !clavesExistentes.has(`${venta.diaClave}|${venta.comanda}`) && !clavesExistentes.has(`${venta.diaClave}|${venta.recibo}`));
+      const duplicadas = ventasLeidas.length - ventasNuevas.length;
+      const dias = Array.from(new Set(ventasLeidas.map(venta => venta.diaClave))).sort().join(', ');
+      const totalProductos = ventasNuevas.reduce((acc, venta) => acc + (venta.pedido || []).length, 0);
+      const totalVentas = ventasNuevas.reduce((acc, venta) => acc + obtenerIngresoRealVenta(venta), 0);
+
+      if (!ventasNuevas.length) {
+        actualizarEstadoImportacionVentasExcel(`El Excel tiene ${ventasLeidas.length} pedido(s), pero todos ya existen en Firebase/local por fecha y número.`, 'warning');
+        alert('No se importó nada porque esas ventas ya existen por fecha y número de pedido.');
+        return;
+      }
+
+      const mensajeConfirmacion = `Se van a subir ${ventasNuevas.length} pedido(s) a Firebase.\nFecha(s): ${dias}.\nProductos: ${totalProductos}.\nTotal productos: ${formatearDinero(totalVentas)}.\n${duplicadas ? `Se omitirán ${duplicadas} pedido(s) duplicado(s).\n` : ''}\n¿Deseas continuar?`;
+      if (!confirm(mensajeConfirmacion)) {
+        actualizarEstadoImportacionVentasExcel('Importación cancelada por el usuario.', 'warning');
+        return;
+      }
+
+      actualizarEstadoImportacionVentasExcel(`Subiendo ${ventasNuevas.length} pedido(s) a Firebase...`, 'info');
+      const guardadas = await subirVentasImportadasAFirebase(ventasNuevas);
+      actualizarNumeracionLocalDesdeVentasImportadas(guardadas);
+
+      mostrarVentas();
+      actualizarHistoricos();
+      refrescarVistasAnaliticasSiEstanAbiertas();
+
+      const resumen = `Importación lista: ${guardadas.length} pedido(s) subidos a Firebase. Fecha(s): ${dias}. Total productos: ${formatearDinero(totalVentas)}.${duplicadas ? ` Omitidos por duplicado: ${duplicadas}.` : ''}`;
+      actualizarEstadoImportacionVentasExcel(resumen, 'success');
+      alert(resumen);
+    } catch (error) {
+      console.error('Error al importar ventas desde Excel:', error);
+      actualizarEstadoImportacionVentasExcel(error?.message || 'No se pudo importar el Excel.', 'error');
+      alert(error?.message || 'No se pudo importar el Excel. Revisa el formato.');
+    } finally {
+      if (input) input.value = '';
+    }
   }
 
   async function exportarVentasDelDiaHistorico() {
