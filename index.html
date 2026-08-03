@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="catalogo-pendiente">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -15,6 +15,12 @@
 
 
 <style>
+  html.catalogo-pendiente #categoriaComida .grid,
+  html.catalogo-pendiente #categoriaAdiciones .grid,
+  html.catalogo-pendiente #categoriaBebidas .grid {
+    visibility: hidden;
+    min-height: 110px;
+  }
   html { scroll-behavior: smooth; }
   @media (max-width: 767px) {
     body { padding-bottom: 155px; }
@@ -1700,5 +1706,6 @@
 
   <script src="js/05-seguridad-datos.js"></script>
   <script src="js/06-consultas-eficientes.js"></script>
+  <script src="js/10-catalogo-firestore-oficial.js?v=20260803-1"></script>
 </body>
 </html>
