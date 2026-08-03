@@ -19,7 +19,8 @@
   const COLECCION_EXCLUSIONES = 'finanzas_exclusiones';
   const COLECCION_CONTROL_CAJA = 'controlCaja';
   const COLECCION_NOMINA = 'nomina';
-  const CACHE_KEY = 'movimientos_finanzas_cache_v3';
+  const CACHE_KEY = 'movimientos_finanzas_cache_v4';
+  const CACHE_PREVIA_KEY = 'movimientos_finanzas_cache_v3';
   const CACHE_ANTERIOR_KEY = 'movimientos_finanzas_cache_v2';
   const CACHE_LEGACY_KEY = 'movimientos';
   const PAGE_SIZE = 10;
@@ -131,15 +132,46 @@
     return Boolean(m && (m.bloqueoEdicion || esMovimientoAutomaticoCierre(m) || esMovimientoAutomaticoNomina(m)));
   }
 
+  function movimientoParaCache(item = {}) {
+    const m = normalizarMovimiento(item);
+    return {
+      id: m.id,
+      tipo: m.tipo,
+      monto: m.monto,
+      categoria: m.categoria,
+      fecha: m.fecha,
+      descripcion: m.descripcion,
+      // Los comprobantes nunca se guardan en localStorage.
+      imagen: null,
+      tieneImagen: Boolean(m.tieneImagen || m.imagen),
+      origen: m.origen,
+      origenColeccion: m.origenColeccion,
+      origenDiaClave: m.origenDiaClave,
+      sourceKey: m.sourceKey,
+      bloqueoEdicion: m.bloqueoEdicion
+    };
+  }
+
   function guardarCache() {
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(movimientos)); } catch (_) {}
+    const cacheLiviana = movimientos.slice(0, PAGE_SIZE).map(movimientoParaCache);
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cacheLiviana));
+      return true;
+    } catch (error) {
+      // Una caché llena nunca debe impedir consultar Firestore ni renderizar la página.
+      console.warn('La caché local de Finanzas está llena; se continúa sin guardar caché.', error);
+      try { localStorage.removeItem(CACHE_KEY); } catch (_) {}
+      return false;
+    }
   }
 
   function cargarCache() {
-    for (const key of [CACHE_KEY, CACHE_ANTERIOR_KEY, CACHE_LEGACY_KEY]) {
+    for (const key of [CACHE_KEY, CACHE_PREVIA_KEY, CACHE_ANTERIOR_KEY, CACHE_LEGACY_KEY]) {
       try {
         const data = JSON.parse(localStorage.getItem(key) || '[]');
-        if (Array.isArray(data) && data.length) return data.map(normalizarMovimiento).slice(0, PAGE_SIZE);
+        if (Array.isArray(data) && data.length) {
+          return data.slice(0, PAGE_SIZE).map((item) => movimientoParaCache(item));
+        }
       } catch (_) {}
     }
     return [];
@@ -877,7 +909,13 @@
       }
     }
     if (count) await batch.commit();
-    alert('Migración local terminada.');
+    // Después de confirmar la subida, se eliminan únicamente las cachés antiguas pesadas.
+    // La caché actual conserva como máximo 10 registros sin imágenes.
+    for (const key of [CACHE_PREVIA_KEY, CACHE_ANTERIOR_KEY, CACHE_LEGACY_KEY]) {
+      try { localStorage.removeItem(key); } catch (_) {}
+    }
+    guardarCache();
+    alert('Migración local terminada y caché antigua liberada.');
     await cargarPaginaMovimientos(true);
   }
 
