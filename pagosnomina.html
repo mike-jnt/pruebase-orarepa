@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestión de Pagos Quincenales</title>
+  <link rel="stylesheet" href="css/tailwind.generated.css?v=20260804-7">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
+  <style>
+    .estado-db-badge{font-size:.9rem;font-weight:700;padding:.6rem .9rem;border-radius:9999px;display:inline-flex;align-items:center;gap:.55rem;box-shadow:0 6px 16px rgba(0,0,0,.12)}
+    .estado-db-badge.online{background:#dcfce7;color:#166534}
+    .estado-db-badge.offline{background:#fee2e2;color:#991b1b}
+    .estado-db-badge.pending{background:#fef3c7;color:#92400e}
+    .estado-db-dot{width:.7rem;height:.7rem;border-radius:9999px;display:inline-block;flex:none}
+    .estado-db-badge.online .estado-db-dot{background:#16a34a;box-shadow:0 0 0 4px rgba(34,197,94,.18)}
+    .estado-db-badge.offline .estado-db-dot{background:#dc2626;box-shadow:0 0 0 4px rgba(239,68,68,.16)}
+    .estado-db-badge.pending .estado-db-dot{background:#d97706;box-shadow:0 0 0 4px rgba(245,158,11,.16)}
+    .estado-db-texto{white-space:nowrap}
+  </style>
+
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen font-sans">
+
+  <header class="bg-blue-900 text-white py-4 shadow-md">
+    <div class="container mx-auto px-4 flex justify-between items-center gap-3 flex-wrap">
+      <h1 class="text-2xl font-bold tracking-wide">📋 Gestión de Nómina Quincenal</h1>
+      <div id="estadoDB" class="estado-db-badge offline"><span class="estado-db-dot"></span><span class="estado-db-texto">Base de datos desconectada</span></div>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-4 py-8">
+
+    <!-- Registro de Empleados -->
+    <section class="bg-white p-6 rounded-xl shadow-lg mb-8">
+      <h2 class="text-2xl font-semibold text-blue-800 mb-4 flex items-center gap-2">
+        <i class="fa-solid fa-user-pen"></i> Registrar Empleado
+      </h2>
+      <form id="form-empleado" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <input type="text" placeholder="👤 Nombre completo" id="nombre" class="border p-3 rounded-lg focus:outline-blue-500" required />
+        <input type="text" placeholder="💼 Cargo" id="cargo" class="border p-3 rounded-lg focus:outline-blue-500" required />
+        <input type="text" placeholder="💰 Valor por día" id="valorDia" class="border p-3 rounded-lg focus:outline-blue-500" required />
+        <input type="text" placeholder="💵 Valor por hora extra" id="valorHoraExtra" class="border p-3 rounded-lg focus:outline-blue-500" />
+
+        <button type="submit" class="col-span-1 md:col-span-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition duration-200 shadow">
+          <i class="fa-solid fa-user-plus mr-2"></i>Agregar Empleado
+        </button>
+      </form>
+    </section>
+
+    <!-- Tabla de empleados -->
+    <section class="bg-white p-6 rounded-xl shadow-lg">
+      <h2 class="text-2xl font-semibold text-blue-800 mb-4 flex items-center gap-2">
+        <i class="fa-solid fa-users"></i> Lista de Empleados
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left border border-gray-200 shadow-sm rounded-lg overflow-hidden">
+          <thead class="bg-blue-100 text-blue-900 font-semibold">
+            <tr>
+              <th class="p-3 border">Nombre</th>
+              <th class="p-3 border">Cargo</th>
+              <th class="p-3 border">Valor Día</th>
+              <th class="p-3 border">Días Trabajados</th>
+              <th class="p-3 border">Días Faltados</th>
+              <th class="p-3 border">Fecha Quincena</th>
+              <th class="p-3 border">Resumen</th>
+              <th class="p-3 border">Estado</th>
+              <th class="p-3 border">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-empleados" class="bg-white"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+
+  <section class="bg-white p-6 rounded-xl shadow-lg mt-8">
+
+  <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+  <h2 class="text-xl font-bold text-blue-800">📚 Historial de Pagos</h2>
+  <div class="flex gap-2">
+    <button onclick="exportarHistorialAExcel()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+  📥 Exportar a Excel
+</button>
+
+<button onclick="eliminarHistorial()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow text-sm">
+  🗑 Eliminar Historial
+</button>
+  </div>
+</div>
+
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-left border border-gray-200 shadow-sm rounded-lg">
+<thead class="bg-gray-100 text-gray-700 font-semibold">
+  <tr>
+    <th class="p-2 border">Nombre</th>
+    <th class="p-2 border">Cargo</th>
+    <th class="p-2 border">Fecha de Pago</th>
+    <th class="p-2 border">Quincena</th>
+    <th class="p-2 border">Días Trabajados</th>
+    <th class="p-2 border">Valor Día</th>
+    <th class="p-2 border">Horas Extras</th>
+    <th class="p-2 border">Bonificación</th>
+    <th class="p-2 border">Total Pagado</th>
+  </tr>
+</thead>
+
+      <tbody id="tabla-historial"></tbody>
+    </table>
+  </div>
+</section>
+
+
+  <!-- Contenedor invisible para generar PDF -->
+  <div id="pdf-container" class="hidden"></div>
+
+  <!-- Modal de asistencia -->
+<div id="modalAsistencia" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+    <h3 class="text-xl font-bold text-blue-800 mb-4">Editar Asistencia</h3>
+    <div class="space-y-4">
+      <p class="text-gray-700 font-medium">Empleado: <span id="modal-nombre" class="font-semibold text-black"></span></p>
+      <label class="block">
+        <span class="text-sm text-gray-600">Días trabajados (0-15)</span>
+        <input type="number" id="inputDias" min="0" max="15" class="mt-1 block w-full border rounded p-2 focus:outline-blue-500" />
+      </label>
+
+      <label class="block text-sm text-gray-700 mt-3">🕐 Horas Extras</label>
+<input type="number" id="inputHorasExtras" class="border p-2 w-full rounded focus:outline-blue-500" min="0" />
+
+<label class="block text-sm text-gray-700 mt-3">🎁 Bonificación</label>
+<input type="text" id="inputBonificacion" class="border p-2 w-full rounded focus:outline-blue-500" />
+<label class="block text-sm text-gray-700 mt-3">💸 Dinero Prestado</label>
+<input type="text" id="inputPrestamo" class="border p-2 w-full rounded focus:outline-blue-500" />
+
+
+      <div class="flex justify-end gap-2">
+        <button onclick="cerrarModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancelar</button>
+        <button onclick="guardarAsistencia()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
+
+
+  
+  <script src="js/09-nomina.js?v=20260804-7"></script>
+
+</body>
+</html>
+
