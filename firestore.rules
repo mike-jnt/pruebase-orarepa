@@ -1,0 +1,267 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasEmail() {
+      return signedIn() && request.auth.token.email != null;
+    }
+
+    function email() {
+      return hasEmail() ? request.auth.token.email.lower() : '';
+    }
+
+    function isAdmin() {
+      return email() == 'admin@local.io';
+    }
+
+    function isAdministrator() {
+      return email() == 'administrador@local.io';
+    }
+
+    function isCashier() {
+      return email() == 'cajero@local.io';
+    }
+
+    function isKnownEmail() {
+      return isAdmin() || isAdministrator() || isCashier();
+    }
+
+    // Compatibilidad C9.4:
+    // El POS solo permite iniciar sesión a las tres cuentas autorizadas.
+    // En reglas se admite cualquier usuario autenticado para las operaciones
+    // diarias, evitando rechazos cuando el token todavía no expone email.
+    function isOperationalUser() {
+      return signedIn();
+    }
+
+    function isManagement() {
+      return isAdmin() || isAdministrator();
+    }
+
+    function validOptionalCreatedServer() {
+      return !('creadoServidor' in request.resource.data)
+        || request.resource.data.creadoServidor == request.time;
+    }
+
+    function validOptionalUpdatedServer() {
+      return !('actualizadoServidor' in request.resource.data)
+        || request.resource.data.actualizadoServidor == request.time;
+    }
+
+    function validOptionalUpdatedAt() {
+      return !('updatedAt' in request.resource.data)
+        || request.resource.data.updatedAt == request.time;
+    }
+
+    function validOptionalCreatedAt() {
+      return !('createdAt' in request.resource.data)
+        || request.resource.data.createdAt == request.time;
+    }
+
+    function validOptionalMovementServerTime() {
+      return !('fechaServidor' in request.resource.data)
+        || request.resource.data.fechaServidor == request.time;
+    }
+
+    function validOptionalVersion() {
+      return !('version' in request.resource.data)
+        || (request.resource.data.version is int
+          && request.resource.data.version >= 1);
+    }
+
+    function validVersionProgression() {
+      return !('version' in request.resource.data)
+        || !('version' in resource.data)
+        || (request.resource.data.version is int
+          && resource.data.version is int
+          && request.resource.data.version >= resource.data.version);
+    }
+
+    function preservesCreatedAtWhenPresent() {
+      return !('creadoServidor' in resource.data)
+        || !('creadoServidor' in request.resource.data)
+        || request.resource.data.creadoServidor == resource.data.creadoServidor;
+    }
+
+    match /ventas/{ventaId} {
+      allow read: if isOperationalUser();
+
+      // Acepta ventas nuevas C9.4 (timestamps/version) y ventas heredadas
+      // creadas por el index anterior (sin esos campos).
+      allow create: if isOperationalUser()
+        && validOptionalCreatedServer()
+        && validOptionalUpdatedServer()
+        && validOptionalVersion();
+
+      // Gestión puede editar documentos nuevos o heredados.
+      allow update: if isManagement()
+        && validOptionalUpdatedServer()
+        && validOptionalVersion()
+        && validVersionProgression()
+        && preservesCreatedAtWhenPresent();
+
+      allow delete: if isAdmin();
+    }
+
+    match /controlCaja/{diaClave} {
+      allow read: if isOperationalUser();
+
+      allow create: if isOperationalUser()
+        && validOptionalCreatedServer()
+        && validOptionalUpdatedServer()
+        && validOptionalVersion();
+
+      allow update: if isOperationalUser()
+        && validOptionalUpdatedServer()
+        && validOptionalVersion()
+        && validVersionProgression()
+        && preservesCreatedAtWhenPresent();
+
+      allow delete: if false;
+    }
+
+    match /configuracion/{documento} {
+      allow read: if isOperationalUser();
+      allow create, update: if isManagement()
+        && validOptionalUpdatedAt();
+      allow delete: if isAdmin();
+    }
+
+    match /inventario/{inventarioId} {
+      allow read: if isOperationalUser();
+      allow create: if isManagement();
+
+      allow update: if isManagement()
+        || (
+          isOperationalUser()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'cantidad',
+            'inventoryId',
+            'productId',
+            'nombreNormalizado',
+            'fecha',
+            'fechaISOCliente',
+            'version',
+            'actualizadoServidor',
+            'actualizadoPor'
+          ])
+          && validOptionalUpdatedServer()
+          && request.resource.data.cantidad is number
+          && request.resource.data.cantidad >= 0
+        );
+
+      allow delete: if isManagement();
+    }
+
+    match /resumenVentasDiario/{periodo} {
+      allow read: if isOperationalUser();
+      allow create, update: if isOperationalUser()
+        && validOptionalUpdatedServer()
+        && (!('actualizadoUid' in request.resource.data)
+          || request.resource.data.actualizadoUid == request.auth.uid);
+      allow delete: if false;
+    }
+
+    match /resumenVentasSemanal/{periodo} {
+      allow read: if isOperationalUser();
+      allow create, update: if isOperationalUser()
+        && validOptionalUpdatedServer()
+        && (!('actualizadoUid' in request.resource.data)
+          || request.resource.data.actualizadoUid == request.auth.uid);
+      allow delete: if false;
+    }
+
+    match /resumenVentasMensual/{periodo} {
+      allow read: if isOperationalUser();
+      allow create, update: if isOperationalUser()
+        && validOptionalUpdatedServer()
+        && (!('actualizadoUid' in request.resource.data)
+          || request.resource.data.actualizadoUid == request.auth.uid);
+      allow delete: if false;
+    }
+
+    match /finanzas_movimientos/{movimientoId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+        && validOptionalUpdatedAt()
+        && request.resource.data.tipo in ['ingreso', 'gasto']
+        && request.resource.data.monto is number
+        && request.resource.data.monto >= 0;
+      allow delete: if isAdmin();
+    }
+
+    match /finanzas_comprobantes/{movimientoId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+        && validOptionalUpdatedAt()
+        && request.resource.data.imagen is string
+        && request.resource.data.imagen.size() < 950000;
+      allow delete: if isAdmin();
+    }
+
+    match /finanzas_exclusiones/{sourceKey} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+        && validOptionalCreatedAt();
+      allow delete: if isAdmin();
+    }
+
+    match /nomina/{registroId} {
+      allow read: if isManagement();
+      allow create, update: if isManagement()
+        && validOptionalUpdatedAt()
+        && request.resource.data.recordType in ['empleado', 'pago'];
+      allow delete: if isManagement();
+    }
+
+    match /movimientosInventario/{movimientoId} {
+      allow get: if isOperationalUser();
+      allow list: if isManagement();
+
+      // Compatibilidad con movimientos nuevos y heredados.
+      allow create: if isOperationalUser()
+        && (!('uid' in request.resource.data)
+          || request.resource.data.uid == request.auth.uid)
+        && validOptionalMovementServerTime();
+
+      allow update, delete: if false;
+    }
+
+    match /contadores/{diaClave} {
+      allow read: if isOperationalUser();
+      allow create, update: if isOperationalUser();
+      allow delete: if false;
+    }
+
+    match /auditoria/{registroId} {
+      allow read: if isManagement();
+
+      allow create: if isOperationalUser()
+        && (!('uid' in request.resource.data)
+          || request.resource.data.uid == request.auth.uid)
+        && (!('email' in request.resource.data)
+          || !hasEmail()
+          || (request.resource.data.email is string
+            && request.resource.data.email.lower() == email()));
+
+      allow update, delete: if false;
+    }
+
+    match /usuarios/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /catalogo/{documento} {
+      allow read: if isOperationalUser();
+      allow create, update, delete: if isManagement();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
