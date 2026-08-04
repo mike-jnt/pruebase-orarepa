@@ -1,0 +1,11 @@
+{
+  "version": "2026.08.04-C9.7",
+  "projectId": "prsenorarepa",
+  "fixes": [
+    "deferred-storage-migration",
+    "strict-mode-summary-function",
+    "auth-before-controlCaja",
+    "non-reserved-diagnostic-document",
+    "firestore-settings-merge"
+  ]
+}
