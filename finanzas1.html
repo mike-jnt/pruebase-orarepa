@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Señor Arepa · Finanzas C9.23</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
+    <style>
+  body {
+    background-color: #fffbea;
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: #3b2f1e;
+  }
+
+  main {
+    flex: 1;
+  }
+
+  .titulo-seccion {
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #a16207;
+  }
+
+  .seccion-agregar,
+  .seccion-filtro,
+  .resumen,
+  .seccion-tabla {
+    background: white;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+
+  .seccion-agregar {
+    background: #fef9c3;
+  }
+
+  .seccion-filtro {
+    background: #fef3c7;
+  }
+
+  .resumen {
+    background: #fcd34d;
+    color: #4b3205;
+    font-weight: bold;
+  }
+
+  .seccion-tabla {
+    background: #fff;
+  }
+
+  /* C9.23: contenedores de altura controlada para evitar que Chart.js
+     expanda la página al recalcular el tamaño del canvas. */
+  .finanzas-graficas-row {
+    align-items: stretch;
+  }
+
+  .finanzas-grafica-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .finanzas-grafica-marco {
+    position: relative;
+    width: 100%;
+    height: 230px;
+    min-height: 230px;
+    max-height: 230px;
+    overflow: hidden;
+  }
+
+  .finanzas-grafica-marco canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+
+  @media (max-width: 767.98px) {
+    .finanzas-grafica-marco {
+      height: 195px;
+      min-height: 195px;
+      max-height: 195px;
+    }
+  }
+
+  .tabla-container {
+    overflow-x: auto;
+  }
+
+  /* Botón PDF / Excel */
+  .btn-success {
+    background-color: #22c55e !important;
+    border-color: #22c55e !important;
+  }
+
+  .btn-success:hover {
+    background-color: #16a34a !important;
+    border-color: #16a34a !important;
+  }
+
+  .btn-outline-primary {
+    border-color: #facc15;
+    color: #b45309;
+  }
+
+  .btn-outline-primary:hover {
+    background-color: #facc15;
+    color: white;
+  }
+
+  .btn-outline-secondary:hover {
+    background-color: #fef08a;
+    color: #3b2f1e;
+  }
+
+  .btn-primary {
+    background-color: #facc15;
+    border-color: #facc15;
+    color: #3b2f1e;
+    font-weight: bold;
+  }
+
+  .btn-primary:hover {
+    background-color: #eab308;
+    border-color: #eab308;
+    color: white;
+  }
+
+  /* Modo oscuro adaptado */
+  body.dark-mode {
+    background-color: #1e1e1e;
+    color: #eee;
+  }
+
+  body.dark-mode .seccion-agregar {
+    background: #3f3f2f;
+  }
+
+  body.dark-mode .seccion-filtro {
+    background: #374151;
+  }
+
+  body.dark-mode .resumen {
+    background: #4b5563;
+    color: #fff;
+  }
+
+  body.dark-mode .seccion-tabla {
+    background: #2d2d2d;
+  }
+
+  body.dark-mode .table {
+    color: #f1f1f1;
+  }
+
+  body.dark-mode .table-light th {
+    background-color: #444;
+    color: #fff;
+  }
+
+  .dark-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+  }
+
+
+  .form-select {
+  background-color: #fffdf5;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: box-shadow 0.2s ease;
+}
+
+.form-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #facc15;
+  border-color: #facc15;
+}
+
+
+.bloque-analitico {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  margin-top: 20px;
+}
+
+.subseccion {
+  background-color: #fefce8;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.resumen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-size: 0.9rem;
+  padding: 10px 15px;
+  font-weight: bold;
+  background: #fcd34d;
+  color: #4b3205;
+  border-radius: 14px;
+  height: 100px;
+}
+
+
+.resumen h5 {
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.resumen p {
+  margin: 2px 0;
+  font-size: 0.85rem;
+}
+
+
+
+.titulo-seccion {
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+
+
+body.dark-mode .bloque-analitico {
+  background-color: #2d2d2d;
+}
+
+body.dark-mode .subseccion {
+  background-color: #3a3a3a;
+}
+
+
+
+
+
+
+.estado-firebase {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 999px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.estado-firebase.online {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.estado-firebase.offline {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+body.dark-mode .estado-firebase.online {
+  background: #14532d;
+  color: #dcfce7;
+}
+
+body.dark-mode .estado-firebase.offline {
+  background: #7f1d1d;
+  color: #fee2e2;
+}
+
+
+.pagos-nomina-resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.pago-nomina-card {
+  background: #fef3c7;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.pago-nomina-card .label {
+  display: block;
+  font-size: 0.78rem;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.pago-nomina-card .value {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #4b3205;
+}
+
+body.dark-mode .pago-nomina-card {
+  background: #3a3a3a;
+}
+
+body.dark-mode .pago-nomina-card .label {
+  color: #fcd34d;
+}
+
+body.dark-mode .pago-nomina-card .value {
+  color: #f3f4f6;
+}
+
+
+  .finanzas-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border: 1px solid #fde68a;
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+  }
+
+  .finanzas-metricas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+  }
+
+  .finanzas-metrica {
+    background: #fff;
+    border: 1px solid #f3e8c8;
+    border-radius: 14px;
+    padding: 14px;
+    min-width: 0;
+  }
+
+  .finanzas-metrica .label {
+    display: block;
+    color: #78716c;
+    font-size: .76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: 5px;
+  }
+
+  .finanzas-metrica .value {
+    display: block;
+    color: #292524;
+    font-size: 1.08rem;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+
+  .finanzas-estimacion {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 16px;
+    padding: 18px;
+  }
+
+  .tabla-finanzas thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #fef3c7 !important;
+    color: #78350f;
+    white-space: nowrap;
+    border: 0;
+    padding: 12px 10px;
+  }
+
+  .tabla-finanzas tbody td {
+    border: 0;
+    border-bottom: 1px solid #f5ead5;
+    padding: 11px 10px;
+    vertical-align: middle;
+  }
+
+  .tabla-finanzas tbody tr:nth-child(even) { background: #fffdf5; }
+  .tabla-finanzas tbody tr:hover { background: #fffbeb; }
+
+  body.dark-mode .finanzas-toolbar,
+  body.dark-mode .finanzas-metrica,
+  body.dark-mode .finanzas-estimacion {
+    background: #2d2d2d;
+    border-color: #57534e;
+  }
+
+  body.dark-mode .finanzas-metrica .label { color: #d6d3d1; }
+  body.dark-mode .finanzas-metrica .value { color: #fafaf9; }
+
+  @media (max-width: 767px) {
+    .finanzas-toolbar { align-items: stretch; }
+    .finanzas-toolbar .btn { width: 100%; }
+    .seccion-agregar, .seccion-filtro, .resumen, .seccion-tabla, .bloque-analitico { padding: 14px; }
+  }
+
+</style>
+
+</head>
+<body>
+  <div id="estadoFirebase" class="estado-firebase offline">Base de datos desconectada</div>
+  <button class="btn btn-sm btn-secondary dark-toggle" onclick="toggleDarkMode()">
+    <i class="bi bi-moon-fill"></i> Modo Oscuro
+  </button>
+  <main class="container py-4">
+    <div class="finanzas-toolbar">
+      <div>
+        <div class="fw-bold text-warning-emphasis"><i class="bi bi-cloud-check-fill me-1"></i> Finanzas conectadas a Firestore</div>
+        <div class="small text-muted">Carga cierres de caja, gastos manuales y pagos de nómina. Última actualización: <span id="ultimaActualizacionFinanzas">Pendiente</span></div>
+      </div>
+      <button id="btnActualizarFuentesFinanzas" class="btn btn-primary" type="button" onclick="actualizarFuentesFinancieras(true)">
+        <i class="bi bi-arrow-clockwise me-1"></i> Actualizar todos los datos
+      </button>
+    </div>
+    <div class="row">
+      <div class="col-md-4">
+        <div class="seccion-agregar">
+          <h5 class="titulo-seccion"><i class="bi bi-plus-circle-fill"></i> Agregar Movimiento</h5>
+          <form id="formulario">
+            <div class="row">
+              <div class="col-6">
+                <label class="form-label">Tipo</label>
+                <select class="form-select" id="tipo">
+                  <option value="ingreso">Ingreso</option>
+                  <option value="gasto">Gasto</option>
+                </select>
+                <label class="form-label mt-2">Monto</label>
+                <input type="text" class="form-control" id="monto" required oninput="formatearComoCOP(this)">
+
+                <label class="form-label mt-2">Foto</label>
+                <div id="vistaFoto" class="mt-2 text-center border rounded p-2 bg-light"></div>
+
+
+                <input type="file" class="form-control" id="foto" accept="image/*">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Categoría</label>
+                <select class="form-select" id="categoria">
+                  <option value="Ventas">Ventas</option>
+                  <option value="Compras">Compras</option>
+                  <option value="Servicios">Servicios</option>
+                  <option value="Mantenimiento">Mantenimiento</option>
+                  <option value="Publicidad">Publicidad</option>
+                  <option value="Transporte">Transporte</option>
+                  <option value="Impuestos">Impuestos</option>
+                  <option value="Empleados">Empleados</option>
+                </select>
+                <label class="form-label mt-2">Fecha</label>
+                <input type="date" class="form-control" id="fecha" required>
+                <label class="form-label mt-2">Descripción</label>
+                <textarea class="form-control" id="descripcion" rows="2" placeholder="Ej: Detalles del movimiento..."></textarea>
+              </div>
+            </div>
+            <button class="btn btn-primary w-100 mt-3" type="submit">
+              <i class="bi bi-check-circle-fill me-1"></i>Guardar Movimiento
+            </button>
+          </form>
+        </div>
+      </div>
+      
+      <div class="col-md-8">
+        <div class="seccion-filtro">
+          <h5 class="titulo-seccion"><i class="bi bi-funnel-fill"></i> Filtrar Movimientos</h5>
+          <label>Desde:</label>
+          <input type="date" class="form-control mb-2" id="desde">
+          <label>Hasta:</label>
+          <input type="date" class="form-control mb-2" id="hasta">
+          <label>Categoría:</label>
+          <input type="text" id="filtroCategoria" class="form-control mb-2" placeholder="Ej: Ventas, Compras...">
+          <div class="d-flex justify-content-between">
+
+            <label class="form-label mt-2">Tipo de Movimiento</label>
+              <select id="filtroTipo" class="form-select border border-yellow-300 shadow-sm rounded mb-3">
+                 <option value="">📂 Todos</option>
+                 <option value="ingreso">💰 Ingresos</option>
+                 <option value="gasto">📉 Gastos</option>
+              </select>
+
+
+
+
+            <button class="btn btn-outline-primary btn-sm mt-2" onclick="filtrarMovimientos()">
+              <i class="bi bi-search"></i> Aplicar Filtro
+            </button>
+            <button class="btn btn-outline-secondary btn-sm mt-2" onclick="limpiarFiltros()">
+              <i class="bi bi-x-circle"></i> Limpiar Filtro
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<!-- ANÁLISIS FINANCIERO COMPLETO -->
+<section class="bloque-analitico mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <h5 class="titulo-seccion mb-1"><i class="bi bi-graph-up-arrow"></i> Análisis financiero completo</h5>
+      <div id="estadoAnaliticaFinanzas" class="small text-muted">Preparando información de Firestore...</div>
+    </div>
+    <span class="badge rounded-pill text-bg-light">Periodo: <span id="periodoAnalizado">Sin datos</span></span>
+  </div>
+
+  <div class="finanzas-metricas mb-4">
+    <div class="finanzas-metrica"><span class="label">Ingresos totales</span><span id="totalIngresos" class="value text-success">$0</span></div>
+    <div class="finanzas-metrica"><span class="label">Gastos totales</span><span id="totalGastos" class="value text-danger">$0</span></div>
+    <div class="finanzas-metrica"><span class="label">Balance</span><span id="balance" class="value">$0</span></div>
+    <div class="finanzas-metrica"><span class="label">Registros analizados</span><span id="cantidadDatosAnalizados" class="value">0</span></div>
+    <div class="finanzas-metrica"><span class="label">Cierres incluidos</span><span id="cantidadCierresAnalizados" class="value">0</span></div>
+    <div class="finanzas-metrica"><span class="label">Gastos incluidos</span><span id="cantidadGastosAnalizados" class="value">0</span></div>
+  </div>
+
+  <div class="row g-4 mb-4 finanzas-graficas-row">
+    <div class="col-lg-6">
+      <section class="subseccion text-center finanzas-grafica-card" aria-labelledby="tituloGraficoCategorias">
+        <h5 id="tituloGraficoCategorias" class="titulo-seccion"><i class="bi bi-bar-chart-fill"></i> Gastos por categoría</h5>
+        <div class="finanzas-grafica-marco">
+          <canvas id="graficoCategorias" role="img" aria-label="Gráfica compacta de gastos por categoría"></canvas>
+        </div>
+      </section>
+    </div>
+    <div class="col-lg-6">
+      <section class="subseccion text-center finanzas-grafica-card" aria-labelledby="tituloGraficoBalance">
+        <h5 id="tituloGraficoBalance" class="titulo-seccion"><i class="bi bi-pie-chart-fill"></i> Ingresos vs. gastos</h5>
+        <div class="finanzas-grafica-marco">
+          <canvas id="grafico" role="img" aria-label="Gráfica compacta de ingresos frente a gastos"></canvas>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="finanzas-estimacion">
+    <h5 class="titulo-seccion"><i class="bi bi-calculator-fill"></i> Estimación financiera</h5>
+    <div class="finanzas-metricas">
+      <div class="finanzas-metrica"><span class="label">Promedio diario de ingresos</span><span id="promedioIngresoDiario" class="value">$0</span></div>
+      <div class="finanzas-metrica"><span class="label">Promedio diario de gastos</span><span id="promedioGastoDiario" class="value">$0</span></div>
+      <div class="finanzas-metrica"><span class="label">Ingresos proyectados del mes</span><span id="proyeccionIngresosMes" class="value text-success">$0</span></div>
+      <div class="finanzas-metrica"><span class="label">Gastos proyectados del mes</span><span id="proyeccionGastosMes" class="value text-danger">$0</span></div>
+      <div class="finanzas-metrica"><span class="label">Balance proyectado del mes</span><span id="proyeccionBalanceMes" class="value">$0</span></div>
+      <div class="finanzas-metrica"><span class="label">Cobertura del mes</span><span id="diasConDatosMes" class="value">0 días</span></div>
+    </div>
+    <div id="notaEstimacionFinanzas" class="small text-muted mt-3">La estimación se actualizará con los datos de Firestore.</div>
+  </div>
+</section>
+
+<div class="seccion-tabla mb-4">
+  <h5 class="titulo-seccion"><i class="bi bi-calendar3"></i> Resumen Mensual</h5>
+  <div class="tabla-container">
+    <table class="table table-sm text-center tabla-finanzas">
+      <thead class="table-light">
+        <tr>
+          <th>Mes</th>
+          <th>Ingresos</th>
+          <th>Gastos</th>
+          <th>Balance</th>
+          <th>Cierres</th>
+          <th>Movimientos</th>
+        </tr>
+      </thead>
+      <tbody id="tablaResumenMensual"></tbody>
+    </table>
+  </div>
+</div>
+
+
+
+
+
+    
+<div class="seccion-tabla mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h5 class="titulo-seccion"><i class="bi bi-people-fill"></i> Pagos de Nómina</h5>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <select id="filtroEmpleadoNomina" class="form-select form-select-sm" style="min-width: 240px;">
+        <option value="">Todos los empleados</option>
+      </select>
+      <button class="btn btn-outline-primary btn-sm" onclick="sincronizarPagosNominaEnFinanzas(true)">
+        <i class="bi bi-arrow-repeat me-1"></i> Sincronizar nómina
+      </button>
+    </div>
+  </div>
+
+  <div class="pagos-nomina-resumen">
+    <div class="pago-nomina-card">
+      <span class="label">Empleados con pagos</span>
+      <span class="value" id="resumenNominaEmpleados">0</span>
+    </div>
+    <div class="pago-nomina-card">
+      <span class="label">Pagos registrados</span>
+      <span class="value" id="resumenNominaPagos">0</span>
+    </div>
+    <div class="pago-nomina-card">
+      <span class="label">Total pagado histórico</span>
+      <span class="value" id="resumenNominaTotal">$0</span>
+    </div>
+    <div class="pago-nomina-card">
+      <span class="label">Empleado seleccionado</span>
+      <span class="value" id="resumenNominaEmpleadoActivo">Todos</span>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="tabla-container">
+        <table class="table table-bordered table-hover table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Empleado</th>
+              <th>Cargo</th>
+              <th>Pagos</th>
+              <th>Total pagado</th>
+              <th>Último pago</th>
+              <th>Ver</th>
+            </tr>
+          </thead>
+          <tbody id="tablaResumenNomina"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="tabla-container">
+        <table class="table table-bordered table-hover table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Fecha pago</th>
+              <th>Empleado</th>
+              <th>Quincena</th>
+              <th>Cargo</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="tablaDetalleNomina"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="seccion-tabla">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="titulo-seccion"><i class="bi bi-journal-text"></i> Historial de Movimientos</h5>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-outline-primary btn-sm" onclick="actualizarFuentesFinancieras(true)">
+            <i class="bi bi-arrow-repeat me-1"></i> Actualizar fuentes
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" id="btnMigrarLocalStorage" onclick="migrarLocalStorageManual()">
+            <i class="bi bi-cloud-upload me-1"></i> Subir localStorage
+          </button>
+          <button class="btn btn-success btn-sm" onclick="exportarExcel()">
+            <i class="bi bi-file-earmark-excel-fill me-1"></i> Exportar a Excel
+          </button>
+          <button onclick="exportarExcelYZip()" class="btn btn-success btn-sm">
+            Exportar Excel + Imágenes
+         </button>
+         <button onclick="exportarExcelConImagenes()" class="btn btn-success btn-sm">
+    <i class="bi bi-image-fill me-1"></i> Exportar Excel con Imágenes
+  </button>
+        </div>
+
+
+      </div>
+      <div class="small text-muted mb-2">
+        Se muestran 10 movimientos por página. Los cierres de caja se incorporan como ingresos operativos y los gastos manuales o de nómina se cargan desde Firestore. Los cálculos superiores usan todos los registros del filtro, no solo esta página.
+      </div>
+
+      <div class="tabla-container">
+        <table class="table table-hover tabla-finanzas">
+          <thead class="table-light">
+            <tr>
+              <th>Tipo</th>
+              <th>Monto</th>
+              <th>Categoría</th>
+              <th>Fecha</th>
+              <th>Descripción</th>
+              <th>Origen</th>
+              <th>Foto</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tablaMovimientos"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- ExcelJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+  <!-- JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- FileSaver -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <script src="js/07-finanzas.js?v=20260805-23"></script>
+
+</body>
+</html>
