@@ -2,7 +2,7 @@
   'use strict';
 
   const SA_CONFIG = Object.freeze({
-    version: '2026.08.05-C9.25',
+    version: '2026.08.06-C9.26',
     entorno: 'PRUEBAS',
     exigirCajaAbierta: true,
     diasVentasIniciales: 120,
@@ -243,10 +243,10 @@
       validarServiciosFirebaseAutorizados();
       authDisponible = Boolean(firebaseAuth);
       firestoreDisponible = Boolean(firestoreDb);
-      // C9.25 usa su propia cola local. Se desactiva la persistencia IndexedDB
+      // C9.26 usa su propia cola local. Se desactiva la persistencia IndexedDB
       // de Firestore para evitar escrituras antiguas atascadas y conflictos entre pestañas.
       saPersistenciaIntentada = true;
-      console.info('[Firebase C9.25] Caché persistente del SDK desactivada; cola local propia activa.');
+      console.info('[Firebase C9.26] Caché persistente del SDK desactivada; cola local propia activa.');
       firebaseAuth.onAuthStateChanged(async user => {
         if (!user) {
           saDetenerEscuchas();
@@ -281,14 +281,14 @@
         if (!diagnosticoConexion.rest) {
           firestoreDisponible = false;
           actualizarIndicadorFirebase('desconectado', 'Firestore no responde. Revisa red, API o sesión.');
-          console.error('[Firebase C9.25] Diagnóstico de conexión fallido:', diagnosticoConexion);
+          console.error('[Firebase C9.26] Diagnóstico de conexión fallido:', diagnosticoConexion);
           saActualizarEstadoCola();
           return;
         }
 
         if (!diagnosticoConexion.sdk) {
           actualizarIndicadorFirebase('desconectado', 'Canal Firestore bloqueado por red o antivirus');
-          console.error('[Firebase C9.25] REST responde, pero WebChannel no. Abre el sistema desde localhost y desactiva extensiones para probar.', diagnosticoConexion);
+          console.error('[Firebase C9.26] REST responde, pero WebChannel no. Abre el sistema desde localhost y desactiva extensiones para probar.', diagnosticoConexion);
           saActualizarEstadoCola();
           return;
         }
@@ -1125,7 +1125,7 @@
     saGuardandoVenta = true;
     const botonesGuardar = document.querySelectorAll('button[onclick*="guardarVenta"]');
     botonesGuardar.forEach(btn => { btn.disabled = true; btn.classList.add('opacity-60'); });
-    let popupCocina = null;
+    let popupCliente = null;
     try {
       const cliente = saTexto(document.getElementById('cliente')?.value, 120);
       const formaPago = document.getElementById('formaPago')?.value || '';
@@ -1202,10 +1202,10 @@
       );
 
       if (esNueva) {
-        popupCocina = window.open('', '_blank', 'width=420,height=720');
-        if (popupCocina) {
-          popupCocina.document.write('<!DOCTYPE html><html><body style="font-family:sans-serif;padding:16px">Preparando comanda...</body></html>');
-          popupCocina.document.close();
+        popupCliente = window.open('', '_blank', 'width=420,height=720');
+        if (popupCliente) {
+          popupCliente.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Preparando impresión</title></head><body style="font-family:sans-serif;padding:16px">Preparando recibo del cliente...</body></html>');
+          popupCliente.document.close();
         }
       }
 
@@ -1217,8 +1217,8 @@
       const ventaFinal = obtenerVentasStorage().find(v => v._localId === localId || v._docId === localId) || venta;
 
       if (esNueva) {
-        if (popupCocina) imprimirComandaVenta(ventaFinal, popupCocina);
-        else setTimeout(() => imprimirComandaVenta(ventaFinal), 80);
+        if (popupCliente) imprimirReciboClienteVenta(ventaFinal, popupCliente);
+        else setTimeout(() => imprimirReciboClienteVenta(ventaFinal), 80);
       }
       await registrarAuditoria(esNueva ? 'crear_venta_local' : 'editar_venta_local', 'ventas', localId, {
         comanda: venta.comanda, totalCobrado, operacionId: operacion.operacionId, motivo: motivoPeriodoCerrado || ''
@@ -1235,7 +1235,7 @@
       }
     } catch (error) {
       console.error('Error al guardar la venta:', error);
-      try { if (popupCocina && !popupCocina.closed) popupCocina.close(); } catch (_) {}
+      try { if (popupCliente && !popupCliente.closed) popupCliente.close(); } catch (_) {}
       alert(error?.message || 'No se pudo guardar la venta.');
     } finally {
       saGuardandoVenta = false;
