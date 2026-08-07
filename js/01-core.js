@@ -48,7 +48,7 @@ let inventarioBebidasEstado = {};
 let inventarioPermisosAvisados = false;
 const CATALOGO_PRODUCTOS_STORAGE_KEY = 'senor_arepa_catalogo_productos_v2';
 
-const SENOR_AREPA_STORAGE_VERSION = 'C9.25';
+const SENOR_AREPA_STORAGE_VERSION = 'C9.26';
 const MAX_VENTAS_CACHE_LOCAL = 300;
 const CLAVES_CACHE_OBSOLETAS = Object.freeze([
   'movimientos_finanzas_cache_v2',
@@ -68,7 +68,7 @@ function leerLocalStorageJSONSeguro(key, fallback) {
     if (raw === null || raw === '') return fallback;
     return JSON.parse(raw);
   } catch (error) {
-    console.warn(`[Storage C9.25] Se descartó una copia local dañada: ${key}.`, error);
+    console.warn(`[Storage C9.26] Se descartó una copia local dañada: ${key}.`, error);
     try { localStorage.removeItem(key); } catch (_) {}
     return fallback;
   }
@@ -125,7 +125,7 @@ function guardarLocalStorageSeguro(key, value, opciones = {}) {
   try {
     texto = typeof value === 'string' ? value : JSON.stringify(value);
   } catch (error) {
-    console.error(`[Storage C9.25] No se pudo serializar ${key}:`, error);
+    console.error(`[Storage C9.26] No se pudo serializar ${key}:`, error);
     return false;
   }
   try {
@@ -133,7 +133,7 @@ function guardarLocalStorageSeguro(key, value, opciones = {}) {
     return true;
   } catch (error) {
     if (!esErrorCuotaStorage(error)) {
-      console.error(`[Storage C9.25] No se pudo guardar ${key}:`, error);
+      console.error(`[Storage C9.26] No se pudo guardar ${key}:`, error);
       return false;
     }
 
@@ -147,14 +147,14 @@ function guardarLocalStorageSeguro(key, value, opciones = {}) {
     try {
       localStorage.setItem(key, texto);
       console.warn(
-        `[Storage C9.25] Se liberó espacio automáticamente para ${key}.`,
+        `[Storage C9.26] Se liberó espacio automáticamente para ${key}.`,
         { eliminadas, antes, despues: estimarUsoLocalStorage() }
       );
       return true;
     } catch (segundoError) {
       const mensaje = `El almacenamiento local está lleno y no se pudo guardar ${key}.`;
       if (critico) {
-        console.error(`[Storage C9.25] ${mensaje}`, segundoError);
+        console.error(`[Storage C9.26] ${mensaje}`, segundoError);
         try {
           if (typeof notificarSistema === 'function') {
             notificarSistema(
@@ -164,7 +164,7 @@ function guardarLocalStorageSeguro(key, value, opciones = {}) {
           }
         } catch (_) {}
       } else {
-        console.warn(`[Storage C9.25] ${mensaje}`, segundoError);
+        console.warn(`[Storage C9.26] ${mensaje}`, segundoError);
       }
       return false;
     }
@@ -220,9 +220,9 @@ function migrarAlmacenamientoLocalC95() {
     }
 
     guardarLocalStorageSeguro('senorArepaStorageVersion', SENOR_AREPA_STORAGE_VERSION, { critico: false });
-    console.info('[Señor Arepa C9.25] Almacenamiento local optimizado.', estimarUsoLocalStorage());
+    console.info('[Señor Arepa C9.26] Almacenamiento local optimizado.', estimarUsoLocalStorage());
   } catch (error) {
-    console.warn('[Señor Arepa C9.25] No se pudo completar la migración de almacenamiento:', error);
+    console.warn('[Señor Arepa C9.26] No se pudo completar la migración de almacenamiento:', error);
   }
 }
 
@@ -236,7 +236,7 @@ window.limpiarCacheLocalSenorArepa = function limpiarCacheLocalSenorArepa() {
     ventasCache = podadas;
   }
   try { localStorage.removeItem(ULTIMA_VENTA_GUARDADA_KEY); } catch (_) {}
-  console.info('[Señor Arepa C9.25] Limpieza manual terminada.', estimarUsoLocalStorage());
+  console.info('[Señor Arepa C9.26] Limpieza manual terminada.', estimarUsoLocalStorage());
   return estimarUsoLocalStorage();
 };
 const DEFINICIONES_CATALOGO = {
@@ -1255,7 +1255,7 @@ function esErrorPermisoFirestore(error) {
 
 function desactivarFirebaseCajaPorPermisos(error) {
   if (!firebaseAuth?.currentUser) {
-    console.info('[Firebase C9.25] Se omitió una consulta de controlCaja porque la sesión todavía no estaba autenticada.');
+    console.info('[Firebase C9.26] Se omitió una consulta de controlCaja porque la sesión todavía no estaba autenticada.');
     return;
   }
   controlCajaFirebasePermisosDisponibles = false;
@@ -1264,11 +1264,11 @@ function desactivarFirebaseCajaPorPermisos(error) {
   if (!controlCajaFirebasePermisosAvisados) {
     controlCajaFirebasePermisosAvisados = true;
     console.warn(
-      `Control de caja funcionando temporalmente en modo local. Firestore rechazó controlCaja para ${emailSesion} en ${projectIdSesion}. Publica firestore.rules C9.25.`,
+      `Control de caja funcionando temporalmente en modo local. Firestore rechazó controlCaja para ${emailSesion} en ${projectIdSesion}. Publica firestore.rules C9.26.`,
       error
     );
     if (typeof window.notificarSistema === 'function') {
-      window.notificarSistema(`Firestore rechazó controlCaja para ${emailSesion}. Publica las reglas C9.25.`, 'error');
+      window.notificarSistema(`Firestore rechazó controlCaja para ${emailSesion}. Publica las reglas C9.26.`, 'error');
     }
   }
 
@@ -2142,7 +2142,7 @@ function programarMigracionAlmacenamientoC98() {
     try {
       migrarAlmacenamientoLocalC95();
     } catch (error) {
-      console.warn('[Señor Arepa C9.25] La migración local se omitió sin bloquear el sistema:', error);
+      console.warn('[Señor Arepa C9.26] La migración local se omitió sin bloquear el sistema:', error);
     }
   };
   if (typeof queueMicrotask === 'function') queueMicrotask(ejecutar);
@@ -2205,13 +2205,13 @@ function configurarFirestoreRedRobusta(db) {
       merge: true
     });
     firestoreAjustesRedAplicados = true;
-    console.info('[Firebase C9.25] Transporte robusto activado (long polling).');
+    console.info('[Firebase C9.26] Transporte robusto activado (long polling).');
   } catch (error) {
     const mensaje = String(error?.message || error || '');
     if (/already been started|settings can no longer be changed|failed-precondition/i.test(mensaje)) {
-      console.warn('[Firebase C9.25] Firestore ya estaba iniciado; se conservaron sus ajustes actuales.');
+      console.warn('[Firebase C9.26] Firestore ya estaba iniciado; se conservaron sus ajustes actuales.');
     } else {
-      console.warn('[Firebase C9.25] No fue posible aplicar los ajustes de red:', error);
+      console.warn('[Firebase C9.26] No fue posible aplicar los ajustes de red:', error);
     }
   }
   return db;
@@ -2235,10 +2235,10 @@ async function reconectarFirestoreSeguro(motivo = 'manual') {
     await new Promise(resolve => setTimeout(resolve, 450));
     await firestoreDb.enableNetwork();
     registrarHeartbeatFirebase();
-    console.info(`[Firebase C9.25] Conexión restablecida (${motivo}).`);
+    console.info(`[Firebase C9.26] Conexión restablecida (${motivo}).`);
     return true;
   } catch (error) {
-    console.warn(`[Firebase C9.25] No se pudo restablecer la conexión (${motivo}):`, error);
+    console.warn(`[Firebase C9.26] No se pudo restablecer la conexión (${motivo}):`, error);
     return false;
   } finally {
     firestoreReconectando = false;
@@ -2250,7 +2250,7 @@ window.reconectarFirestoreSeguro = reconectarFirestoreSeguro;
 async function diagnosticarConexionFirebaseC98(opciones = {}) {
   const silencioso = Boolean(opciones.silencioso);
   const resultado = {
-    version: '2026.08.05-C9.25',
+    version: '2026.08.06-C9.26',
     projectId: firebaseConfig.projectId,
     online: navigator.onLine !== false,
     auth: false,
@@ -2322,14 +2322,14 @@ async function diagnosticarConexionFirebaseC98(opciones = {}) {
   if (!silencioso) {
     console.table(resultado);
     if (resultado.rest && resultado.sdk) {
-      console.info('[Firebase C9.25] Conexión completa verificada.',
+      console.info('[Firebase C9.26] Conexión completa verificada.',
         resultado.sdkDocumentExists === false
           ? 'El documento de perfil del usuario todavía no existe, pero esto no impide la conexión.'
           : '');
     } else if (resultado.rest && !resultado.sdk) {
-      console.error('[Firebase C9.25] Firebase responde por REST, pero el canal del SDK está bloqueado por red, antivirus, proxy o extensión.', resultado);
+      console.error('[Firebase C9.26] Firebase responde por REST, pero el canal del SDK está bloqueado por red, antivirus, proxy o extensión.', resultado);
     } else {
-      console.error('[Firebase C9.25] No se pudo verificar Firestore.', resultado);
+      console.error('[Firebase C9.26] No se pudo verificar Firestore.', resultado);
     }
   }
   return resultado;
@@ -3694,14 +3694,14 @@ function cancelarPedidoActual() {
     };
 
     const esVentaNueva = !ventaDocIdEnEdicion;
-    const popupImpresionCocina = esVentaNueva
+    const popupImpresionCliente = esVentaNueva
       ? window.open('', '_blank', 'width=420,height=720')
       : null;
 
-    if (popupImpresionCocina) {
+    if (popupImpresionCliente) {
       try {
-        popupImpresionCocina.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Preparando impresión</title></head><body style="font-family:sans-serif;padding:16px;">Preparando comanda de cocina...</body></html>');
-        popupImpresionCocina.document.close();
+        popupImpresionCliente.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Preparando impresión</title></head><body style="font-family:sans-serif;padding:16px;">Preparando recibo del cliente...</body></html>');
+        popupImpresionCliente.document.close();
       } catch (_) {}
     }
 
@@ -3723,10 +3723,10 @@ function cancelarPedidoActual() {
         guardarReferenciaUltimaVenta(ventaLocal);
         limpiarContextoEdicionVenta();
         alert(firestoreDisponible ? "Venta guardada al instante. Se está sincronizando con la base de datos." : "Venta guardada exitosamente.");
-        if (popupImpresionCocina) {
-          imprimirComandaVenta(ventaLocal, popupImpresionCocina);
+        if (popupImpresionCliente) {
+          imprimirReciboClienteVenta(ventaLocal, popupImpresionCliente);
         } else {
-          setTimeout(() => imprimirComandaVenta(ventaLocal), 80);
+          setTimeout(() => imprimirReciboClienteVenta(ventaLocal), 80);
         }
       } else {
         if (firestoreDisponible) {
@@ -3748,7 +3748,7 @@ function cancelarPedidoActual() {
       document.getElementById("resumenProductos").classList.add("hidden");
     } catch (error) {
       try {
-        if (popupImpresionCocina && !popupImpresionCocina.closed) popupImpresionCocina.close();
+        if (popupImpresionCliente && !popupImpresionCliente.closed) popupImpresionCliente.close();
       } catch (_) {}
       console.error("Error al guardar la venta:", error);
       alert("No se pudo guardar la venta. Revisa la conexión o la configuración de Firebase.");
@@ -4431,9 +4431,22 @@ function imprimirComandaVenta(venta, ventanaDestino = null) {
   );
 }
 
+function imprimirReciboClienteVenta(venta, ventanaDestino = null) {
+  if (!venta) return null;
+  if (esVentaCancelada(venta)) return null;
+  if (!Array.isArray(venta.pedido) || !venta.pedido.length) return null;
+  return abrirVentanaImpresion(
+    generarPlantillaReciboCliente(venta, venta.recibo ?? venta.comanda ?? 1),
+    'Recibo Cliente',
+    ventanaDestino
+  );
+}
+
 function generarPlantillaReciboCliente(venta = {}, referencia = 1) {
   const observaciones = venta?.observaciones || '';
   const costoDomicilio = Number(venta?.costoDomicilio || 0);
+  const subtotalProductos = Number(venta?.subtotalProductos ?? venta?.total ?? 0);
+  const totalCliente = Number(venta?.totalCobrado ?? (subtotalProductos + costoDomicilio));
   const fechaTexto = formatearFechaHoraColombia(venta?.fechaISO || venta?.fecha);
   return `<!DOCTYPE html>
   <html lang="es">
@@ -4521,8 +4534,9 @@ function generarPlantillaReciboCliente(venta = {}, referencia = 1) {
       </ul>
       <div class="line"></div>
       <div class="totales">
+        <p><strong>Subtotal productos:</strong> ${formatearCOP(subtotalProductos)}</p>
         ${costoDomicilio > 0 ? `<p><strong>Domicilio:</strong> ${formatearCOP(costoDomicilio)}</p>` : ''}
-        <p class="total">Total venta: ${formatearCOP(venta?.total || 0)}</p>
+        <p class="total">TOTAL PAGADO: ${formatearCOP(totalCliente)}</p>
       </div>
       <div class="line"></div>
       <p class="thanks">¡Gracias por su compra!</p>
@@ -4640,10 +4654,7 @@ function imprimirUltimaCliente() {
     return;
   }
 
-  abrirVentanaImpresion(
-    generarPlantillaReciboCliente(ultimaVenta, ultimaVenta.recibo ?? ultimaVenta.comanda ?? 1),
-    'Recibo Cliente'
-  );
+  imprimirReciboClienteVenta(ultimaVenta);
 }
 
 
@@ -4656,10 +4667,7 @@ function imprimirVentaCliente(index) {
   if (!venta) return alert("Venta no encontrada.");
   if (esVentaCancelada(venta)) return alert("Esta venta está cancelada y no se puede imprimir.");
 
-  abrirVentanaImpresion(
-    generarPlantillaReciboCliente(venta, venta.recibo ?? venta.comanda ?? (index + 1)),
-    'Recibo Cliente'
-  );
+  imprimirReciboClienteVenta(venta);
 }
 
 function imprimirVentaCocina(index) {
