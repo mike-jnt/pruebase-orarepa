@@ -1,6 +1,9 @@
 {
-  "version": "C9.25",
-  "buildDate": "2026-08-05",
+  "version": "C9.26",
+  "buildDate": "2026-08-06",
   "projectId": "prsenorarepa",
-  "deployMarker": "SENOR_AREPA_C9_25"
+  "hostingSite": "prsenorarepa",
+  "hostingPublicDirectory": "public",
+  "deployMarker": "SENOR_AREPA_C9_26",
+  "description": "Al guardar una venta nueva, el sistema abre el recibo del cliente para imprimir. La comanda de cocina permanece disponible únicamente desde los botones de impresión manual."
 }
