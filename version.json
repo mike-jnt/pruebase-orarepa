@@ -1,0 +1,7 @@
+{
+  "version": "C9.29",
+  "buildDate": "2026-08-08",
+  "projectId": "prsenorarepa",
+  "deployMarker": "SENOR_AREPA_C9_29",
+  "description": "Modelo diario V5: fecha de negocio Colombia fija y consecutivo único Firestore para venta, comanda, recibo y orden del día."
+}
