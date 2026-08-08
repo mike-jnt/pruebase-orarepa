@@ -1,7 +1,0 @@
-{
-  "version": "C9.27",
-  "buildDate": "2026-08-06",
-  "projectId": "prsenorarepa",
-  "deployMarker": "SENOR_AREPA_C9_27",
-  "description": "Carga completa y ordenada de las ventas del día, consecutivo oficial asignado atómicamente y domicilios nuevos marcados automáticamente como Entregado."
-}
