@@ -1,7 +1,0 @@
-{
-  "version": "C9.32",
-  "buildDate": "2026-08-08",
-  "projectId": "prsenorarepa",
-  "deployMarker": "SENOR_AREPA_C9_32",
-  "description": "Ventas V7: transacción crítica solo venta+contador, FIFO estricto, postproceso idempotente y contador diario atomico_v4."
-}
