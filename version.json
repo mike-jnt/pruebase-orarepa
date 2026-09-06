@@ -1,0 +1,8 @@
+{
+  "version": "C9.39",
+  "buildDate": "2026-09-06",
+  "projectId": "prsenorarepa",
+  "deployMarker": "SENOR_AREPA_C9_39",
+  "description": "Impresión automática de comanda de cocina y apertura/base diaria obligatoria antes de habilitar el POS.",
+  "notes": "Al guardar una venta nueva se abre e imprime la comanda de cocina cuando Firestore confirma el consecutivo oficial. Al iniciar sesión, si controlCaja del día no tiene aperturaHora confirmada en Firestore, el modal de apertura es obligatorio y no puede cerrarse hasta registrar la base. También se detecta cambio de día."
+}
